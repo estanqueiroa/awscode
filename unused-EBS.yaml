@@ -1,0 +1,196 @@
+# WARNING: This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+#
+# This template will implement AWS services which may have associated cost - USE AT YOUR OWN RISK :-)
+#
+# AWS Services to be created: SNS, Lambda, IAM role, EventBridge
+#
+# This solution helps to Find Unused EBS Volumes On Daily Basis And Notify Via Email
+
+# https://dheeraj3choudhary.com/aws-lambda-and-eventbridge-or-find-unused-ebs-volumes-on-weekly-basis-and-notify-via-email
+
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: "Find Unused EBS Volumes On Daily Basis And Notify Via Email"
+
+# input parameters
+
+Parameters:
+
+    SolutionName: 
+      Description: The name of Automation Solution for resources tagging.
+      Type: String
+      Default: "Notify-Unused-Volumes"
+
+    EmailAddress: 
+      Description: The email address for SNS topic notifications.
+      Type: String
+      Default: johndoe@email.com
+
+    LambdaRoleName: 
+      Description: The name of Lambda Role.
+      Type: String
+      Default: "role-Lambda_Unused"
+
+    ScheduleEvent: 
+      Description: The schedule for Lambda function trigger (default run daily at 11PM)
+      Type: String
+      Default: "cron(0 23 * * ? *)"
+
+Resources:
+
+# Create new role for our lambda functions. :- Create new role named Lambda_Unused and attach below policies to it.
+
+    LambdaRole:
+      Type: 'AWS::IAM::Role'
+      Metadata:
+        cfn_nag:
+          rules_to_suppress:
+            - id: W28
+              reason: "Required for Automation solution"
+            - id: W11
+              reason: "Required for Automation solution"
+            - id: F3
+              reason: "Required for Automation solution"
+      Properties:
+        RoleName: !Ref LambdaRoleName
+        AssumeRolePolicyDocument: "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"lambda.amazonaws.com\"},\"Action\":\"sts:AssumeRole\"}]}"
+        Path: "/"
+        Policies:
+          - PolicyName: "Lambda_Unused_EBS"
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - "sts:AssumeRole"
+                    - "sns:ListSubscriptionsByTopic"
+                    - "sns:GetTopicAttributes"
+                    - "sns:ListSMSSandboxPhoneNumbers"
+                    - "logs:*"
+                    - "sns:ListTopics"
+                    - "sns:ListSubscriptions"
+                    - "ec2:DescribeVolumeAttribute"
+                    - "sns:ListOriginationNumbers"
+                    - "sns:ListEndpointsByPlatformApplication"
+                    - "sns:Publish"
+                    - "ec2:DescribeVolumeStatus"
+                    - "ec2:DescribeVolumes"
+                    - "sns:ListPlatformApplications"
+                  Resource: "*"
+        Tags: 
+            - Key: "cfn-stack-name"
+              Value: !Sub ${AWS::StackName}
+            - Key: cfn-stack-id
+              Value: !Sub ${AWS::StackId}
+            - Key: aws-solution
+              Value: !Ref SolutionName
+            
+
+  # Create SNS Topic
+
+    SNSTopic:
+        Type: "AWS::SNS::Topic"
+        Metadata:
+          cfn_nag:
+            rules_to_suppress:
+              - id: W47
+                reason: "Not Required for Automation solution"
+        Properties:
+            DisplayName: !Ref SolutionName
+            TopicName: !Ref SolutionName
+            Tags: 
+                - Key: "cfn-stack-name"
+                  Value: !Sub ${AWS::StackName}
+                - Key: cfn-stack-id
+                  Value: !Sub ${AWS::StackId}
+                - Key: aws-solution
+                  Value: !Ref SolutionName
+
+  # Subscribe to SNS Topic
+
+    MySubscription:
+      Type: AWS::SNS::Subscription
+      Properties:
+        Endpoint: !Ref EmailAddress
+        Protocol: email
+        TopicArn: !Ref SNSTopic
+
+  # Create Amazon EventBridge Schedule Lambda On Daily Basis
+
+    EventsRule:
+        Type: "AWS::Events::Rule"
+        Properties:
+            Name: !Ref SolutionName
+            Description: !Ref SolutionName
+            ScheduleExpression: !Ref ScheduleEvent
+            State: "ENABLED"
+            Targets: 
+              - 
+                Arn: !GetAtt LambdaEBS.Arn
+                Id: "Idd123456"
+            EventBusName: "default"
+
+
+    PermissionForEventsToInvokeLambda: 
+        Type: AWS::Lambda::Permission
+        Properties: 
+            FunctionName: !Ref SolutionName
+            Action: "lambda:InvokeFunction"
+            Principal: "events.amazonaws.com"
+            SourceArn: 
+                Fn::GetAtt: 
+                    - "EventsRule"
+                    - "Arn"
+
+  # Create Lambda Function To Fetch Unused EBS Volumes
+
+    LambdaEBS:
+      Type: AWS::Lambda::Function
+      Metadata:
+        cfn_nag:
+          rules_to_suppress:
+            - id: W92
+              reason: "Not Required for Automation solution"
+            - id: W89
+              reason: "Not Required for Automation solution"
+      Properties:
+        Code:
+          ZipFile: |
+            import os
+            import boto3
+            ec2 = boto3.client('ec2')
+            sns_client = boto3.client('sns')
+            volumes = ec2.describe_volumes()
+
+            def lambda_handler(event, context):
+                acctID = context.invoked_function_arn.split(":")[4]
+                unused_volumes = []
+                for vol in volumes['Volumes']:
+                    if len(vol['Attachments']) == 0:
+                        vol1 = ("-----Unused Volume ID = {}------".format(vol['VolumeId']))
+                        unused_volumes.append(vol1)
+                
+                #email
+                sns_client.publish(
+                    TargetArn=os.environ["SNS_ARN"],
+                    Subject='Warning - Unused Volume List - AWS Account ID: ' + acctID,
+                    Message=str(unused_volumes)
+                )
+                return "success"
+        FunctionName: !Ref SolutionName
+        Handler: "index.lambda_handler"
+        Timeout: 30
+        Role: !GetAtt "LambdaRole.Arn"
+        Runtime: python3.9
+        Environment: 
+            Variables:
+                SNS_ARN: !Ref SNSTopic
+        Tags: 
+            - Key: "cfn-stack-name"
+              Value: !Sub ${AWS::StackName}
+            - Key: cfn-stack-id
+              Value: !Sub ${AWS::StackId}
+            - Key: aws-solution
+              Value: !Ref SolutionName
