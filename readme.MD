@@ -6,7 +6,5 @@ This solution will implement AWS services which may have associated costs - USE 
 
 AWS Services to be created: SNS, Lambda, IAM role, EventBridge.
 
-Based on this blog solution:
-
-https://dheeraj3choudhary.com/aws-lambda-and-eventbridge-or-find-unused-ebs-volumes-on-weekly-basis-and-notify-via-email
+Based on this blog solution: https://dheeraj3choudhary.com/aws-lambda-and-eventbridge-or-find-unused-ebs-volumes-on-weekly-basis-and-notify-via-email
 
