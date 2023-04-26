@@ -4,7 +4,7 @@ Template file: unused-EBS.yaml
 
 Description: "Find Unused EBS Volumes On Daily Basis And Notify Via Email"
 
-This solution will implement AWS services which may have associated costs - USE AT YOUR OWN RISK :-)
+WARNING: This solution will implement AWS services which may have associated costs - USE AT YOUR OWN RISK :-)
 
 AWS Services to be created: SNS, Lambda, IAM role, EventBridge.
 
@@ -17,7 +17,7 @@ Template file: bday.yaml
 
 Description: ""Birthday reminder app to Notify Via Email on daily basis""
 
-This solution will implement AWS services which may have associated costs - USE AT YOUR OWN RISK :-)
+WARNING: This solution will implement AWS services which may have associated costs - USE AT YOUR OWN RISK :-)
 
 AWS Services to be created: SNS, Lambda, IAM role, EventBridge, DynamoDB table.
 
