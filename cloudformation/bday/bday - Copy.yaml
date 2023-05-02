@@ -9,7 +9,7 @@
 
 AWSTemplateFormatVersion: "2010-09-09"
 
-Description: "Birthday Reminder App with Email Notification on daily basis"
+Description: "Birthday reminder app to Notify Via Email on daily basis"
 
 # input parameters
 
@@ -279,6 +279,7 @@ Resources:
       Properties:
         Code:
           ZipFile: |
+            #importing packages
             import json
             import boto3
             import os
@@ -286,26 +287,27 @@ Resources:
 
             #function definition
             def lambda_handler(event,context):
-                  responseData = {}
-                  dynamodb = boto3.resource('dynamodb')
-                  #table name
-                  Target=os.environ["DB_TABLE"]
-                  table = dynamodb.Table(Target)
-                  #inserting values into table
-                  response = table.put_item(
-                      Item={
-                          'Name': 'TestRecord',
-                          'BDate': '2023-02-24'
-                          
-                      }
-                  )
+                try:
+                    dynamodb = boto3.resource('dynamodb')
+                    #table name
+                    Target=os.environ["DB_TABLE"]
+                    table = dynamodb.Table(Target)
+                    #inserting values into table
+                    response = table.put_item(
+                        Item={
+                            'Name': 'Test',
+                            'BDate': '2023-02-23'
+                            
+                        }
+                    )
+                    return "success"
 
-                  print("Sending CFN")
-                  responseStatus = 'SUCCESS'
-                  responseData = {'Success': 'Check Logs.'}
-                  
-                  cfnresponse.send(event, context, responseStatus, responseData)
-                  
+                except Exception as e:
+                    print('Failed to process:', e)
+                    responseStatus = 'FAILURE'
+                    responseData = {'Failure': 'Check Logs.'}
+
+                cfnresponse.send(event, context, responseStatus, responseData)
 
         FunctionName: !Sub "${SolutionName}-sample-record"
         Handler: "index.lambda_handler"
@@ -323,11 +325,10 @@ Resources:
             - Key: aws-solution
               Value: !Ref SolutionName
 
-# Trigger Lambda to create sample record
+# Trigger sample record Lambda
 
-    CustomResource:
-      Type: Custom::LambdaSample
-      Condition: CreateSampleRecord
-      DependsOn: LambdaSample
-      Properties:
-        ServiceToken: !GetAtt "LambdaSample.Arn"
+    # CustomResource:
+    #   Type: Custom::LambdaSample
+    #   Condition: CreateSampleRecord
+    #   Properties:
+    #     ServiceToken: !GetAtt "LambdaSample.Arn"
