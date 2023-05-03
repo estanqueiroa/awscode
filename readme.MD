@@ -41,7 +41,7 @@ The cost estimation for each solution is presented below **(CAUTION: costs may v
 
 - Monthly cost: 0.25 USD
 
-- Total 12 months cost3.00 USD
+- Total 12 months cost: 3.00 USD
 
 
 https://calculator.aws/#/estimate?id=2c9436e8bb220a3a97af2c3a645df70b7da08887
