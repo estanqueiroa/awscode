@@ -37,11 +37,11 @@ aws cloudformation create-stack \
 
 The cost estimation for each solution is presented below (CAUTION: costs may vary considering your use case):
 
-AWS Region: US East (N. Virginia)
+-AWS Region: US East (N. Virginia)
 
-Monthly cost: 0.25 USD
+-Monthly cost: 0.25 USD
 
-Total 12 months cost3.00 USD
+-Total 12 months cost3.00 USD
 
 
 https://calculator.aws/#/estimate?id=2c9436e8bb220a3a97af2c3a645df70b7da08887
