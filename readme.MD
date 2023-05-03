@@ -9,9 +9,6 @@ https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
 
 3) Create CloudFormation (CFN) stack using YAML solution templates.
 
-https://catalog.workshops.aws/cfn101/en-US
-
-
 Using AWS Console:
 
 https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cfn-console-create-stack.html
