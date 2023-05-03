@@ -23,7 +23,7 @@ Parameters:
     EmailAddress: 
       Description: The email address for SNS topic notifications.
       Type: String
-      Default: "estanqua@amazon.com"
+      Default: "youremail@domain.com"
 
     LambdaRoleName: 
       Description: The name of IAM Role for Lambda functions.
