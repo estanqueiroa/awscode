@@ -37,7 +37,7 @@ aws cloudformation create-stack \
 
 The cost estimation for each solution is presented below (CAUTION: costs may vary considering your use case):
 
-Monthly cost: 0.25 USDTotal 
+Monthly cost: 0.25 USDTotal
 12 months cost3.00 USD
 
 
