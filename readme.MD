@@ -33,6 +33,17 @@ aws cloudformation create-stack \
 | Amazon SNS | https://aws.amazon.com/sns/|
 
 
+# Estimated Costs
+
+The cost estimation for each solution is presented below (CAUTION: costs may vary considering your use case):
+
+Monthly cost: 0.25 USDTotal 
+12 months cost3.00 USD
+
+
+https://calculator.aws/#/estimate?id=2c9436e8bb220a3a97af2c3a645df70b7da08887
+
+
 # Folder /cloudformation/ebs
 
 Template file: unused-EBS.yaml
