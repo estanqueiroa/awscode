@@ -16,9 +16,11 @@ https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cfn-console-creat
 
 Using AWS CLI:
 
+```
 aws cloudformation create-stack \
   --stack-name myteststack \
   --template-body file:///home/testuser/mytemplate.yaml
+```
 
 # Related AWS Services
 
