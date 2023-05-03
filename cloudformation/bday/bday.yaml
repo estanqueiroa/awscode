@@ -16,7 +16,7 @@ Description: "Birthday Reminder App with Email Notification on daily basis"
 Parameters:
 
     SolutionName: 
-      Description: The name of Automation Solution.
+      Description: The name of this Automation Solution.
       Type: String
       Default: "Birthday-App-Reminder"
 
@@ -26,17 +26,17 @@ Parameters:
       Default: "estanqua@amazon.com"
 
     LambdaRoleName: 
-      Description: The name of Lambda Role.
+      Description: The name of IAM Role for Lambda functions.
       Type: String
       Default: "role-Lambda_Birthday"
 
     ScheduleEvent: 
-      Description: The schedule for Lambda function trigger (default run daily at 10AM)
+      Description: The schedule for Lambda function trigger (default run daily at 10AM GMT)
       Type: String
       Default: "cron(0 10 * * ? *)"
 
     DynamoDBTable: 
-      Description: The name of DynamoDB table.
+      Description: The name of DynamoDB table for birthday records.
       Type: String
       Default: "BirthdayApp"
 
@@ -67,7 +67,7 @@ Resources:
             AttributeType: "S"
           - 
             AttributeName: "BDate"
-            AttributeType: "S"    # e.g 2016-02-15
+            AttributeType: "S"    # format year-month-day e.g "2016-02-15"
 
         KeySchema: 
           - 
@@ -77,7 +77,7 @@ Resources:
             AttributeName: "BDate"
             KeyType: "RANGE"
 
-        BillingMode: PAY_PER_REQUEST
+        BillingMode: PAY_PER_REQUEST  #On Demand table (no provisioned capacity)
         TableName: !Ref DynamoDBTable
         PointInTimeRecoverySpecification:
           PointInTimeRecoveryEnabled: True
@@ -89,7 +89,7 @@ Resources:
             - Key: aws-solution
               Value: !Ref SolutionName
 
-# Create new role for our lambda functions. :- Create new role named Lambda_Unused and attach below policies to it.
+# Create new role for our lambda functions. :- Create new role named Lambda_Birthday and attach below policies to it.
 
     LambdaRole:
       Type: 'AWS::IAM::Role'
@@ -140,7 +140,7 @@ Resources:
               Value: !Ref SolutionName
             
 
-  # Create SNS Topic
+# Create SNS Topic to send notifications
 
     SNSTopic:
         Type: "AWS::SNS::Topic"
@@ -160,7 +160,7 @@ Resources:
                 - Key: aws-solution
                   Value: !Ref SolutionName
 
-  # Subscribe to SNS Topic
+# Subscribe to SNS Topic to receive notifications
 
     MySubscription:
       Type: AWS::SNS::Subscription
@@ -169,7 +169,7 @@ Resources:
         Protocol: email
         TopicArn: !Ref SNSTopic
 
-  # Create Amazon EventBridge Schedule Lambda On Daily Basis
+# Create Amazon EventBridge Schedule Lambda On Daily Basis
 
     EventsRule:
         Type: "AWS::Events::Rule"
@@ -196,7 +196,7 @@ Resources:
                     - "EventsRule"
                     - "Arn"
 
-  # Create Lambda Function To Scan DynamoDB table
+# Create Lambda Function To Scan DynamoDB table
 
     LambdaBirthday:
       Type: AWS::Lambda::Function
@@ -210,6 +210,7 @@ Resources:
       Properties:
         Code:
           ZipFile: |
+            #!/usr/bin/env python3
             import os
             import boto3
             import datetime
@@ -217,6 +218,7 @@ Resources:
             sns_client = boto3.client('sns')
             dynamodb = boto3.resource('dynamodb')
 
+            #Read records from DynamoDB and validate with current date
             def lambda_handler(event, context):
                 acctID = context.invoked_function_arn.split(":")[4]
                 birthdays = []                
@@ -224,22 +226,26 @@ Resources:
                 table = dynamodb.Table(Target)
                 items = table.scan()['Items']
 
-              #  read date from system
+              #Read current date from system
                 today = datetime.date.today()
-                print("Hoje: " + str(today))
+                #format today date as month-day (substring)
+                current = (str(today)[5:])
 
+                birthdays.append("Today is: " + str(today))
+
+                #Read each record from DynamoDB table and validate birthday date
                 for item in items:
-                    print (item)
-                    if str(today) == item['BDate']:
-                        print("same")
+                    #read record and format birthday date as month-day (substring)
+                    bday = (str(item['BDate'])[5:])
+                    
+                    # check if current date is same as birthday (month-day)
+                    if current == bday:
+                        print("Birthday found!")
                         day1 = item['Name']
-                        birthdays.append("*** Faz aniversario hoje ***")
+                        birthdays.append("*** Happy birthday! ***")
                         birthdays.append(day1)
-                    else:   
-                        print("not same")
-                        birthdays.append("Nenhum aniversario hoje")
 
-                #email
+                #Send email notification with birthday results
                 sns_client.publish(
                     TargetArn=os.environ["SNS_ARN"],
                     Subject='Aniversarios hoje: Conta AWS id ' + acctID,
@@ -279,12 +285,13 @@ Resources:
       Properties:
         Code:
           ZipFile: |
+            #!/usr/bin/env python3
             import json
             import boto3
             import os
             import cfnresponse
 
-            #function definition
+            #Create sample record into from DynamoDB table
             def lambda_handler(event,context):
                   responseData = {}
                   dynamodb = boto3.resource('dynamodb')
@@ -294,16 +301,15 @@ Resources:
                   #inserting values into table
                   response = table.put_item(
                       Item={
-                          'Name': 'TestRecord',
+                          'Name': 'SampleRecord',
                           'BDate': '2023-02-24'
                           
                       }
                   )
-
+                  #send event validation to CFN custom resource
                   print("Sending CFN")
                   responseStatus = 'SUCCESS'
                   responseData = {'Success': 'Check Logs.'}
-                  
                   cfnresponse.send(event, context, responseStatus, responseData)
                   
 
