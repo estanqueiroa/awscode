@@ -259,7 +259,7 @@ Resources:
                     sns_client.publish(
                         TargetArn=os.environ["SNS_ARN"],
                         Subject='No birthdays today: Account AWS id ' + acctID,
-                        Message="No birthdays today :-("
+                        Message="No birthdays today :-( " + str(birthdays)
                     )
                 return "success"
         FunctionName: !Ref SolutionName
