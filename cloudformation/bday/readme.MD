@@ -8,7 +8,7 @@ WARNING: This solution will implement AWS services which may have associated cos
 
 AWS Services to be created: SNS, Lambda, IAM role, EventBridge, DynamoDB table.
 
-![Alt text](awscode/blob/main//diagrams/bday.png?raw=true "Diagram Image")
+![Alt text](../diagrams/bday.png?raw=true "Diagram Image")
 
 # How It Works
 
