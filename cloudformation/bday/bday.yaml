@@ -252,14 +252,14 @@ Resources:
                 if found != 0: #birthday found
                     sns_client.publish(
                         TargetArn=os.environ["SNS_ARN"],
-                        Subject='Birthdays today: Account AWS id ' + acctID,
+                        Subject=':-) Birthdays today: Account AWS id ' + acctID,
                         Message=str(birthdays)
                     )
                 else: #birthday not found
                     sns_client.publish(
                         TargetArn=os.environ["SNS_ARN"],
                         Subject='No birthdays today: Account AWS id ' + acctID,
-                        Message="No birthdays today :-( " + str(birthdays)
+                        Message=str(birthdays) + ' // No birthdays today :-( ''
                     )
                 return "success"
         FunctionName: !Ref SolutionName
