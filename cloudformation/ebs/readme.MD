@@ -15,7 +15,7 @@ Based on this blog solution: https://dheeraj3choudhary.com/aws-lambda-and-eventb
 
 # How It Works
 
-The Lambda function will scan the AWS account in a daily basis (as per the configured evenbridge scheduler), and send an email notification to the subscribed email address listing the EBS volumes are unused (i.e the EBS volumes not attached to any EC2 instance).
+The Lambda function will scan the AWS account in a daily basis (as per the configured eventbridge schedule), and send an email notification to the subscribed email address listing the EBS volumes are unused (i.e the EBS volumes not attached to any EC2 instance).
 
 This way, you can verify whether EBS volumes can be deleted or not, to save costs. It´s recommended to always take volume snapshots before any deletion.
 
