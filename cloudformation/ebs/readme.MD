@@ -11,7 +11,7 @@ AWS Services to be created: SNS, Lambda, IAM role, EventBridge.
 
 Based on this blog solution: https://dheeraj3choudhary.com/aws-lambda-and-eventbridge-or-find-unused-ebs-volumes-on-weekly-basis-and-notify-via-email
 
-![Alt text](diagrams/unused-ebs.png?raw=true "Diagram Image")
+![Alt text](../diagrams/unused-ebs.png?raw=true "Diagram Image")
 
 # How It Works
 

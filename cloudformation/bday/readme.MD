@@ -15,7 +15,7 @@ AWS Services to be created: SNS, Lambda, IAM role, EventBridge, DynamoDB table.
 After solution deployment (steps below), you can include the birthday records into the DynamoDB table using the following format:
 
 Name - free text
-Date - year-month-day (e.g 1981-02-24)
+Bdate - year-month-day (e.g 1981-02-24)
 
 The Lambda function will scan the records every day (as per the configured EventBridge schedule) and verify which records match with the current date, sending then an email notification to the subscribed email address.
 
