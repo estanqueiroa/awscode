@@ -78,6 +78,7 @@ Resources:
             KeyType: "RANGE"
 
         BillingMode: PAY_PER_REQUEST  #On Demand table (no provisioned capacity)
+        DeletionProtectionEnabled: True
         TableName: !Ref DynamoDBTable
         PointInTimeRecoverySpecification:
           PointInTimeRecoveryEnabled: True
@@ -221,7 +222,8 @@ Resources:
             #Read records from DynamoDB and validate with current date
             def lambda_handler(event, context):
                 acctID = context.invoked_function_arn.split(":")[4]
-                birthdays = []                
+                birthdays = []
+                found = 0 #flag to configure email message content                
                 Target=os.environ["DB_TABLE"]
                 table = dynamodb.Table(Target)
                 items = table.scan()['Items']
@@ -241,16 +243,24 @@ Resources:
                     # check if current date is same as birthday (month-day)
                     if current == bday:
                         print("Birthday found!")
+                        found += 1 #change flag value to send email message below
                         day1 = item['Name']
                         birthdays.append("*** Happy birthday! ***")
                         birthdays.append(day1)
 
                 #Send email notification with birthday results
-                sns_client.publish(
-                    TargetArn=os.environ["SNS_ARN"],
-                    Subject='Aniversarios hoje: Conta AWS id ' + acctID,
-                    Message=str(birthdays)
-                )
+                if found != 0: #birthday found
+                    sns_client.publish(
+                        TargetArn=os.environ["SNS_ARN"],
+                        Subject='Birthdays today: Account AWS id ' + acctID,
+                        Message=str(birthdays)
+                    )
+                else: #birthday not found
+                    sns_client.publish(
+                        TargetArn=os.environ["SNS_ARN"],
+                        Subject='No birthdays today: Account AWS id ' + acctID,
+                        Message="No birthdays today :-("
+                    )
                 return "success"
         FunctionName: !Ref SolutionName
         Handler: "index.lambda_handler"
