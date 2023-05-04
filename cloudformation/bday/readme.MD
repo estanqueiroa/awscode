@@ -12,7 +12,7 @@ AWS Services to be created: SNS, Lambda, IAM role, EventBridge, DynamoDB table.
 
 # How It Works
 
-After solution deployment (steps below), you can include the birthday records into the DynamoDB table using the following format:
+After solution deployment (steps below), you can manually add the birthday records into the DynamoDB table using the following format:
 
 Name - free text
 
