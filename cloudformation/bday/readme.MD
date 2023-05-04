@@ -75,4 +75,5 @@ Delete CloudFormation stack for resources termination/deletion.
 
 # Next Steps
 
-1) Birthday app - include math to calculate people ages.
+1) Include math to calculate people ages.
+2) Automate records management.
