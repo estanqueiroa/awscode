@@ -303,24 +303,41 @@ Resources:
 
             #Create sample record into from DynamoDB table
             def lambda_handler(event,context):
-                  responseData = {}
-                  dynamodb = boto3.resource('dynamodb')
-                  #table name
-                  Target=os.environ["DB_TABLE"]
-                  table = dynamodb.Table(Target)
-                  #inserting values into table
-                  response = table.put_item(
-                      Item={
-                          'Name': 'SampleRecord',
-                          'BDate': '2023-02-24'
-                          
-                      }
-                  )
-                  #send event validation to CFN custom resource
-                  print("Sending CFN")
-                  responseStatus = 'SUCCESS'
-                  responseData = {'Success': 'Check Logs.'}
-                  cfnresponse.send(event, context, responseStatus, responseData)
+
+                # logger.info('event: {}'.format(event))
+                # logger.info('context: {}'.format(context))
+                responseData = {}
+
+                status = cfnresponse.SUCCESS
+                
+                if event['RequestType'] == 'Delete':
+                    responseData = {'Success': 'Custom Resource removed'}
+                    cfnresponse.send(event, context, status, responseData, 'CustomResourcePhysicalID') 
+
+                if event['RequestType'] == 'Create':
+                    try:
+                        dynamodb = boto3.resource('dynamodb')
+                        #table name
+                        Target=os.environ["DB_TABLE"]
+                        table = dynamodb.Table(Target)
+                        #inserting values into table
+                        response = table.put_item(
+                            Item={
+                                'Name': 'SampleRecord',
+                                'BDate': '2023-02-24'
+                                
+                            }
+                        )
+                    except Exception as e:
+                        status = cfnresponse.FAILED
+                        print(traceback.format_exc())
+                        responseData = {'Error': traceback.format_exc(e)}
+                    finally:
+                        #send event validation to CFN custom resource
+                        print("Sending CFN")
+                        responseStatus = 'SUCCESS'
+                        responseData = {'Success': 'Check Logs.'}
+                        cfnresponse.send(event, context, responseStatus, responseData)
                   
 
         FunctionName: !Sub "${SolutionName}-sample-record"
