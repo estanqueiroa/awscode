@@ -216,14 +216,17 @@ Resources:
             import boto3
             import datetime
 
+            #initialize boto3
             sns_client = boto3.client('sns')
             dynamodb = boto3.resource('dynamodb')
 
             #Read records from DynamoDB and validate with current date
             def lambda_handler(event, context):
+                # read AWS Account id
                 acctID = context.invoked_function_arn.split(":")[4]
                 birthdays = []
-                found = 0 #flag to configure email message content                
+                found = 0 #flag to configure email message content
+                # read environment variables and scan table items                
                 Target=os.environ["DB_TABLE"]
                 table = dynamodb.Table(Target)
                 items = table.scan()['Items']
@@ -301,7 +304,7 @@ Resources:
             import os
             import cfnresponse
 
-            #Create sample record into from DynamoDB table
+            #Create sample record into DynamoDB table
             def lambda_handler(event,context):
 
                 # logger.info('event: {}'.format(event))
