@@ -30,7 +30,16 @@ https://catalog.workshops.aws/cfn101/en-US/prerequisites/account
 
 https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
 
-3) Create CloudFormation (CFN) stack using YAML solution templates.
+3) Email address to receive the notification (you need to confirm the subscription clicking on the link sent to your email)
+
+Subject: AWS Notification - Subscription Confirmation
+
+You have chosen to subscribe to the topic: 
+arn:aws:sns:aws-region:accountid:Birthday-App-Reminder
+To confirm this subscription, click or visit the link below (If this was in error no action is necessary): Confirm subscription
+
+
+4) Create CloudFormation (CFN) stack using YAML solution templates.
 
 Using AWS Console:
 
