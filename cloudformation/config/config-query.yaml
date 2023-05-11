@@ -1,0 +1,32 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Query EC2 resources and generate report
+
+Parameters:
+
+    QName: 
+      Description: The name of this AWS Config Advanced Query.
+      Type: String
+      Default: Test-query-EC2-xyz
+
+
+Resources:
+    ConfigStoredQuery:
+        Type: "AWS::Config::StoredQuery"
+        Properties:
+            QueryName: !Ref QName
+            QueryDescription: "Lists EC2 information with: AWS Account ID, EC2 Name and Private IP"
+            QueryExpression: |
+                SELECT
+                  accountId,
+                  resourceId,
+                  configuration.privateIpAddress
+                WHERE
+                  resourceType = 'AWS::EC2::Instance'
+            Tags: 
+                - Key: "cfn-stack-name"
+                  Value: !Sub ${AWS::StackName}
+                - Key: cfn-stack-id
+                  Value: !Sub ${AWS::StackId}
+                - Key: aws-solution
+                  Value: !Ref QName
+
