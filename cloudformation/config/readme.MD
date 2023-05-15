@@ -2,7 +2,7 @@
 
 Template file: config-query.yaml
 
-Description: "Birthday reminder app to Notify Via Email on daily basis"
+Description: "Query the current configuration state of your AWS resources (inventory)"
 
 WARNING: This solution will implement AWS services which may have associated costs - USE AT YOUR OWN RISK :-)
 
