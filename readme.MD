@@ -1,8 +1,12 @@
+# Disclaimer - Personal Repository
+
+Disclaimer: This is not an example of an excellent personal repository, but rather a simple sample for you to follow as you complete your own personal repo :-)
+
 # Folder /cloudformation/
 
 Template files for AWS CloudFormation stacks deployment.
 
-# Folder /python
+# Folder /python/
 
 Python codes for daily activities / automations in general.
 
