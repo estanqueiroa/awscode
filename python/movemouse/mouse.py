@@ -10,3 +10,5 @@ while True:
     #move mouse at random location in screen, change it to your preference
     pyautogui.moveTo(rnd.randrange(0, w), 
                      rnd.randrange(0, h))#, duration = 0.1)
+    pyautogui.click(clicks=2)  # double-click the left mouse button
+    
