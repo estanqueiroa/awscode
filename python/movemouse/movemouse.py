@@ -12,7 +12,9 @@ try:
         #calculate height and width of screen
         w, h = list(pyautogui.size())[0], list(pyautogui.size())[1]
 
-        time.sleep(10)
+        time.sleep(10) # execute function every 10 seconds
+
+        # this random move was replaced by position move below to avoid clicking on active screens / windows
         #move mouse at random location in screen, change it to your preference
         # pyautogui.moveTo(rnd.randrange(0, w), 
         #                 rnd.randrange(0, h))#, duration = 0.1)
