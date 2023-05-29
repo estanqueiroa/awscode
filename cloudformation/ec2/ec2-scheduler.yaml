@@ -57,6 +57,29 @@ Parameters:
       Default: "us-east-1"
 
 
+Metadata:
+  "AWS::CloudFormation::Interface":
+    ParameterGroups:
+      - Label:
+          default: "Solution"
+        Parameters: 
+          - SolutionName
+      - Label:
+          default: "Lambda Parameters"
+        Parameters: 
+          - LambdaRoleName
+          - LambdaMemory
+          - LambdaTimeout
+      - Label:
+          default: "EC2 Parameters"
+        Parameters: 
+          - AWSRegion
+      - Label:
+          default: "Event Schedule"
+        Parameters: 
+          - ScheduleEvent1
+          - ScheduleEvent2
+
 Resources:
 
 
