@@ -1,0 +1,262 @@
+# WARNING: This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+#
+# This template will implement AWS services which may have associated cost - USE AT YOUR OWN RISK :-)
+#
+# AWS Services to be created: Lambda, IAM role, EventBridge
+#
+
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: "Stop and start Amazon EC2 instances at regular intervals using Lambda"
+
+# input parameters
+
+Parameters:
+
+    SolutionName: 
+      Description: The name of this Automation Solution.
+      Type: String
+      Default: "EC2-lambda-scheduler"
+
+    LambdaRoleName: 
+      Description: The name of IAM Role for Lambda functions.
+      Type: String
+      Default: "role-Lambda_EC2scheduler"
+
+    ScheduleEvent1: 
+      Description: The START schedule for Lambda function trigger (default run daily at 10AM GMT).
+      Type: String
+      Default: "cron(0 10 * * ? *)"
+
+    ScheduleEvent2: 
+      Description: The STOP schedule for Lambda function trigger (default run daily at 10PM GMT).
+      Type: String
+      Default: "cron(0 22 * * ? *)"
+
+    Instances: 
+      Description: The EC2 instance(s) id.
+      Type: String
+      Default: "i-12345cb6de4f78g9h"
+
+    AWSRegion: 
+      Description: The AWS Region code where EC2 instances are deployed.
+      Type: String
+      Default: "us-east-1"
+
+
+Resources:
+
+
+# Create new role for our lambda functions. :- Create new role named Lambda_Birthday and attach below policies to it.
+
+    LambdaRole:
+      Type: 'AWS::IAM::Role'
+      Metadata:
+        cfn_nag:
+          rules_to_suppress:
+            - id: W28
+              reason: "Required for Automation solution"
+            - id: W11
+              reason: "Required for Automation solution"
+            - id: F3
+              reason: "Required for Automation solution"
+      Properties:
+        RoleName: !Ref LambdaRoleName
+        AssumeRolePolicyDocument: "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"lambda.amazonaws.com\"},\"Action\":\"sts:AssumeRole\"}]}"
+        Path: "/"
+        Policies:
+          - PolicyName: "Lambda_EC2scheduler"
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - "sts:AssumeRole"
+                    - "logs:*"
+                    - "ec2:Start*"
+                    - "ec2:Stop*"
+                  Resource: "*"
+        Tags: 
+            - Key: "cfn-stack-name"
+              Value: !Sub ${AWS::StackName}
+            - Key: cfn-stack-id
+              Value: !Sub ${AWS::StackId}
+            - Key: aws-solution
+              Value: !Ref SolutionName
+            
+
+# Create Amazon EventBridge Schedule Lambda On morning - event #1
+
+    EventsRule1:
+        Type: "AWS::Events::Rule"
+        Properties:
+            Description: !Ref SolutionName
+            ScheduleExpression: !Ref ScheduleEvent1
+            State: "ENABLED"
+            Targets: 
+              - 
+                Arn: !GetAtt LambdaEC2scheduler1.Arn
+                Id: "Idd123456a"
+            EventBusName: "default"
+
+
+    PermissionForEventsToInvokeLambda1: 
+        Type: AWS::Lambda::Permission
+        Properties: 
+            FunctionName: !Ref LambdaEC2scheduler1
+            Action: "lambda:InvokeFunction"
+            Principal: "events.amazonaws.com"
+            SourceArn: 
+                Fn::GetAtt: 
+                    - "EventsRule1"
+                    - "Arn"
+
+# Create Amazon EventBridge Schedule Lambda On afternoon - event #2
+
+    EventsRule2:
+        Type: "AWS::Events::Rule"
+        Properties:
+            Description: !Ref SolutionName
+            ScheduleExpression: !Ref ScheduleEvent2
+            State: "ENABLED"
+            Targets: 
+              - 
+                Arn: !GetAtt LambdaEC2scheduler2.Arn
+                Id: "Idd123456b"
+            EventBusName: "default"
+
+
+    PermissionForEventsToInvokeLambda2: 
+        Type: AWS::Lambda::Permission
+        Properties: 
+            FunctionName: !Ref LambdaEC2scheduler2
+            Action: "lambda:InvokeFunction"
+            Principal: "events.amazonaws.com"
+            SourceArn: 
+                Fn::GetAtt: 
+                    - "EventsRule2"
+                    - "Arn"
+
+# Create Lambda Function To Event # 1 - START EC2 instance(s)
+
+    LambdaEC2scheduler1:
+      Type: AWS::Lambda::Function
+      Metadata:
+        cfn_nag:
+          rules_to_suppress:
+            - id: W92
+              reason: "Not Required for Automation solution"
+            - id: W89
+              reason: "Not Required for Automation solution"
+      Properties:
+        Code:
+          ZipFile: |
+            #!/usr/bin/env python3
+            import os
+            import boto3
+            import logging
+
+            # Appropriate logging
+            LOGGER = logging.getLogger()
+            LOGGER.setLevel(logging.INFO)
+            logging.getLogger('boto3').setLevel(logging.CRITICAL)
+
+            #initialize boto3
+
+            region = os.environ["REGION"] # AWS region
+            ec2 = boto3.client('ec2', region_name=region)
+            instances = [os.environ["EC2_INSTANCE"]] #id instances list
+
+            def lambda_handler(event, context):
+
+                try:
+                    ec2.start_instances(InstanceIds=instances)
+                    print('started your instances: ' + str(instances))
+                    return "success"
+
+                except:
+                
+                    print('EC2 error - please check CloudTrail Event history logs')
+                    return "error"
+                
+        Handler: "index.lambda_handler"
+        Timeout: 30
+        Architectures:
+        - arm64   # Arm-based AWS Graviton2 processors
+        Role: !GetAtt "LambdaRole.Arn"
+        Runtime: python3.9
+        Environment: 
+            Variables:
+                REGION: !Ref AWSRegion
+                EC2_INSTANCE: !Ref Instances
+        Tags: 
+            - Key: "cfn-stack-name"
+              Value: !Sub ${AWS::StackName}
+            - Key: cfn-stack-id
+              Value: !Sub ${AWS::StackId}
+            - Key: aws-solution
+              Value: !Ref SolutionName
+
+
+# Create Lambda Function To Event # 1 - STOP EC2 instance(s)
+
+    LambdaEC2scheduler2:
+      Type: AWS::Lambda::Function
+      Metadata:
+        cfn_nag:
+          rules_to_suppress:
+            - id: W92
+              reason: "Not Required for Automation solution"
+            - id: W89
+              reason: "Not Required for Automation solution"
+      Properties:
+        Code:
+          ZipFile: |
+            #!/usr/bin/env python3
+            import os
+            import boto3
+            import logging
+
+            # Appropriate logging
+            LOGGER = logging.getLogger()
+            LOGGER.setLevel(logging.INFO)
+            logging.getLogger('boto3').setLevel(logging.CRITICAL)
+
+            #initialize boto3
+
+            region = os.environ["REGION"] # AWS region
+            ec2 = boto3.client('ec2', region_name=region)
+            instances = [os.environ["EC2_INSTANCE"]] #id instances list
+
+            def lambda_handler(event, context):
+
+                try:
+                    ec2.stop_instances(InstanceIds=instances)
+                    print('stopped your instances: ' + str(instances))
+                    return "success"
+
+                except:
+                
+                    print('EC2 error - please check CloudTrail Event history logs')
+                    return "error"
+                
+        Handler: "index.lambda_handler"
+        Timeout: 30
+        Architectures:
+        - arm64   # Arm-based AWS Graviton2 processors
+        Role: !GetAtt "LambdaRole.Arn"
+        Runtime: python3.9
+        Environment: 
+            Variables:
+                REGION: !Ref AWSRegion
+                EC2_INSTANCE: !Ref Instances
+        Tags: 
+            - Key: "cfn-stack-name"
+              Value: !Sub ${AWS::StackName}
+            - Key: cfn-stack-id
+              Value: !Sub ${AWS::StackId}
+            - Key: aws-solution
+              Value: !Ref SolutionName
+
