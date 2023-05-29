@@ -1,18 +1,18 @@
 # Folder /cloudformation/ec2
 
-Template file: ec2-timer.yaml
+Template file: ec2-scheduler.yaml
 
-Description: "Stop and start Amazon EC2 instances at regular intervals using Lambda"
+Description: "Stop and start Amazon EC2 instances at regular intervals using Lambda based on TAG"
 
 WARNING: This solution will implement AWS services which may have associated costs - USE AT YOUR OWN RISK :-)
 
 AWS Services to be created: Lambda, IAM role, EventBridge.
 
-![Alt text](../diagrams/ec2-timer.png?raw=true "Diagram Image")
+![Alt text](../diagrams/ec2-scheduler.png?raw=true "Diagram Image")
 
 # Short Description
 
-You can use AWS Lambda and Amazon EventBridge to automatically stop and start EC2 instances and save running costs.
+You can use AWS Lambda and Amazon EventBridge to automatically stop and start EC2 instances based on tag to save running costs.
 
 Note: The following resolution is a simple solution based on this post https://repost.aws/knowledge-center/start-stop-lambda-eventbridge
 
@@ -20,7 +20,12 @@ For a more advanced solution, use the AWS Instance Scheduler. For more informati
 
 # How It Works
 
-After solution deployment (steps below), AWS Lambda function and Amazon EventBridge will automatically stop and start EC2 instances on the scheduled time.
+Tag the in-scope EC2 instances with:
+
+Tag Key = ec2scheduler
+Tag Value = yes
+
+After solution deployment (steps below), AWS Lambda function and Amazon EventBridge will automatically stop and start the tagged EC2 instances on the scheduled time.
 
 # Prerequisites
 
@@ -75,5 +80,4 @@ Delete CloudFormation stack for resources termination/deletion.
 
 # Next Steps
 
-1) Allow multiple EC2 instances as parameter
-2) Include tags to filter EC2 instances to be started / stopped.
+N/A

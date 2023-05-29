@@ -9,7 +9,7 @@
 
 AWSTemplateFormatVersion: "2010-09-09"
 
-Description: "Stop and start Amazon EC2 instances at regular intervals using Lambda"
+Description: "Stop and start Amazon EC2 instances at regular intervals using Lambda based on tag ec2scheduler"
 
 # input parameters
 
@@ -25,6 +25,16 @@ Parameters:
       Type: String
       Default: "role-Lambda_EC2scheduler"
 
+    LambdaMemory: 
+      Description: Lambda memmory configuration. Set memory to between 128 MB and 10240 MB
+      Type: String
+      Default: 128
+
+    LambdaTimeout: 
+      Description: Lambda timeout in seconds
+      Type: String
+      Default: 30
+
     ScheduleEvent1: 
       Description: The START schedule for Lambda function trigger (default run daily at 10AM GMT).
       Type: String
@@ -35,10 +45,10 @@ Parameters:
       Type: String
       Default: "cron(0 22 * * ? *)"
 
-    Instances: 
-      Description: The EC2 instance(s) id.
-      Type: String
-      Default: "i-12345cb6de4f78g9h"
+    # Instances: 
+    #   Description: The EC2 instance(s) id.
+    #   Type: String
+    #   Default: "i-12345cb6de4f78g9h"
 
     AWSRegion: 
       Description: The AWS Region code where EC2 instances are deployed.
@@ -77,6 +87,7 @@ Resources:
                     - "logs:*"
                     - "ec2:Start*"
                     - "ec2:Stop*"
+                    - "ec2:Describe*"
                   Resource: "*"
         Tags: 
             - Key: "cfn-stack-name"
@@ -156,30 +167,32 @@ Resources:
             #!/usr/bin/env python3
             import os
             import boto3
-            import logging
 
-            # Appropriate logging
-            LOGGER = logging.getLogger()
-            LOGGER.setLevel(logging.INFO)
-            logging.getLogger('boto3').setLevel(logging.CRITICAL)
 
             #initialize boto3
 
             region = os.environ["REGION"] # AWS region
-            ec2 = boto3.client('ec2', region_name=region)
-            instances = [os.environ["EC2_INSTANCE"]] #id instances list
+            ec2 = boto3.resource('ec2', region_name=region)
+            #instances = [os.environ["EC2_INSTANCE"]] #id instances list (replaced by tag value)
+
+            # select EC2 instances with tag=ec2scheduler and value=yes
+            filters=[{'Name': 'tag:ec2scheduler', 'Values': ['yes']}]
+            instances = ec2.instances.filter(Filters=filters)
 
             def lambda_handler(event, context):
 
                 try:
-                    ec2.start_instances(InstanceIds=instances)
-                    print('started your instances: ' + str(instances))
-                    return "success"
+                    # For each insteance with a tag
+                    for instance in instances:
+                        instance.start()
+                        print('Started instance: ', instance.id)
+
+                    return "Success"
 
                 except:
                 
                     print('EC2 error - please check CloudTrail Event history logs')
-                    return "error"
+                    return "Error"
                 
         Handler: "index.lambda_handler"
         Timeout: 30
@@ -187,10 +200,12 @@ Resources:
         - arm64   # Arm-based AWS Graviton2 processors
         Role: !GetAtt "LambdaRole.Arn"
         Runtime: python3.9
+        MemorySize: !Ref LambdaMemory
+        Timeout: !Ref LambdaTimeout
         Environment: 
             Variables:
                 REGION: !Ref AWSRegion
-                EC2_INSTANCE: !Ref Instances
+
         Tags: 
             - Key: "cfn-stack-name"
               Value: !Sub ${AWS::StackName}
@@ -217,30 +232,31 @@ Resources:
             #!/usr/bin/env python3
             import os
             import boto3
-            import logging
-
-            # Appropriate logging
-            LOGGER = logging.getLogger()
-            LOGGER.setLevel(logging.INFO)
-            logging.getLogger('boto3').setLevel(logging.CRITICAL)
 
             #initialize boto3
 
             region = os.environ["REGION"] # AWS region
-            ec2 = boto3.client('ec2', region_name=region)
-            instances = [os.environ["EC2_INSTANCE"]] #id instances list
+            ec2 = boto3.resource('ec2', region_name=region)
+            #instances = [os.environ["EC2_INSTANCE"]] #id instances list (replaced by tag value)
+
+            # select EC2 instances with tag=ec2scheduler and value=yes
+            filters=[{'Name': 'tag:ec2scheduler', 'Values': ['yes']}]
+            instances = ec2.instances.filter(Filters=filters)
 
             def lambda_handler(event, context):
 
                 try:
-                    ec2.stop_instances(InstanceIds=instances)
-                    print('stopped your instances: ' + str(instances))
-                    return "success"
+                    # For each insteance with a tag
+                    for instance in instances:
+                        instance.stop()
+                        print('Stopped instance: ', instance.id)
+
+                    return "Success"
 
                 except:
                 
                     print('EC2 error - please check CloudTrail Event history logs')
-                    return "error"
+                    return "Error"
                 
         Handler: "index.lambda_handler"
         Timeout: 30
@@ -248,10 +264,11 @@ Resources:
         - arm64   # Arm-based AWS Graviton2 processors
         Role: !GetAtt "LambdaRole.Arn"
         Runtime: python3.9
+        MemorySize: !Ref LambdaMemory
+        Timeout: !Ref LambdaTimeout
         Environment: 
             Variables:
                 REGION: !Ref AWSRegion
-                EC2_INSTANCE: !Ref Instances
         Tags: 
             - Key: "cfn-stack-name"
               Value: !Sub ${AWS::StackName}
