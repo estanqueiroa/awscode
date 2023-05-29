@@ -52,6 +52,21 @@ aws cloudformation create-stack \
   --template-body file:///home/testuser/mytemplate.yaml
 ```
 
+# To add a tag to a EC2 instance
+
+
+You must have the AWS CLI installed and configured: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html
+
+Unless otherwise stated, all examples have unix-like quotation rules. These examples will need to be adapted to your terminal’s quoting rules.
+
+```
+aws ec2 create-tags \
+    --resources i-1234567890abcdef0 --tags Key=ec2scheduler,Value=yes
+```
+
+For more info, please check here: https://awscli.amazonaws.com/v2/documentation/api/latest/reference/ec2/create-tags.html
+
+
 # Related AWS Services
 
 | AWS Service  | Product Page |
