@@ -219,7 +219,6 @@ Resources:
                     return "Error"
                 
         Handler: "index.lambda_handler"
-        Timeout: 30
         Architectures:
         - arm64   # Arm-based AWS Graviton2 processors
         Role: !GetAtt "LambdaRole.Arn"
@@ -284,7 +283,6 @@ Resources:
                     return "Error"
                 
         Handler: "index.lambda_handler"
-        Timeout: 30
         Architectures:
         - arm64   # Arm-based AWS Graviton2 processors
         Role: !GetAtt "LambdaRole.Arn"
