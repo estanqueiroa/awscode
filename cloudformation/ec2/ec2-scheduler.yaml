@@ -45,6 +45,7 @@ Parameters:
       Type: String
       Default: "cron(0 22 * * ? *)"
 
+    # replaced by tag filter for multiple instances
     # Instances: 
     #   Description: The EC2 instance(s) id.
     #   Type: String
@@ -205,6 +206,7 @@ Resources:
         Environment: 
             Variables:
                 REGION: !Ref AWSRegion
+                #EC2_INSTANCE: !Ref Instances #replaced by tag filter
 
         Tags: 
             - Key: "cfn-stack-name"
@@ -269,6 +271,7 @@ Resources:
         Environment: 
             Variables:
                 REGION: !Ref AWSRegion
+                #EC2_INSTANCE: !Ref Instances #replaced by tag filter
         Tags: 
             - Key: "cfn-stack-name"
               Value: !Sub ${AWS::StackName}
