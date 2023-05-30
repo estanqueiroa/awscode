@@ -9,7 +9,7 @@
 
 AWSTemplateFormatVersion: "2010-09-09"
 
-Description: "Stop and start Amazon EC2 instances at regular intervals using Lambda based on tag ec2scheduler"
+Description: "Stop and start tagged Amazon EC2 instances at scheduled times using Lambda"
 
 # input parameters
 
