@@ -36,14 +36,14 @@ Parameters:
       Default: 30
 
     ScheduleEvent1: 
-      Description: The START schedule for Lambda function trigger (default run daily at 10AM GMT).
+      Description: The START schedule for Lambda function trigger (default run weekdays at 10AM GMT).
       Type: String
-      Default: "cron(0 10 * * ? *)"
+      Default: "cron(0 10 ? * MON-FRI *)"
 
     ScheduleEvent2: 
-      Description: The STOP schedule for Lambda function trigger (default run daily at 10PM GMT).
+      Description: The STOP schedule for Lambda function trigger (default run weekdays at 10PM GMT).
       Type: String
-      Default: "cron(0 22 * * ? *)"
+      Default: "cron(0 22 ? * MON-FRI *)"
 
     # replaced by tag filter for multiple instances
     # Instances: 
