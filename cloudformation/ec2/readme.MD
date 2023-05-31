@@ -74,6 +74,7 @@ For more info, please check here: https://awscli.amazonaws.com/v2/documentation/
 | Amazon EventBridge  | https://aws.amazon.com/eventbridge/ |
 | AWS Lambda | https://aws.amazon.com/lambda/ |
 | Amazon Elastic Block Store (EBS)  | https://aws.amazon.com/ebs/ |
+| Amazon Elastic Elastic Compute Cloud (EC2)  | https://aws.amazon.com/ec2/ |
 
 
 # Estimated Costs

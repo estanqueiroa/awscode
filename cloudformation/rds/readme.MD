@@ -77,6 +77,7 @@ For more info, please check here: https://docs.aws.amazon.com/cli/latest/referen
 | Amazon EventBridge  | https://aws.amazon.com/eventbridge/ |
 | AWS Lambda | https://aws.amazon.com/lambda/ |
 | Amazon Elastic Block Store (EBS)  | https://aws.amazon.com/ebs/ |
+| Amazon Elastic Relational Database Service (RDS)  | https://aws.amazon.com/rds/ |
 
 
 # Estimated Costs
