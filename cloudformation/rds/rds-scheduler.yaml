@@ -1,0 +1,419 @@
+# WARNING: This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+#
+# This template will implement AWS services which may have associated cost - USE AT YOUR OWN RISK :-)
+#
+# AWS Services to be created: Lambda, IAM role, EventBridge
+#
+
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: "Stop and start tagged Amazon RDS instances at scheduled times using Lambda"
+
+# input parameters
+
+Parameters:
+
+    SolutionName: 
+      Description: The name of this Automation Solution.
+      Type: String
+      Default: "RDS-lambda-scheduler"
+
+    LambdaRoleName: 
+      Description: The name of IAM Role for Lambda functions.
+      Type: String
+      Default: "role-Lambda_RDSscheduler"
+
+    LambdaMemory: 
+      Description: Lambda memmory configuration. Set memory to between 128 MB and 10240 MB
+      Type: String
+      Default: 128
+
+    LambdaTimeout: 
+      Description: Lambda timeout in seconds
+      Type: String
+      Default: 30
+
+    ScheduleEvent1: 
+      Description: The START schedule for Lambda function trigger (default run weekdays at 10AM GMT).
+      Type: String
+      Default: "cron(0 10 ? * MON-FRI *)"
+
+    ScheduleEvent2: 
+      Description: The STOP schedule for Lambda function trigger (default run weekdays at 10PM GMT).
+      Type: String
+      Default: "cron(0 22 ? * MON-FRI *)"
+
+    # replaced by tag filter for multiple instances
+    # Instances: 
+    #   Description: The RDS instance(s) id.
+    #   Type: String
+    #   Default: "i-12345cb6de4f78g9h"
+
+    AWSRegion: 
+      Description: The AWS Region code where RDS instances are deployed.
+      Type: String
+      Default: "us-east-1"
+
+    tagKEY: 
+      Description: Tag KEY that we have attached for the instances that require auto shutdown.
+      Type: String
+      Default: DEV-TEST
+
+    tagVALUE: 
+      Description: Tag VALUE that we have attached for the instances that require auto shutdown.
+      Type: String
+      Default: Auto-Shutdown
+
+
+Metadata:
+  "AWS::CloudFormation::Interface":
+    ParameterGroups:
+      - Label:
+          default: "Solution"
+        Parameters: 
+          - SolutionName
+      - Label:
+          default: "Lambda Parameters"
+        Parameters: 
+          - LambdaRoleName
+          - LambdaMemory
+          - LambdaTimeout
+      - Label:
+          default: "RDS Parameters"
+        Parameters: 
+          - AWSRegion
+      - Label:
+          default: "Event Schedule"
+        Parameters: 
+          - ScheduleEvent1
+          - ScheduleEvent2
+
+Resources:
+
+
+# Create new role for our lambda functions. :- Create new role named Lambda_Birthday and attach below policies to it.
+
+    LambdaRole:
+      Type: 'AWS::IAM::Role'
+      Metadata:
+        cfn_nag:
+          rules_to_suppress:
+            - id: W28
+              reason: "Required for Automation solution"
+            - id: W11
+              reason: "Required for Automation solution"
+            - id: F3
+              reason: "Required for Automation solution"
+      Properties:
+        RoleName: !Ref LambdaRoleName
+        AssumeRolePolicyDocument: "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"lambda.amazonaws.com\"},\"Action\":\"sts:AssumeRole\"}]}"
+        Path: "/"
+        Policies:
+          - PolicyName: "Lambda_RDSscheduler"
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - "sts:AssumeRole"
+                    - "logs:*"
+                    - "rds:Start*"
+                    - "rds:Stop*"
+                    - "rds:Describe*"
+                    - "rds:List*"
+                  Resource: "*"
+        Tags: 
+            - Key: "cfn-stack-name"
+              Value: !Sub ${AWS::StackName}
+            - Key: cfn-stack-id
+              Value: !Sub ${AWS::StackId}
+            - Key: aws-solution
+              Value: !Ref SolutionName
+            
+
+# Create Amazon EventBridge Schedule Lambda On morning - event #1
+
+    EventsRule1:
+        Type: "AWS::Events::Rule"
+        Properties:
+            Description: !Ref SolutionName
+            ScheduleExpression: !Ref ScheduleEvent1
+            State: "ENABLED"
+            Targets: 
+              - 
+                Arn: !GetAtt LambdaRDSscheduler1.Arn
+                Id: "Idd123456a"
+            EventBusName: "default"
+
+
+    PermissionForEventsToInvokeLambda1: 
+        Type: AWS::Lambda::Permission
+        Properties: 
+            FunctionName: !Ref LambdaRDSscheduler1
+            Action: "lambda:InvokeFunction"
+            Principal: "events.amazonaws.com"
+            SourceArn: 
+                Fn::GetAtt: 
+                    - "EventsRule1"
+                    - "Arn"
+
+# Create Amazon EventBridge Schedule Lambda On afternoon - event #2
+
+    EventsRule2:
+        Type: "AWS::Events::Rule"
+        Properties:
+            Description: !Ref SolutionName
+            ScheduleExpression: !Ref ScheduleEvent2
+            State: "ENABLED"
+            Targets: 
+              - 
+                Arn: !GetAtt LambdaRDSscheduler2.Arn
+                Id: "Idd123456b"
+            EventBusName: "default"
+
+
+    PermissionForEventsToInvokeLambda2: 
+        Type: AWS::Lambda::Permission
+        Properties: 
+            FunctionName: !Ref LambdaRDSscheduler2
+            Action: "lambda:InvokeFunction"
+            Principal: "events.amazonaws.com"
+            SourceArn: 
+                Fn::GetAtt: 
+                    - "EventsRule2"
+                    - "Arn"
+
+# Create Lambda Function To Event # 1 - START RDS instance(s)
+
+    LambdaRDSscheduler1:
+      Type: AWS::Lambda::Function
+      Metadata:
+        cfn_nag:
+          rules_to_suppress:
+            - id: W92
+              reason: "Not Required for Automation solution"
+            - id: W89
+              reason: "Not Required for Automation solution"
+      Properties:
+        Code:
+          ZipFile: |
+            # this Code will help to schedule start the RDS databasrs using Lambda
+            # Yesh 
+            # Version -- 2.0
+
+            import boto3
+            import os
+            import sys
+            import time
+            from datetime import datetime, timezone
+            from time import gmtime, strftime
+
+            def start_rds_all():
+                region=os.environ['REGION']
+                key=os.environ['KEY']
+                value=os.environ['VALUE']
+                client = boto3.client('rds', region_name=region)
+                response = client.describe_db_instances()
+
+                v_readReplica=[]
+                for i in response['DBInstances']:
+                    readReplica=i['ReadReplicaDBInstanceIdentifiers']
+                    v_readReplica.extend(readReplica)
+                
+                for i in response['DBInstances']:
+            #The if condition below filters aurora clusters from single instance databases as boto3 commands defer to start the aurora clusters.
+                    if i['Engine'] not in ['aurora-mysql','aurora-postgresql']:
+            #The if condition below filters Read replicas.
+                        if i['DBInstanceIdentifier'] not in v_readReplica and len(i['ReadReplicaDBInstanceIdentifiers']) == 0:
+                            arn=i['DBInstanceArn']
+                            resp2=client.list_tags_for_resource(ResourceName=arn)
+            #check if the RDS instance is part of the Auto-Shutdown group.
+                            if 0==len(resp2['TagList']):
+                                print('DB Instance {0} is not part of autoshutdown'.format(i['DBInstanceIdentifier']))
+                            else:
+                                for tag in resp2['TagList']:
+                                    if tag['Key']==key and tag['Value']==value:
+                                        if i['DBInstanceStatus'] == 'available':
+                                            print('{0} DB instance is already available'.format(i['DBInstanceIdentifier']))
+                                        elif i['DBInstanceStatus'] == 'stopped':
+                                            client.start_db_instance(DBInstanceIdentifier = i['DBInstanceIdentifier'])
+                                            print('Started DB Instance {0}'.format(i['DBInstanceIdentifier']))
+                                        elif i['DBInstanceStatus']=='starting':
+                                            print('DB Instance {0} is already in starting state'.format(i['DBInstanceIdentifier']))
+                                        elif i['DBInstanceStatus']=='stopping':
+                                            print('DB Instance {0} is in stopping state. Please wait before starting'.format(i['DBInstanceIdentifier']))
+                                    elif tag['Key']!=key and tag['Value']!=value:
+                                        print('DB instance {0} is not part of autoshutdown'.format(i['DBInstanceIdentifier']))
+                                    elif len(tag['Key']) == 0 or len(tag['Value']) == 0:
+                                        print('DB Instance {0} is not part of autoShutdown'.format(i['DBInstanceIdentifier']))
+                        elif i['DBInstanceIdentifier'] in v_readReplica:
+                            print('DB Instance {0} is a Read Replica.'.format(i['DBInstanceIdentifier']))
+                        else:
+                            print('DB Instance {0} has a read replica. Cannot shutdown & start a database with Read Replica'.format(i['DBInstanceIdentifier']))
+
+                response=client.describe_db_clusters()
+                for i in response['DBClusters']:
+                    cluarn=i['DBClusterArn']
+                    resp2=client.list_tags_for_resource(ResourceName=cluarn)
+                    if 0==len(resp2['TagList']):
+                        print('DB Cluster {0} is not part of autoshutdown'.format(i['DBClusterIdentifier']))
+                    else:
+                        for tag in resp2['TagList']:
+                            if tag['Key']==key and tag['Value']==value:
+                                if i['Status'] == 'available':
+                                    print('{0} DB Cluster is already available'.format(i['DBClusterIdentifier']))
+                                elif i['Status'] == 'stopped':
+                                    client.start_db_cluster(DBClusterIdentifier=i['DBClusterIdentifier'])
+                                    print('Started Cluster {0}'.format(i['DBClusterIdentifier']))
+                                elif i['Status']=='starting':
+                                    print('cluster {0} is already in starting state.'.format(i['DBClusterIdentifier']))
+                                elif i['Status']=='stopping':
+                                    print('cluster {0} is in stopping state. Please wait before starting'.format(i['DBClusterIdentifier']))
+                            elif tag['Key'] != key and tag['Value'] != value:
+                                print('DB Cluster {0} is not part of autoshutdown'.format(i['DBClusterIdentifier']))
+                            else:
+                                print('DB Instance {0} is not part of autoShutdown'.format(i['DBClusterIdentifier']))
+
+            def lambda_handler(event, context):
+                start_rds_all()
+                
+        Handler: "index.lambda_handler"
+        Architectures:
+        - arm64   # Arm-based AWS Graviton2 processors
+        Role: !GetAtt "LambdaRole.Arn"
+        Runtime: python3.9
+        MemorySize: !Ref LambdaMemory
+        Timeout: !Ref LambdaTimeout
+        Environment: 
+            Variables:
+                REGION: !Ref AWSRegion
+                KEY: !Ref tagKEY
+                VALUE: !Ref tagVALUE
+
+        Tags: 
+            - Key: "cfn-stack-name"
+              Value: !Sub ${AWS::StackName}
+            - Key: cfn-stack-id
+              Value: !Sub ${AWS::StackId}
+            - Key: aws-solution
+              Value: !Ref SolutionName
+
+
+# Create Lambda Function To Event # 2 - STOP RDS instance(s)
+
+    LambdaRDSscheduler2:
+      Type: AWS::Lambda::Function
+      Metadata:
+        cfn_nag:
+          rules_to_suppress:
+            - id: W92
+              reason: "Not Required for Automation solution"
+            - id: W89
+              reason: "Not Required for Automation solution"
+      Properties:
+        Code:
+          ZipFile: |
+            # this Code will help to schedule stop the RDS databasrs using Lambda
+            # Yesh 
+            # Version -- 2.0
+
+            import boto3
+            import os
+            import sys
+            import time
+            from datetime import datetime, timezone
+            from time import gmtime, strftime
+
+            def shut_rds_all():
+                region=os.environ['REGION']
+                key=os.environ['KEY']
+                value=os.environ['VALUE']
+
+                
+                client = boto3.client('rds', region_name=region)
+                response = client.describe_db_instances()
+                v_readReplica=[]
+                for i in response['DBInstances']:
+                    readReplica=i['ReadReplicaDBInstanceIdentifiers']
+                    v_readReplica.extend(readReplica)
+                
+                for i in response['DBInstances']:
+            #The if condition below filters aurora clusters from single instance databases as boto3 commands defer to stop the aurora clusters.
+                    if i['Engine'] not in ['aurora-mysql','aurora-postgresql']:
+            #The if condition below filters Read replicas.
+                        if i['DBInstanceIdentifier'] not in v_readReplica and len(i['ReadReplicaDBInstanceIdentifiers']) == 0:
+                            arn=i['DBInstanceArn']
+                            resp2=client.list_tags_for_resource(ResourceName=arn)
+            #check if the RDS instance is part of the Auto-Shutdown group.
+                            if 0==len(resp2['TagList']):
+                                print('DB Instance {0} is not part of autoshutdown'.format(i['DBInstanceIdentifier']))
+                            else:
+                                for tag in resp2['TagList']:
+            #If the tags match, then stop the instances by validating the current status.
+                                    if tag['Key']==key and tag['Value']==value:
+                                        if i['DBInstanceStatus'] == 'available':
+                                            client.stop_db_instance(DBInstanceIdentifier = i['DBInstanceIdentifier'])
+                                            print('stopping DB instance {0}'.format(i['DBInstanceIdentifier']))
+                                        elif i['DBInstanceStatus'] == 'stopped':
+                                            print('DB Instance {0} is already stopped'.format(i['DBInstanceIdentifier']))
+                                        elif i['DBInstanceStatus']=='starting':
+                                            print('DB Instance {0} is in starting state. Please stop the cluster after starting is complete'.format(i['DBInstanceIdentifier']))
+                                        elif i['DBInstanceStatus']=='stopping':
+                                            print('DB Instance {0} is already in stopping state.'.format(i['DBInstanceIdentifier']))
+                                    elif tag['Key']!=key and tag['Value']!=value:
+                                        print('DB instance {0} is not part of autoshutdown'.format(i['DBInstanceIdentifier']))
+                                    elif len(tag['Key']) == 0 or len(tag['Value']) == 0:
+                                        print('DB Instance {0} is not part of auroShutdown'.format(i['DBInstanceIdentifier']))
+                        elif i['DBInstanceIdentifier'] in v_readReplica:
+                            print('DB Instance {0} is a Read Replica. Cannot shutdown a Read Replica instance'.format(i['DBInstanceIdentifier']))
+                        else:
+                            print('DB Instance {0} has a read replica. Cannot shutdown a database with Read Replica'.format(i['DBInstanceIdentifier']))
+
+                response=client.describe_db_clusters()
+                for i in response['DBClusters']:
+                    cluarn=i['DBClusterArn']
+                    resp2=client.list_tags_for_resource(ResourceName=cluarn)
+                    if 0==len(resp2['TagList']):
+                        print('DB Cluster {0} is not part of autoshutdown'.format(i['DBClusterIdentifier']))
+                    else:
+                        for tag in resp2['TagList']:
+                            if tag['Key']==key and tag['Value']==value:
+                                if i['Status'] == 'available':
+                                    client.stop_db_cluster(DBClusterIdentifier=i['DBClusterIdentifier'])
+                                    print('stopping DB cluster {0}'.format(i['DBClusterIdentifier']))
+                                elif i['Status'] == 'stopped':
+                                    print('DB Cluster {0} is already stopped'.format(i['DBClusterIdentifier']))
+                                elif i['Status']=='starting':
+                                    print('DB Cluster {0} is in starting state. Please stop the cluster after starting is complete'.format(i['DBClusterIdentifier']))
+                                elif i['Status']=='stopping':
+                                    print('DB Cluster {0} is already in stopping state.'.format(i['DBClusterIdentifier']))
+                            elif tag['Key'] != key and tag['Value'] != value:
+                                print('DB Cluster {0} is not part of autoshutdown'.format(i['DBClusterIdentifier']))
+                            else:
+                                print('DB Instance {0} is not part of auroShutdown'.format(i['DBClusterIdentifier']))
+
+            def lambda_handler(event, context):
+                shut_rds_all()
+                
+        Handler: "index.lambda_handler"
+        Architectures:
+        - arm64   # Arm-based AWS Graviton2 processors
+        Role: !GetAtt "LambdaRole.Arn"
+        Runtime: python3.9
+        MemorySize: !Ref LambdaMemory
+        Timeout: !Ref LambdaTimeout
+        Environment: 
+            Variables:
+                REGION: !Ref AWSRegion
+                KEY: !Ref tagKEY
+                VALUE: !Ref tagVALUE
+        Tags: 
+            - Key: "cfn-stack-name"
+              Value: !Sub ${AWS::StackName}
+            - Key: cfn-stack-id
+              Value: !Sub ${AWS::StackId}
+            - Key: aws-solution
+              Value: !Ref SolutionName
+
