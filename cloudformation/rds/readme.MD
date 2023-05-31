@@ -24,6 +24,7 @@ For a more advanced solution, use the AWS Instance Scheduler. For more informati
 
 Tag the in-scope RDS instances with:
 
+** case sensitive **
 Tag Key = DEV-TEST
 Tag Value = Auto-Shutdown
 

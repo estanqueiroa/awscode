@@ -22,6 +22,7 @@ For a more advanced solution, use the AWS Instance Scheduler. For more informati
 
 Tag the in-scope EC2 instances with:
 
+** case sensitive **
 Tag Key = ec2scheduler
 Tag Value = yes
 
