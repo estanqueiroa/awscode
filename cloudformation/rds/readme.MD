@@ -10,6 +10,8 @@ AWS Services to be created: Lambda, IAM role, EventBridge.
 
 ![Alt text](../diagrams/rds-scheduler.png?raw=true "Diagram Image")
 
+Source: https://aws.amazon.com/blogs/database/schedule-amazon-rds-stop-and-start-using-aws-lambda/
+
 # Short Description
 
 To reduce the overall cost, Amazon RDS allows instances to be stopped temporarily. While the instance is stopped, you’re charged for storage and backups, but not for the DB instance hours. Please note that a stopped instance will automatically be started after 7 days.
