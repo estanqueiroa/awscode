@@ -14,7 +14,7 @@ Python codes for daily activities / automations in general.
 
 # Resources
 
-| Link  | Description |
+| Description  | Link |
 | ------------- | ------------- |
 | Generate IAC (CFN / TF) from existing AWS resources  | https://former2.com/ |
 | Twelve-factor methodology for apps development | https://12factor.net/ |
