@@ -15,7 +15,7 @@ Python codes for daily activities / automations in general.
 # Useful Resources
 
 | Description  | Link | Topic |
-| ------------- | ------------- |
+| -------------| ---- | ----- |
 | Generate IAC from existing AWS resources  | https://former2.com/ | DevOps |
 | Twelve-factor methodology for apps development | https://12factor.net/ | DevOps |
 | Don´t Repeat Yourself (DRY) | https://en.wikipedia.org/wiki/Don%27t_repeat_yourself | DevOps |
