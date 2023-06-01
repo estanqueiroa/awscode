@@ -12,6 +12,11 @@ Template files for AWS CloudFormation stacks deployment.
 
 Python codes for daily activities / automations in general.
 
-# Contact Me
+# Resources
 
-Please feel free to contact me for any comments/questions at artur@estanqueiro.com.br
+| Link  | Description |
+| ------------- | ------------- |
+| Generate IAC (CFN / TF) from existing AWS resources  | https://former2.com/ |
+| Twelve-factor methodology for apps development | https://12factor.net/ |
+| Don´t Repeat Yourself (DRY) | https://en.wikipedia.org/wiki/Don%27t_repeat_yourself |
+| KISS principle (or Keep It Simple, Stupid) | https://www.freecodecamp.org/news/keep-it-simple-stupid-how-to-use-the-kiss-principle-in-design/ |

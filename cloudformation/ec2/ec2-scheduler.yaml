@@ -7,6 +7,10 @@
 # AWS Services to be created: Lambda, IAM role, EventBridge
 #
 
+# You can use AWS Lambda and Amazon EventBridge to automatically stop and start EC2 instances based on tag to save running costs.
+# Note: The following resolution is a simple solution based on this post https://repost.aws/knowledge-center/start-stop-lambda-eventbridge
+# For a more advanced solution, use the AWS Instance Scheduler. For more information, please see https://docs.aws.amazon.com/solutions/latest/instance-scheduler-on-aws/solution-overview.html
+
 AWSTemplateFormatVersion: "2010-09-09"
 
 Description: "Stop and start tagged Amazon EC2 instances at scheduled times using Lambda"
