@@ -12,11 +12,19 @@ Template files for AWS CloudFormation stacks deployment.
 
 Python codes for daily activities / automations in general.
 
-# Resources
+# Useful Resources
 
-| Description  | Link |
+| Description  | Link | Topic |
 | ------------- | ------------- |
-| Generate IAC from existing AWS resources  | https://former2.com/ |
-| Twelve-factor methodology for apps development | https://12factor.net/ |
-| Don´t Repeat Yourself (DRY) | https://en.wikipedia.org/wiki/Don%27t_repeat_yourself |
-| KISS principle (or Keep It Simple, Stupid) | https://www.freecodecamp.org/news/keep-it-simple-stupid-how-to-use-the-kiss-principle-in-design/ |
+| Generate IAC from existing AWS resources  | https://former2.com/ | DevOps |
+| Twelve-factor methodology for apps development | https://12factor.net/ | DevOps |
+| Don´t Repeat Yourself (DRY) | https://en.wikipedia.org/wiki/Don%27t_repeat_yourself | DevOps |
+| KISS principle (or Keep It Simple, Stupid) | https://www.freecodecamp.org/news/keep-it-simple-stupid-how-to-use-the-kiss-principle-in-design/ | DevOps |
+| Optimize Your AWS Lambda Function With Power Tuning | https://catalog.workshops.aws/serverless-optimization/en-US/power-tuning | FinOps |
+| Scaling cost effective architectures | https://catalog.us-east-1.prod.workshops.aws/workshops/f238037c-8f0b-446e-9c15-ebcc4908901a/en-US/ | FinOps |
+
+# Profiles
+
+https://www.linkedin.com/in/estanqueiro/
+
+https://github.com/estanqueiroa/
