@@ -10,7 +10,7 @@ AWS Services to be created: CloudFront, WAF web ACL, CloudWatch Log group.
 
 ![Alt text](./diagrams/eks-waf.png?raw=true "Diagram Image")
 
-Based on this https://repost.aws/knowledge-center/waf-restrict-alb-allow-cloudfront
+Based on this AWS answer: https://repost.aws/knowledge-center/waf-restrict-alb-allow-cloudfront
 
 # How It Works
 
