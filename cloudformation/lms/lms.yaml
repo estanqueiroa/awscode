@@ -1,0 +1,600 @@
+
+# This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+
+
+# https://adlnet.gov/guides/tla/service-definitions/TLA-Reference-Implementation.html#hardware-architecture
+
+
+
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Deploys TLA Reference Implementation in an Amazon Web Services (AWS) virtual private cloud hosted via the ADL Initiative
+
+Parameters:
+
+    EnvironmentName:
+      Description: An environment name that is prefixed to resource names
+      Type: String
+      Default: Test-MGN
+
+    EC2InstanceType:
+      Description: WebServer EC2 instance type
+      Type: String
+      Default: t3.medium
+      AllowedValues:
+        - t3.nano
+        - t3.micro
+        - t3.small
+        - t3.medium
+        - t3.large
+        - m4.large
+        - t3.xlarge
+
+    ResourcePrefix:
+      Description: An environment name that is prefixed to resource names (Target)
+      Type: String
+      Default: Target-MGN
+
+
+    SecurityGroupDescription:
+      Description: SecurityGroupDescription
+      Type: String
+      Default: SGRP for RDS, EC2 and VPC endpoints
+
+    VpcName:
+      Description: An environment name that is prefixed to resource names (Target)
+      Type: String
+      Default: Target-VPC
+
+    VpcCIDR:
+      Description: Please enter the IP range (CIDR notation) for this VPC (Target)
+      Type: String
+      Default: 10.10.0.0/16
+
+    DBMasterUser:
+      Type: String
+      Description: Master user name
+      Default: masteruser
+
+    BackupRetention:
+      Type: String
+      Description: The number of days for which automated backups are retained. Setting this parameter to a positive number enables backups. Setting this parameter to 0 disables automated backups.
+      Default: 15
+
+#Metadata
+Metadata:
+  'AWS::CloudFormation::Interface':
+    ParameterGroups:
+      - Label:
+          default: Client - Configuration
+        Parameters:
+          - EnvironmentName
+      - Label:
+          default: Target Server - Configuration
+        Parameters:
+          - ResourcePrefix
+          - VpcName
+          - VpcCIDR
+          - MGNendpoint
+
+
+
+#Mappings
+Mappings:
+  RegionMap:
+    us-east-1:
+      CentOS7x8664EBSHVM: ami-088f16c57ce74d90e
+      AmazonLinux2Kernel510: ami-0f409bae3775dc8e5
+      Ubuntu2204LTS: ami-0fc5d935ebf8bc3bc
+    us-west-2:
+      CentOS7x8664EBSHVM: ami-040f9e8ab2841a9b3
+      AmazonLinux2Kernel510: ami-002c2b8d1f5b1eb47
+      Ubuntu2204LTS: ami-0efcece6bed30fd98
+
+Resources:
+
+
+#### create TARGET VPC ####
+
+
+    VPC:
+      Type: AWS::EC2::VPC
+      Metadata:
+        cfn_nag:
+          rules_to_suppress:
+            - id: W60
+              reason: "Not Required for PoC"
+      Properties:
+        CidrBlock: !Ref VpcCIDR
+        EnableDnsSupport: true
+        EnableDnsHostnames: true
+        Tags:
+          - Key: Name
+            Value: !Ref VpcName
+
+    InternetGateway:
+      Type: AWS::EC2::InternetGateway
+      Properties:
+        Tags:
+          - Key: Name
+            Value: !Sub igw-${VpcName}
+
+    InternetGatewayAttachment:
+      Type: AWS::EC2::VPCGatewayAttachment
+      Properties:
+        InternetGatewayId: !Ref InternetGateway
+        VpcId: !Ref VPC
+        
+    NatGateway1EIP:
+      Type: AWS::EC2::EIP
+      # Condition: CreateNgwResource
+      # DependsOn: InternetGatewayAttachment
+      Properties:
+        Domain: vpc
+        Tags:
+          - Key: Name
+            Value: !Sub eip-${VpcName}-001
+          - Key: IsUsedForDeploy
+            Value: "True"
+
+    NatGateway1:
+      Type: AWS::EC2::NatGateway
+      # Condition: CreateNgwResource
+      Properties:
+        AllocationId: !GetAtt NatGateway1EIP.AllocationId
+        SubnetId: !Ref PublicSubnet1
+        Tags:
+          - Key: Name
+            Value: !Sub ngw-${VpcName}-001
+          - Key: IsUsedForDeploy
+            Value: "True"
+
+    ## Create private subnet and route table
+
+    PrivateSubnet1:
+      Type: AWS::EC2::Subnet
+      Properties:
+        VpcId: !Ref VPC
+        AvailabilityZone: !Select [ 0, !GetAZs  '' ]
+        CidrBlock: !Select
+          - 1
+          - !Cidr
+            - !GetAtt VPC.CidrBlock
+            - 8
+            - 5
+        MapPublicIpOnLaunch: false
+        Tags:
+          - Key: Name
+            Value: !Sub snet-${VpcName}-priv001
+
+
+    PrivateRouteTable1:
+      Type: AWS::EC2::RouteTable
+      Properties:
+        VpcId: !Ref VPC
+        Tags:
+          - Key: Name
+            Value: !Sub ${VpcName} Private Routes (AZ1)
+
+    DefaultPrivateRoute1:
+      Type: AWS::EC2::Route
+      #DependsOn: TGWAttachment
+      Properties:
+        RouteTableId: !Ref PrivateRouteTable1
+        DestinationCidrBlock: 0.0.0.0/0
+        NatGatewayId: !Ref NatGateway1
+
+    RTAssociation:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties: 
+        RouteTableId: !Ref PrivateRouteTable1
+        SubnetId: !Ref PrivateSubnet1
+
+## Create private subnet and associate to route table
+
+    PrivateSubnet2:
+      Type: AWS::EC2::Subnet
+      Properties:
+        VpcId: !Ref VPC
+        AvailabilityZone: !Select [ 1, !GetAZs  '' ]
+        CidrBlock: !Select
+          - 2
+          - !Cidr
+            - !GetAtt VPC.CidrBlock
+            - 8
+            - 5
+        MapPublicIpOnLaunch: false
+        Tags:
+          - Key: Name
+            Value: !Sub snet-${VpcName}-priv002
+
+    RTAssociation2:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties: 
+        RouteTableId: !Ref PrivateRouteTable1
+        SubnetId: !Ref PrivateSubnet2
+
+
+  ##PublicRoutes and Subnet -->>>
+
+    PublicSubnet1:
+      Type: AWS::EC2::Subnet
+      Metadata:
+        cfn_nag:
+          rules_to_suppress:
+            - id: W33
+              reason: "subnet for public access purposes" 
+      Properties:
+        VpcId: !Ref VPC
+        AvailabilityZone: !Select [0, !GetAZs ""]
+        CidrBlock: !Select
+          - 0
+          - !Cidr
+            - !GetAtt VPC.CidrBlock
+            - 8
+            - 5
+        MapPublicIpOnLaunch: true
+        Tags:
+          - Key: Name
+            Value: !Sub snet-${VpcName}-pub001
+          - Key: IsUsedForDeploy
+            Value: "True"
+
+    PublicRouteTable:
+      Type: AWS::EC2::RouteTable
+      Properties:
+        VpcId: !Ref VPC
+        Tags:
+          - Key: Name
+            Value: !Sub rt-${VpcName}-pub
+          - Key: IsUsedForDeploy
+            Value: "True"
+
+    DefaultPublicRoute1:
+      Type: AWS::EC2::Route
+      DependsOn: InternetGatewayAttachment
+      Properties:
+        RouteTableId: !Ref PublicRouteTable
+        DestinationCidrBlock: 0.0.0.0/0
+        GatewayId: !Ref InternetGateway
+
+    PublicSubnet1RouteTableAssociation:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+        RouteTableId: !Ref PublicRouteTable
+        SubnetId: !Ref PublicSubnet1
+
+  ## -->>> Security Groups for VPC Endpoints and EC2 instances
+
+    IngressSecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Metadata:
+        cfn_nag:
+          rules_to_suppress:
+            - id: W9
+              reason: "Required for Central Network Solution"
+            - id: W2
+              reason: "Required for Central Network Solution"
+            - id: W28
+              reason: "Required for Central Network Solution"
+            - id: W36
+              reason: "Security Group for demonstrative purpose"
+            - id: F1000
+              reason: "Required for Central Network Solution"
+      Properties:
+        GroupDescription: !Sub ${SecurityGroupDescription}
+        VpcId: !Ref VPC
+        GroupName: !Sub sgrp-${ResourcePrefix}-${VpcName}-end
+        SecurityGroupIngress:
+          - FromPort: 443
+            IpProtocol: tcp
+            ToPort: 443
+            CidrIp: 0.0.0.0/0
+          - FromPort: 22
+            IpProtocol: tcp
+            ToPort: 22
+            CidrIp: 0.0.0.0/0
+          - FromPort: -1
+            IpProtocol: icmp
+            ToPort: -1
+            CidrIp: !Ref VpcCIDR
+          - FromPort: 5432
+            IpProtocol: tcp
+            ToPort: 5432
+            CidrIp: 0.0.0.0/0
+
+  ## Create VPC endpoints for SSM
+
+
+    CreateVpcEndpointSSM:
+      Type: AWS::EC2::VPCEndpoint
+      Properties:
+        VpcEndpointType: Interface
+        SubnetIds:
+          - !Ref PrivateSubnet1
+          # - !Ref PrivateSubnet2
+          # - !Ref PrivateSubnet3
+        SecurityGroupIds:
+          - !Ref IngressSecurityGroup
+        PrivateDnsEnabled: true
+        ServiceName: !Sub com.amazonaws.${AWS::Region}.ssm
+        VpcId: !Ref VPC
+
+    CreateVpcEndpointSSMMessages:
+      Type: AWS::EC2::VPCEndpoint
+      Properties:
+        VpcEndpointType: Interface
+        SubnetIds:
+          - !Ref PrivateSubnet1
+          # - !Ref PrivateSubnet2
+          # - !Ref PrivateSubnet3
+        SecurityGroupIds:
+          - !Ref IngressSecurityGroup
+        PrivateDnsEnabled: true
+        ServiceName: !Sub com.amazonaws.${AWS::Region}.ssmmessages
+        VpcId: !Ref VPC
+
+    CreateVpcEndpointEC2Messages:
+      Type: AWS::EC2::VPCEndpoint
+      Properties:
+        VpcEndpointType: Interface
+        SubnetIds:
+          - !Ref PrivateSubnet1
+          # - !Ref PrivateSubnet2
+          # - !Ref PrivateSubnet3
+        SecurityGroupIds:
+          - !Ref IngressSecurityGroup
+        PrivateDnsEnabled: true
+        ServiceName: !Sub com.amazonaws.${AWS::Region}.ec2messages
+        VpcId: !Ref VPC
+
+
+    ## Launch IAM Role for EC2 instances
+
+
+    SSMIAMRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - ec2.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+
+    InstanceProfile:
+      Type: AWS::IAM::InstanceProfile
+      Properties:
+        Path: /
+        Roles:
+          - !Ref SSMIAMRole
+
+
+##########################################
+# TLA Core Server Provisions
+##########################################
+
+    MyNewEC2Instance1:  
+      Type: AWS::EC2::Instance  
+      Properties:
+        IamInstanceProfile: !Ref InstanceProfile
+        ImageId: !FindInMap 
+          - RegionMap
+          - !Ref 'AWS::Region'
+          - Ubuntu2204LTS
+        InstanceType: t2.medium
+        SubnetId: !Ref PrivateSubnet1
+        SecurityGroupIds: 
+            - !Ref IngressSecurityGroup
+        UserData: 
+            Fn::Base64:
+              !Sub |
+                #!/bin/bash
+                sudo apt-get update -y # good practice to update existing packages
+                sudo apt-get install -y awscli
+                sudo apt install -y jq
+                # Docker is a bit complicated
+                # Add Docker's official GPG key:
+                sudo apt-get install ca-certificates curl gnupg -y
+                sudo install -m 0755 -d /etc/apt/keyrings
+                curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+                sudo chmod a+r /etc/apt/keyrings/docker.gpg
+                # Add the repository to Apt sources:
+                echo \
+                  "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+                  "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
+                  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+                sudo apt-get update
+                sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
+                # Add Docker Compose
+                curl -SL https://github.com/docker/compose/releases/download/v2.23.3/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
+                # Make sure it's executable
+                chmod +x /usr/local/bin/docker-compose
+        Tags:
+          - Key: Name
+            Value: !Sub CORE-AUTH-${ResourcePrefix}
+
+    MyNewEC2Instance2:  
+      Type: AWS::EC2::Instance  
+      Properties:
+        IamInstanceProfile: !Ref InstanceProfile
+        ImageId: !FindInMap 
+          - RegionMap
+          - !Ref 'AWS::Region'
+          - Ubuntu2204LTS
+        InstanceType: t2.medium
+        SubnetId: !Ref PrivateSubnet1
+        SecurityGroupIds: 
+            - !Ref IngressSecurityGroup
+        Tags:
+          - Key: Name
+            Value: !Sub CORE-KAFKA-${ResourcePrefix}
+
+    MyNewEC2Instance3:  
+      Type: AWS::EC2::Instance  
+      Properties:
+        IamInstanceProfile: !Ref InstanceProfile
+        ImageId: !FindInMap 
+          - RegionMap
+          - !Ref 'AWS::Region'
+          - Ubuntu2204LTS
+        InstanceType: t2.medium
+        SubnetId: !Ref PrivateSubnet1
+        SecurityGroupIds: 
+            - !Ref IngressSecurityGroup
+        Tags:
+          - Key: Name
+            Value: !Sub CORE-REGISTRY-${ResourcePrefix}
+
+    MyNewEC2Instance4:  
+      Type: AWS::EC2::Instance  
+      Properties:
+        IamInstanceProfile: !Ref InstanceProfile
+        ImageId: !FindInMap 
+          - RegionMap
+          - !Ref 'AWS::Region'
+          - Ubuntu2204LTS
+        InstanceType: t2.medium
+        SubnetId: !Ref PrivateSubnet1
+        SecurityGroupIds: 
+            - !Ref IngressSecurityGroup
+        Tags:
+          - Key: Name
+            Value: !Sub CORE-LRS-${ResourcePrefix}
+
+    MyNewEC2Instance5:  
+      Type: AWS::EC2::Instance  
+      Properties:
+        IamInstanceProfile: !Ref InstanceProfile
+        ImageId: !FindInMap 
+          - RegionMap
+          - !Ref 'AWS::Region'
+          - Ubuntu2204LTS
+        InstanceType: t2.medium
+        SubnetId: !Ref PrivateSubnet1
+        SecurityGroupIds: 
+            - !Ref IngressSecurityGroup
+        Tags:
+          - Key: Name
+            Value: !Sub CORE-CASS-${ResourcePrefix}
+
+
+
+
+##########################################
+# TLA Learning Activities Server Provisions
+##########################################
+
+
+    MyNewEC2Instance6:  
+      Type: AWS::EC2::Instance  
+      Properties:
+        IamInstanceProfile: !Ref InstanceProfile
+        ImageId: !FindInMap 
+          - RegionMap
+          - !Ref 'AWS::Region'
+          - Ubuntu2204LTS
+        InstanceType: t2.medium
+        SubnetId: !Ref PrivateSubnet1
+        SecurityGroupIds: 
+            - !Ref IngressSecurityGroup
+        Tags:
+          - Key: Name
+            Value: !Sub MOODLE-${ResourcePrefix}
+
+
+    MyNewEC2Instance8:  
+      Type: AWS::EC2::Instance  
+      Properties:
+        IamInstanceProfile: !Ref InstanceProfile
+        ImageId: !FindInMap 
+          - RegionMap
+          - !Ref 'AWS::Region'
+          - Ubuntu2204LTS
+        InstanceType: t2.medium
+        SubnetId: !Ref PrivateSubnet1
+        SecurityGroupIds: 
+            - !Ref IngressSecurityGroup
+        Tags:
+          - Key: Name
+            Value: !Sub MOODLE-CONTENT-${ResourcePrefix}
+
+
+
+##########################################
+# Moodle DB RDS
+##########################################
+
+
+###########
+# DB Subnet Group
+###########
+
+    DBSubnetGroup:
+      Type: AWS::RDS::DBSubnetGroup
+      DependsOn:
+        - PrivateSubnet1
+        - PrivateSubnet2
+      Properties: 
+        DBSubnetGroupDescription: !Sub DBsubnet-${ResourcePrefix}
+        DBSubnetGroupName: !Sub DBsubnet-${ResourcePrefix}
+        SubnetIds:
+          - !Ref PrivateSubnet1
+          - !Ref PrivateSubnet2
+        Tags:
+          -
+            Key: Name
+            Value: DBSubnetGroup
+
+###########
+# RDS Instance
+###########
+
+    MyRDSInstance:
+      Type: "AWS::RDS::DBInstance"
+      Properties:
+        MasterUsername: !Ref DBMasterUser
+        DBInstanceClass: "db.t3.medium"
+        DBName: !Sub DB${ResourcePrefix}
+        Engine: "postgres"
+        EngineVersion: "15.3"
+        AllocatedStorage: 20
+        MaxAllocatedStorage: 200 # enables Storage autoscaling
+        StorageType: "gp3"
+        DBSubnetGroupName: !Ref DBSubnetGroup
+        VPCSecurityGroups:
+          - !Ref IngressSecurityGroup
+        AutoMinorVersionUpgrade: false
+        ManageMasterUserPassword: true
+        MasterUserSecret:
+          KmsKeyId: !Ref KMSKey
+        BackupRetentionPeriod: !Ref BackupRetention
+        CopyTagsToSnapshot: true
+
+
+###########
+# KMS Key
+###########
+  
+    KMSKey:
+      Type: 'AWS::KMS::Key'
+      Properties:
+        Description: Manual test KMS key
+        EnableKeyRotation: True
+        KeyPolicy:
+          Version: "2012-10-17"
+          Id: !Ref "AWS::StackName"
+          Statement:
+            - Sid: "Allow administration of the key"
+              Effect: "Allow"
+              Principal:
+                AWS:
+                  Fn::Sub: 'arn:${AWS::Partition}:iam::${AWS::AccountId}:root'
+              Action:
+                - "kms:*"
+              Resource: "*"

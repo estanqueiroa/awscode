@@ -1,0 +1,340 @@
+# DISCLAIMER: USE AT YOUR OWN RISK
+# The information provided on this website and template, including but not limited to articles, guides, and tutorials, is for general informational purposes only. 
+# The content is not intended to be a substitute for professional advice or guidance.
+# While we make every effort to ensure the accuracy and timeliness of the information presented, we make no representations or warranties of any kind,
+# express or implied, about the completeness, accuracy, or reliability of the content. Any reliance you place on such information is strictly at your own risk.
+#
+# We strongly recommend that you consult with a qualified professional for advice tailored to your specific situation. 
+# We disclaim all liability for any actions you take or fail to take based on any content provided on this website and template.
+#
+# This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+#
+# These services creation in AWS may have associated COSTS, please check costs before deployment.
+
+AWSTemplateFormatVersion: 2010-09-09
+Description: A template for CloudFront distribution using ALB and protected by WAF Global and Regional.
+
+#############################################
+# PARAMETERS
+#############################################
+
+Parameters:
+
+  pWAFLogsGroup:
+    Type: String
+    Default: "eks01"
+    Description: Suffix for CW log group name - must starts with aws-waf-logs-
+
+  pLogGroupRetention:
+    Type: Number
+    Default: 90
+    Description: Retention days for Log Group
+
+  pHeaderName:
+    Type: String
+    Default: x-api-key
+    Description: The name of a custom header that you want CloudFront to send to your origin. Consider the Header name and Value as secure credentials, like a user name and password.
+
+  pHeaderValue:
+    Type: String
+    NoEcho: True
+    Description: The value for the custom header that you want CloudFront to send to your origin. Consider the Header name and Value as secure credentials, like a user name and password.
+
+  pLoggingBucket:
+      Type: String
+      Default: s3logging-bucket.s3.amazonaws.com
+      Description: The Amazon S3 bucket with ACL enabled to store the CloudFront access logs in, for example, myawslogbucket.s3.amazonaws.com
+
+  pLoadBalancer:
+    Type: String
+    Default: eks01-alb-external-1accountid.region.elb.amazonaws.com
+    Description: DNS name of EKS internet-facing ALB to assign to CloudFront
+
+  pTargetALB:
+    Type: String
+    Default: arn:aws:elasticloadbalancing:region:accountid:loadbalancer/app/eks01-alb-external/abcdefghijklmn
+    Description: "ARN of Target ALB to associate with WAF"
+
+  pTagKey:
+    Type: String
+    Default: tagkey01
+    Description: Tag Key for deployed resources
+
+  pTagValue:
+    Type: String
+    Default: tagvalue01
+    Description: Tag Value for deployed resources
+
+
+#############################################
+# METADATA
+#############################################
+
+Metadata:
+  "AWS::CloudFormation::Interface":
+    ParameterGroups:
+      - Label:
+          default: "Application Load Balancer"
+        Parameters: 
+          - pLoadBalancer
+          - pTargetALB
+      - Label:
+          default: "WAF Single Header rule"
+        Parameters: 
+          - pHeaderName
+          - pHeaderValue
+      - Label:
+          default: "WAF & CloudFront logs"
+        Parameters: 
+          - pWAFLogsGroup
+          - pLogGroupRetention
+          - pLoggingBucket
+      - Label:
+          default: "Tags"
+        Parameters: 
+          - !Ref pTagKey
+          - !Ref pTagValue
+
+
+#############################################
+# RESOURCES CREATION
+#############################################
+
+Resources:
+
+#############################################
+# new CloudFront distribution
+#############################################
+
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W70
+            reason: "You can implement improved security policies (with TLSv1.2 and TLSv1.3) only for Amazon CloudFront distributions that use custom SSL certificates to serve HTTPS requests using SNI."
+    DependsOn:
+      - GlobalWafWebAcl
+    Properties:
+      DistributionConfig:
+        Origins:
+          - DomainName: !Ref pLoadBalancer # external load balancer for EKS cluster
+            Id: eks-load-balancer
+            CustomOriginConfig:
+              OriginProtocolPolicy: http-only
+              HTTPPort: 80
+            OriginCustomHeaders:
+              - HeaderName: !Ref pHeaderName
+                HeaderValue: !Ref pHeaderValue
+        Enabled: "true"
+        IPV6Enabled: false
+        HttpVersion: http2
+        Comment: "eks waf deployment"
+        PriceClass: "PriceClass_All"
+        ViewerCertificate: 
+            CloudFrontDefaultCertificate: true
+        Restrictions: 
+            GeoRestriction: 
+                RestrictionType: "none"
+        DefaultCacheBehavior:
+            AllowedMethods: 
+              - "HEAD"
+              - "GET"
+            CachedMethods: 
+              - "HEAD"
+              - "GET"
+            Compress: true
+            TargetOriginId: eks-load-balancer
+            ForwardedValues:
+              QueryString: "false"
+              Cookies:
+                Forward: none
+            ViewerProtocolPolicy: redirect-to-https
+        WebACLId: !GetAtt GlobalWafWebAcl.Arn # associates WAF ACL to CloudFront
+        Logging: 
+          Bucket: !Ref pLoggingBucket
+          Prefix: cloudfront/
+          IncludeCookies: 'true'
+      Tags:
+        - Key: !Ref pTagKey
+          Value: !Ref pTagValue
+
+#############################################
+# create WAF ACL rules with some AWS Managed rules for CloudFront
+#############################################
+
+  GlobalWafWebAcl:
+    Type: 'AWS::WAFv2::WebACL'
+    Properties:
+      Name: GlobalWebACLCloudFront
+      Scope: CLOUDFRONT
+      Description: web ACL Global with AWS Managed Rules
+      DefaultAction:
+        Allow: {}
+      VisibilityConfig:
+        CloudWatchMetricsEnabled: true
+        MetricName: WAF_Common_Protections
+        SampledRequestsEnabled: true
+      Tags:
+        - Key: !Ref pTagKey
+          Value: !Ref pTagValue
+      Rules:
+        - Name: AWSManagedRulesCommonRule
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesCommonRuleSet
+          Priority: 0
+          OverrideAction:
+            None: {}
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesCommonRule
+            SampledRequestsEnabled: true
+        - Name: AWSManagedRulesKnownBadInputsRule
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesKnownBadInputsRuleSet
+          Priority: 1
+          OverrideAction:
+            None: {}
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesKnownBadInputsRule
+            SampledRequestsEnabled: true
+        - Name: AWSManagedRulesAmazonIpReputation
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesAmazonIpReputationList
+          Priority: 2
+          OverrideAction:
+            None: {}
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesAmazonIpReputation
+            SampledRequestsEnabled: true
+
+
+#############################################
+# Create regional WAF with custom header rule for ALB
+#############################################
+
+  RegionalWebACLWithAMR:
+    Type: AWS::WAFv2::WebACL
+    Properties:
+      Name: RegionalWebACL
+      Scope: REGIONAL
+      Description: web ACL regional with AWS Managed and Custom Header rules
+      DefaultAction: 
+        Allow: {}
+      VisibilityConfig:
+        SampledRequestsEnabled: true
+        CloudWatchMetricsEnabled: true
+        MetricName: MetricForWebACLWithAMR
+      Tags:
+        - Key: !Ref pTagKey
+          Value: !Ref pTagValue
+      Rules: 
+        - Name: AWS-AWSManagedRulesCommonRuleSet
+          Priority: 1
+          OverrideAction:
+            None: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: MetricForAMRCRS
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesCommonRuleSet
+              ExcludedRules:
+                - Name: NoUserAgent_HEADER
+        - Name: "customheader"
+          Priority: 0
+          Action: 
+              Block: {}
+          Statement: 
+              NotStatement: 
+                  Statement: 
+                      ByteMatchStatement: 
+                          SearchString: 
+                            !Ref pHeaderValue
+                          FieldToMatch: 
+                              SingleHeader: 
+                                  Name: !Ref pHeaderName
+                          TextTransformations: 
+                            - 
+                              Priority: 0
+                              Type: NONE
+                          PositionalConstraint: EXACTLY
+          VisibilityConfig: 
+              SampledRequestsEnabled: true
+              CloudWatchMetricsEnabled: true
+              MetricName: "customheader"
+
+
+
+#############################################
+# Associate WAFv2 Web ACL with a load balancer
+#############################################
+
+
+  wafALBAssociation:
+    Type: AWS::WAFv2::WebACLAssociation
+    Properties:
+      ResourceArn: !Ref pTargetALB
+      WebACLArn: !GetAtt RegionalWebACLWithAMR.Arn
+
+#############################################
+# create CloudWatch log group for WAF logging
+#############################################
+
+  myLogGroup: 
+    Type: AWS::Logs::LogGroup
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W84
+            reason: "Not required to encrypt the log data for MVP"
+    Properties:
+      LogGroupName: !Sub "aws-waf-logs-${pWAFLogsGroup}"
+      RetentionInDays: !Ref pLogGroupRetention
+      Tags:
+        - Key: !Ref pTagKey
+          Value: !Ref pTagValue
+          
+#############################################
+# logging configuration for WAF
+#############################################
+
+  LoggingConfigurationGlobal:
+    Type: AWS::WAFv2::LoggingConfiguration
+    Properties:
+      LogDestinationConfigs: 
+        - !GetAtt myLogGroup.Arn
+      ResourceArn: !GetAtt GlobalWafWebAcl.Arn # Global WAF (CloudFront)
+
+  LoggingConfigurationRegional:
+    Type: AWS::WAFv2::LoggingConfiguration
+    Properties:
+      LogDestinationConfigs: 
+        - !GetAtt myLogGroup.Arn
+      ResourceArn: !GetAtt RegionalWebACLWithAMR.Arn # Regional WAF (ALB)
+
+#############################################
+# OUTPUTS
+#############################################
+
+Outputs:
+
+  CloudFrontDist:
+    Value:
+      Ref: CloudFrontDistribution
+
+  CloudFrontDomain:
+    Value:
+      !GetAtt CloudFrontDistribution.DomainName
