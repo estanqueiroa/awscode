@@ -12,6 +12,8 @@ AWS Services to be created: CloudFront, WAF web ACL, CloudWatch Log group.
 
 Based on this AWS answer: https://repost.aws/knowledge-center/waf-restrict-alb-allow-cloudfront
 
+Published article in Linkedin: https://www.linkedin.com/pulse/using-amazon-cloudfront-aws-waf-protect-your-eks-artur-estanqueiro-iqmjf
+
 # How It Works
 
 After solution deployment using AWS console or CloudFormation template (steps below), you can test application access using CloudFront domain URL.
