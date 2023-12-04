@@ -69,9 +69,9 @@ The cost estimation for each service is presented below **(CAUTION: costs may va
 
 - This AWS WAF configuration is estimated to cost $26.00 for 10 million requests (per web ACL)
 
-- Monthly cost: 93.63 USD
+Monthly cost: 93.63 USD
 
-- Total 12 months cost: 1,123.56 USD
+Total 12 months cost: 1,123.56 USD
 
 
 
