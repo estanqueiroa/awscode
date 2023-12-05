@@ -63,15 +63,15 @@ The cost estimation for each service is presented below **(CAUTION: costs may va
 
 - AWS Region: US East (N. Virginia)
 
-- This AWS WAF configuration is estimated to cost $14 for 10 million requests/month
+- This Amazon CloudFront configuration is estimated to cost $5.10 for 10,000,000 HTTPS requests/month.
 
-- This Amazon CloudFront configuration is estimated to cost $5.10 for 10,000,000 HTTPS requests
+- This AWS WAF configuration is estimated to cost $26.00 for 10 million requests/month (per web ACL).
 
-- This AWS WAF configuration is estimated to cost $26.00 for 10 million requests (per web ACL)
+- This CloudWatch log group configuration is estimated to cost $12.53 for 30 GB of monthly ingested logs.  
 
-Monthly cost: 93.63 USD
+Monthly cost: 69.63 USD
 
-Total 12 months cost: 1,123.56 USD
+Total 12 months cost: 835.56 USD
 
 
 
