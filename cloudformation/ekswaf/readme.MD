@@ -61,7 +61,7 @@ aws cloudformation create-stack \
 
 The cost estimation for each service is presented below **(CAUTION: costs may vary considering your use case)**
 
-- AWS Region: US East (N. Virginia)
+AWS Region: US East (N. Virginia)
 
 - This Amazon CloudFront configuration is estimated to cost $5.10 for 10,000,000 HTTPS requests/month.
 
