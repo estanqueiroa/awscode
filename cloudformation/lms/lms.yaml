@@ -9,48 +9,28 @@
 
 
 AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::LanguageExtensions
+
 Description: Deploys TLA Reference Implementation in an Amazon Web Services (AWS) virtual private cloud hosted via the ADL Initiative
 
 Parameters:
 
-    EnvironmentName:
+    ResourcePrefix:
       Description: An environment name that is prefixed to resource names
       Type: String
-      Default: Test-MGN
-
-    EC2InstanceType:
-      Description: WebServer EC2 instance type
-      Type: String
-      Default: t3.medium
-      AllowedValues:
-        - t3.nano
-        - t3.micro
-        - t3.small
-        - t3.medium
-        - t3.large
-        - m4.large
-        - t3.xlarge
-
-    ResourcePrefix:
-      Description: An environment name that is prefixed to resource names (Target)
-      Type: String
-      Default: Target-MGN
-
+      Default: LMS01
 
     SecurityGroupDescription:
       Description: SecurityGroupDescription
       Type: String
       Default: SGRP for RDS, EC2 and VPC endpoints
 
-    VpcName:
-      Description: An environment name that is prefixed to resource names (Target)
-      Type: String
-      Default: Target-VPC
-
     VpcCIDR:
-      Description: Please enter the IP range (CIDR notation) for this VPC (Target)
+      Description: Please enter the IP range (CIDR notation) for this VPC
       Type: String
-      Default: 10.10.0.0/16
+      Default: 192.168.0.0/16
+      AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+      ConstraintDescription: Must be a valid IP CIDR range of the form x.x.x.x/x
 
     DBMasterUser:
       Type: String
@@ -62,40 +42,79 @@ Parameters:
       Description: The number of days for which automated backups are retained. Setting this parameter to a positive number enables backups. Setting this parameter to 0 disables automated backups.
       Default: 15
 
-#Metadata
+    Environment:
+      Description: Lifecycle environment.
+      Type: String
+      AllowedValues:
+        - sandbox
+        - dev
+        - qa
+        - prod
+      Default: dev
+
+###############
+# Metadata
+###############
+
 Metadata:
   'AWS::CloudFormation::Interface':
     ParameterGroups:
       - Label:
-          default: Client - Configuration
+          default: EC2 Configurations
         Parameters:
-          - EnvironmentName
+          - EC2InstanceType
+          - mytagvalue
+          - Environment
       - Label:
-          default: Target Server - Configuration
+          default: VPC
         Parameters:
           - ResourcePrefix
-          - VpcName
           - VpcCIDR
-          - MGNendpoint
+          - SecurityGroupDescription
+      - Label:
+          default: RDS
+        Parameters:
+          - DBMasterUser
+          - BackupRetention
 
 
+###########
+# Mappings
+###########
 
-#Mappings
 Mappings:
   RegionMap:
     us-east-1:
       CentOS7x8664EBSHVM: ami-088f16c57ce74d90e
       AmazonLinux2Kernel510: ami-0f409bae3775dc8e5
       Ubuntu2204LTS: ami-0fc5d935ebf8bc3bc
+    us-east-2:
+      CentOS7x8664EBSHVM: ami-033adaf0b583374d4
+      AmazonLinux2Kernel510: ami-09f85f3aaae282910
+      Ubuntu2204LTS: ami-0e83be366243f524a
     us-west-2:
       CentOS7x8664EBSHVM: ami-040f9e8ab2841a9b3
       AmazonLinux2Kernel510: ami-002c2b8d1f5b1eb47
       Ubuntu2204LTS: ami-0efcece6bed30fd98
+  InstanceMap:
+    sandbox:
+      InstanceSize: t3.small
+    dev:
+      InstanceSize: t3.medium
+    qa:
+      InstanceSize: t3.large
+    prod:
+      InstanceSize: t3.xlarge
+
+
+#############
+# Resources
+#############
 
 Resources:
 
 
-#### create TARGET VPC ####
+#### create VPC ####
 
 
     VPC:
@@ -111,14 +130,14 @@ Resources:
         EnableDnsHostnames: true
         Tags:
           - Key: Name
-            Value: !Ref VpcName
+            Value: !Ref ResourcePrefix
 
     InternetGateway:
       Type: AWS::EC2::InternetGateway
       Properties:
         Tags:
           - Key: Name
-            Value: !Sub igw-${VpcName}
+            Value: !Sub igw-${ResourcePrefix}
 
     InternetGatewayAttachment:
       Type: AWS::EC2::VPCGatewayAttachment
@@ -128,25 +147,23 @@ Resources:
         
     NatGateway1EIP:
       Type: AWS::EC2::EIP
-      # Condition: CreateNgwResource
-      # DependsOn: InternetGatewayAttachment
+      DependsOn: InternetGatewayAttachment
       Properties:
         Domain: vpc
         Tags:
           - Key: Name
-            Value: !Sub eip-${VpcName}-001
+            Value: !Sub eip-${ResourcePrefix}-001
           - Key: IsUsedForDeploy
             Value: "True"
 
     NatGateway1:
       Type: AWS::EC2::NatGateway
-      # Condition: CreateNgwResource
       Properties:
         AllocationId: !GetAtt NatGateway1EIP.AllocationId
         SubnetId: !Ref PublicSubnet1
         Tags:
           - Key: Name
-            Value: !Sub ngw-${VpcName}-001
+            Value: !Sub ngw-${ResourcePrefix}-001
           - Key: IsUsedForDeploy
             Value: "True"
 
@@ -158,7 +175,7 @@ Resources:
         VpcId: !Ref VPC
         AvailabilityZone: !Select [ 0, !GetAZs  '' ]
         CidrBlock: !Select
-          - 1
+          - 0
           - !Cidr
             - !GetAtt VPC.CidrBlock
             - 8
@@ -166,7 +183,7 @@ Resources:
         MapPublicIpOnLaunch: false
         Tags:
           - Key: Name
-            Value: !Sub snet-${VpcName}-priv001
+            Value: !Sub snet-${ResourcePrefix}-priv001
 
 
     PrivateRouteTable1:
@@ -175,7 +192,7 @@ Resources:
         VpcId: !Ref VPC
         Tags:
           - Key: Name
-            Value: !Sub ${VpcName} Private Routes (AZ1)
+            Value: !Sub ${ResourcePrefix} Private Routes (AZ1)
 
     DefaultPrivateRoute1:
       Type: AWS::EC2::Route
@@ -199,7 +216,7 @@ Resources:
         VpcId: !Ref VPC
         AvailabilityZone: !Select [ 1, !GetAZs  '' ]
         CidrBlock: !Select
-          - 2
+          - 1
           - !Cidr
             - !GetAtt VPC.CidrBlock
             - 8
@@ -207,7 +224,7 @@ Resources:
         MapPublicIpOnLaunch: false
         Tags:
           - Key: Name
-            Value: !Sub snet-${VpcName}-priv002
+            Value: !Sub snet-${ResourcePrefix}-priv002
 
     RTAssociation2:
       Type: AWS::EC2::SubnetRouteTableAssociation
@@ -229,7 +246,7 @@ Resources:
         VpcId: !Ref VPC
         AvailabilityZone: !Select [0, !GetAZs ""]
         CidrBlock: !Select
-          - 0
+          - 3
           - !Cidr
             - !GetAtt VPC.CidrBlock
             - 8
@@ -237,9 +254,10 @@ Resources:
         MapPublicIpOnLaunch: true
         Tags:
           - Key: Name
-            Value: !Sub snet-${VpcName}-pub001
+            Value: !Sub snet-${ResourcePrefix}-pub001
           - Key: IsUsedForDeploy
             Value: "True"
+
 
     PublicRouteTable:
       Type: AWS::EC2::RouteTable
@@ -247,7 +265,7 @@ Resources:
         VpcId: !Ref VPC
         Tags:
           - Key: Name
-            Value: !Sub rt-${VpcName}-pub
+            Value: !Sub rt-${ResourcePrefix}-pub
           - Key: IsUsedForDeploy
             Value: "True"
 
@@ -264,6 +282,7 @@ Resources:
       Properties:
         RouteTableId: !Ref PublicRouteTable
         SubnetId: !Ref PublicSubnet1
+
 
   ## -->>> Security Groups for VPC Endpoints and EC2 instances
 
@@ -285,7 +304,7 @@ Resources:
       Properties:
         GroupDescription: !Sub ${SecurityGroupDescription}
         VpcId: !Ref VPC
-        GroupName: !Sub sgrp-${ResourcePrefix}-${VpcName}-end
+        GroupName: !Sub sgrp-${ResourcePrefix}-${ResourcePrefix}-end
         SecurityGroupIngress:
           - FromPort: 443
             IpProtocol: tcp
@@ -313,8 +332,7 @@ Resources:
         VpcEndpointType: Interface
         SubnetIds:
           - !Ref PrivateSubnet1
-          # - !Ref PrivateSubnet2
-          # - !Ref PrivateSubnet3
+          - !Ref PrivateSubnet2
         SecurityGroupIds:
           - !Ref IngressSecurityGroup
         PrivateDnsEnabled: true
@@ -327,8 +345,7 @@ Resources:
         VpcEndpointType: Interface
         SubnetIds:
           - !Ref PrivateSubnet1
-          # - !Ref PrivateSubnet2
-          # - !Ref PrivateSubnet3
+          - !Ref PrivateSubnet2
         SecurityGroupIds:
           - !Ref IngressSecurityGroup
         PrivateDnsEnabled: true
@@ -341,13 +358,57 @@ Resources:
         VpcEndpointType: Interface
         SubnetIds:
           - !Ref PrivateSubnet1
-          # - !Ref PrivateSubnet2
-          # - !Ref PrivateSubnet3
+          - !Ref PrivateSubnet2
         SecurityGroupIds:
           - !Ref IngressSecurityGroup
         PrivateDnsEnabled: true
         ServiceName: !Sub com.amazonaws.${AWS::Region}.ec2messages
         VpcId: !Ref VPC
+
+
+################################
+# create Gateway Endpoints
+################################
+
+    CreateVpcEndpointS3:
+        Type: AWS::EC2::VPCEndpoint
+        Properties:
+          VpcEndpointType: Gateway
+          ServiceName: !Sub com.amazonaws.${AWS::Region}.s3
+          VpcId: !Ref VPC
+          RouteTableIds:
+          - !Ref PrivateRouteTable1
+          # - !Ref PrivateRouteTable02
+          # PolicyDocument:
+          #         Version: 2012-10-17
+          #         Statement:
+          #           - Effect: Allow
+          #             Principal: '*'
+          #             Action:
+          #               - 's3:GetObject'
+          #             Resource:
+          #               - 'arn:aws:s3:::*'
+
+    CreateVpcEndpointDynamoDB:
+      Type: AWS::EC2::VPCEndpoint
+      Properties:
+        VpcEndpointType: Gateway
+        ServiceName: !Sub com.amazonaws.${AWS::Region}.dynamodb
+        VpcId: !Ref VPC
+        RouteTableIds:
+        - !Ref PrivateRouteTable1
+        # - !Ref PrivateRouteTable02
+        # PolicyDocument:
+        #         Version: 2012-10-17
+        #         Statement:
+        #           - Effect: Allow
+        #             Principal: '*'
+        #             Action:
+        #               - 'dynamodb:DescribeTable'
+        #               - 'dynamodb:GetItem'
+        #               - 'dynamodb:PutItem'
+        #             Resource:
+        #               - 'arn:aws:dynamodb:::*'
 
 
     ## Launch IAM Role for EC2 instances
@@ -374,26 +435,75 @@ Resources:
         Roles:
           - !Ref SSMIAMRole
 
+#########################
+# Parameter store for EC2 user data - NOT USED - remove comment if required
+#########################
+
+    # EC2UserDataParameter:
+    #   Type: AWS::SSM::Parameter
+    #   Properties:
+    #     Name: "/my/ec2/userdata"
+    #     Type: "String"
+    #     Value: |
+    #         #!/bin/bash
+    #         sudo apt-get update -y # good practice to update existing packages
+    #         sudo apt-get install -y awscli
+    #         sudo apt install -y jq
+    #         # Docker is a bit complicated
+    #         # Add Docker's official GPG key:
+    #         sudo apt-get install ca-certificates curl gnupg -y
+    #         sudo install -m 0755 -d /etc/apt/keyrings
+    #         curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    #         sudo chmod a+r /etc/apt/keyrings/docker.gpg
+    #         # Add the repository to Apt sources:
+    #         echo \
+    #           "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+    #           "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
+    #           sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+    #         sudo apt-get update
+    #         sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
+    #         # Add Docker Compose
+    #         curl -SL https://github.com/docker/compose/releases/download/v2.23.3/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
+    #         # Make sure it's executable
+    #         chmod +x /usr/local/bin/docker-compose
+    #     DataType: "text"
+    #     Description: "EC2 user data stored in Parameter Store"
+    #     Tier: "Standard"
+
+    # MyNewEC2Instance10:  
+    #   Type: AWS::EC2::Instance  
+    #   Properties:
+    #     IamInstanceProfile: !Ref InstanceProfile
+    #     ImageId: !FindInMap 
+    #       - RegionMap
+    #       - !Ref 'AWS::Region'
+    #       - Ubuntu2204LTS
+    #     InstanceType: t2.medium
+    #     SubnetId: !Ref PrivateSubnet1
+    #     SecurityGroupIds: 
+    #         - !Ref IngressSecurityGroup
+    #     UserData:
+    #       Fn::Base64: !Sub 
+    #         - |
+    #           #!/bin/bash
+    #           ${UserDataParameter}
+    #         - UserDataParameter: !GetAtt EC2UserDataParameter.Value
+    #     Tags:
+    #       - Key: Name
+    #         Value: !Sub TEST-PARAMETER-${ResourcePrefix}
 
 ##########################################
-# TLA Core Server Provisions
+# Create EC2 instances
 ##########################################
 
-    MyNewEC2Instance1:  
-      Type: AWS::EC2::Instance  
-      Properties:
-        IamInstanceProfile: !Ref InstanceProfile
-        ImageId: !FindInMap 
-          - RegionMap
-          - !Ref 'AWS::Region'
-          - Ubuntu2204LTS
-        InstanceType: t2.medium
-        SubnetId: !Ref PrivateSubnet1
-        SecurityGroupIds: 
-            - !Ref IngressSecurityGroup
-        UserData: 
-            Fn::Base64:
-              !Sub |
+    Fn::ForEach::Instances:
+      - InstanceLogicalId
+      - [CoreAuth, CoreKafka, CoreRegistry, CoreLRS, CoreCASS, Moodle, MoodleContent]
+      - ${InstanceLogicalId}:
+          Type: AWS::EC2::Instance
+          Properties:
+            UserData:
+              Fn::Base64: !Sub |
                 #!/bin/bash
                 sudo apt-get update -y # good practice to update existing packages
                 sudo apt-get install -y awscli
@@ -415,114 +525,23 @@ Resources:
                 curl -SL https://github.com/docker/compose/releases/download/v2.23.3/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
                 # Make sure it's executable
                 chmod +x /usr/local/bin/docker-compose
-        Tags:
-          - Key: Name
-            Value: !Sub CORE-AUTH-${ResourcePrefix}
-
-    MyNewEC2Instance2:  
-      Type: AWS::EC2::Instance  
-      Properties:
-        IamInstanceProfile: !Ref InstanceProfile
-        ImageId: !FindInMap 
-          - RegionMap
-          - !Ref 'AWS::Region'
-          - Ubuntu2204LTS
-        InstanceType: t2.medium
-        SubnetId: !Ref PrivateSubnet1
-        SecurityGroupIds: 
-            - !Ref IngressSecurityGroup
-        Tags:
-          - Key: Name
-            Value: !Sub CORE-KAFKA-${ResourcePrefix}
-
-    MyNewEC2Instance3:  
-      Type: AWS::EC2::Instance  
-      Properties:
-        IamInstanceProfile: !Ref InstanceProfile
-        ImageId: !FindInMap 
-          - RegionMap
-          - !Ref 'AWS::Region'
-          - Ubuntu2204LTS
-        InstanceType: t2.medium
-        SubnetId: !Ref PrivateSubnet1
-        SecurityGroupIds: 
-            - !Ref IngressSecurityGroup
-        Tags:
-          - Key: Name
-            Value: !Sub CORE-REGISTRY-${ResourcePrefix}
-
-    MyNewEC2Instance4:  
-      Type: AWS::EC2::Instance  
-      Properties:
-        IamInstanceProfile: !Ref InstanceProfile
-        ImageId: !FindInMap 
-          - RegionMap
-          - !Ref 'AWS::Region'
-          - Ubuntu2204LTS
-        InstanceType: t2.medium
-        SubnetId: !Ref PrivateSubnet1
-        SecurityGroupIds: 
-            - !Ref IngressSecurityGroup
-        Tags:
-          - Key: Name
-            Value: !Sub CORE-LRS-${ResourcePrefix}
-
-    MyNewEC2Instance5:  
-      Type: AWS::EC2::Instance  
-      Properties:
-        IamInstanceProfile: !Ref InstanceProfile
-        ImageId: !FindInMap 
-          - RegionMap
-          - !Ref 'AWS::Region'
-          - Ubuntu2204LTS
-        InstanceType: t2.medium
-        SubnetId: !Ref PrivateSubnet1
-        SecurityGroupIds: 
-            - !Ref IngressSecurityGroup
-        Tags:
-          - Key: Name
-            Value: !Sub CORE-CASS-${ResourcePrefix}
-
-
-
-
-##########################################
-# TLA Learning Activities Server Provisions
-##########################################
-
-
-    MyNewEC2Instance6:  
-      Type: AWS::EC2::Instance  
-      Properties:
-        IamInstanceProfile: !Ref InstanceProfile
-        ImageId: !FindInMap 
-          - RegionMap
-          - !Ref 'AWS::Region'
-          - Ubuntu2204LTS
-        InstanceType: t2.medium
-        SubnetId: !Ref PrivateSubnet1
-        SecurityGroupIds: 
-            - !Ref IngressSecurityGroup
-        Tags:
-          - Key: Name
-            Value: !Sub MOODLE-${ResourcePrefix}
-
-
-    MyNewEC2Instance8:  
-      Type: AWS::EC2::Instance  
-      Properties:
-        IamInstanceProfile: !Ref InstanceProfile
-        ImageId: !FindInMap 
-          - RegionMap
-          - !Ref 'AWS::Region'
-          - Ubuntu2204LTS
-        InstanceType: t2.medium
-        SubnetId: !Ref PrivateSubnet1
-        SecurityGroupIds: 
-            - !Ref IngressSecurityGroup
-        Tags:
-          - Key: Name
-            Value: !Sub MOODLE-CONTENT-${ResourcePrefix}
+            IamInstanceProfile: !Ref InstanceProfile
+            ImageId: !FindInMap 
+              - RegionMap
+              - !Ref 'AWS::Region'
+              - Ubuntu2204LTS
+            SubnetId: !Ref PrivateSubnet1
+            SecurityGroupIds: 
+                - !Ref IngressSecurityGroup
+            InstanceType: !FindInMap
+              - InstanceMap
+              - !Ref Environment
+              - InstanceSize
+            Tags:
+              - Key: Name
+                Value: !Sub ${ResourcePrefix}-${InstanceLogicalId}
+              - Key: InstanceScheduler
+                Value: OfficeHours
 
 
 
@@ -560,7 +579,8 @@ Resources:
       Properties:
         MasterUsername: !Ref DBMasterUser
         DBInstanceClass: "db.t3.medium"
-        DBName: !Sub DB${ResourcePrefix}
+        DBInstanceIdentifier: !Sub ${ResourcePrefix}DB
+        DBName: !Sub ${ResourcePrefix}DB
         Engine: "postgres"
         EngineVersion: "15.3"
         AllocatedStorage: 20
@@ -575,6 +595,9 @@ Resources:
           KmsKeyId: !Ref KMSKey
         BackupRetentionPeriod: !Ref BackupRetention
         CopyTagsToSnapshot: true
+        Tags:
+          - Key: InstanceScheduler
+            Value: OfficeHours
 
 
 ###########
@@ -584,7 +607,7 @@ Resources:
     KMSKey:
       Type: 'AWS::KMS::Key'
       Properties:
-        Description: Manual test KMS key
+        Description: RDS instance KMS key
         EnableKeyRotation: True
         KeyPolicy:
           Version: "2012-10-17"
@@ -598,3 +621,4 @@ Resources:
               Action:
                 - "kms:*"
               Resource: "*"
+
