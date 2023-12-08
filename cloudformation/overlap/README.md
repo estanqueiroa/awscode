@@ -5,4 +5,5 @@ Creates 2 VPC using same CIDR (overlapping) and demonstrates how to connect to r
 - Source VPC running EC2 instance with mysql client
 - Target VPC running RDS instance
 
-https://aws.amazon.com/blogs/networking-and-content-delivery/connecting-networks-with-overlapping-ip-ranges/
+
+See option # 2 here: //aws.amazon.com/blogs/networking-and-content-delivery/connecting-networks-with-overlapping-ip-ranges/
