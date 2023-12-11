@@ -61,7 +61,6 @@ aws cloudformation create-stack \
 | Amazon DynamoDB | https://aws.amazon.com/dynamodb/  |
 | Amazon EventBridge  | https://aws.amazon.com/eventbridge/ |
 | AWS Lambda | https://aws.amazon.com/lambda/ |
-| Amazon Elastic Block Store (EBS)  | https://aws.amazon.com/ebs/ |
 | Amazon SNS | https://aws.amazon.com/sns/|
 
 
