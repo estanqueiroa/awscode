@@ -223,49 +223,58 @@ Resources:
 
             #Read records from DynamoDB and validate with current date
             def lambda_handler(event, context):
-                # read AWS Account id
-                acctID = context.invoked_function_arn.split(":")[4]
-                birthdays = []
-                found = 0 #flag to configure email message content
-                # read environment variables and scan table items                
-                Target=os.environ["DB_TABLE"]
-                table = dynamodb.Table(Target)
-                items = table.scan()['Items']
 
-              #Read current date from system
-                today = datetime.date.today()
-                #format today date as month-day (substring)
-                current = (str(today)[5:])
+              try:
 
-                birthdays.append("Today is: " + str(today))
+                  # read AWS Account id
+                  acctID = context.invoked_function_arn.split(":")[4]
+                  birthdays = []
+                  found = 0 #flag to configure email message content
+                  # read environment variables and scan table items                
+                  Target=os.environ["DB_TABLE"]
+                  table = dynamodb.Table(Target)
+                  items = table.scan()['Items']
 
-                #Read each record from DynamoDB table and validate birthday date
-                for item in items:
-                    #read record and format birthday date as month-day (substring)
-                    bday = (str(item['BDate'])[5:])
-                    
-                    # check if current date is same as birthday (month-day)
-                    if current == bday:
-                        print("Birthday found!")
-                        found += 1 #change flag value to send email message below
-                        day1 = item['Name']
-                        birthdays.append("*** Happy birthday! ***")
-                        birthdays.append(day1)
+                #Read current date from system
+                  today = datetime.date.today()
+                  #format today date as month-day (substring)
+                  current = (str(today)[5:])
 
-                #Send email notification with birthday results
-                if found != 0: #birthday found
-                    sns_client.publish(
-                        TargetArn=os.environ["SNS_ARN"],
-                        Subject='Found :-) ' + str(found) + ' birthday(s) today: Account AWS id ' + acctID,
-                        Message=str(birthdays)
-                    )
-                else: #birthday not found
-                    sns_client.publish(
-                        TargetArn=os.environ["SNS_ARN"],
-                        Subject='No birthday today: Account AWS id ' + acctID,
-                        Message=str(birthdays) + ' // No birthdays today :-( '
-                    )
-                return "success"
+                  birthdays.append("Today is: " + str(today))
+
+                  #Read each record from DynamoDB table and validate birthday date
+                  for item in items:
+                      #read record and format birthday date as month-day (substring)
+                      bday = (str(item['BDate'])[5:])
+                      
+                      # check if current date is same as birthday (month-day)
+                      if current == bday:
+                          print("Birthday found!")
+                          found += 1 #change flag value to send email message below
+                          day1 = item['Name']
+                          birthdays.append("*** Happy birthday! ***")
+                          birthdays.append(day1)
+
+                  #Send email notification with birthday results
+                  if found != 0: #birthday found
+                      sns_client.publish(
+                          TargetArn=os.environ["SNS_ARN"],
+                          Subject='Found :-) ' + str(found) + ' birthday(s) today: Account AWS id ' + acctID,
+                          Message=str(birthdays)
+                      )
+                  else: #birthday not found
+                      sns_client.publish(
+                          TargetArn=os.environ["SNS_ARN"],
+                          Subject='No birthday today: Account AWS id ' + acctID,
+                          Message=str(birthdays) + ' // No birthdays today :-( '
+                      )
+                  return "success"
+
+              except Exception as e:
+                  print('Failed to process:', e)
+                  responseStatus = 'FAILURE'
+                  responseData = {'Failure': 'Check Logs.'}
+
         FunctionName: !Ref SolutionName
         Handler: "index.lambda_handler"
         Timeout: 30
