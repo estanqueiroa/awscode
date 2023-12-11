@@ -60,6 +60,13 @@ Resources:
 
     myDynamoDBTable: 
       Type: AWS::DynamoDB::Table
+      Metadata:
+        cfn_nag:
+          rules_to_suppress:
+            - id: W74
+              reason: "Encryption Not Required for this PoC solution"
+            - id: W28
+              reason: "Explicit DB name used in Lambda function"
       Properties: 
         AttributeDefinitions: 
           - 
@@ -271,7 +278,7 @@ Resources:
         Architectures:
         - arm64   # Arm-based AWS Graviton2 processors
         Role: !GetAtt "LambdaRole.Arn"
-        Runtime: python3.9
+        Runtime: python3.11
         Environment: 
             Variables:
                 SNS_ARN: !Ref SNSTopic
