@@ -25,11 +25,6 @@ Parameters:
       Type: String
       Default: "youremail@domain.com"
 
-    LambdaRoleName: 
-      Description: The name of IAM Role for Lambda functions.
-      Type: String
-      Default: "role-Lambda_Birthday"
-
     ScheduleEvent: 
       Description: The schedule for Lambda function trigger (default run daily at 10AM GMT)
       Type: String
@@ -97,7 +92,7 @@ Resources:
             - Key: aws-solution
               Value: !Ref SolutionName
 
-# Create new role for our lambda functions. :- Create new role named Lambda_Birthday and attach below policies to it.
+# Create new role for our lambda functions. :- Create new role and attach below policies to it.
 
     LambdaRole:
       Type: 'AWS::IAM::Role'
@@ -111,7 +106,6 @@ Resources:
             - id: F3
               reason: "Required for Automation solution"
       Properties:
-        RoleName: !Ref LambdaRoleName
         AssumeRolePolicyDocument: "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"lambda.amazonaws.com\"},\"Action\":\"sts:AssumeRole\"}]}"
         Path: "/"
         Policies:
@@ -356,7 +350,7 @@ Resources:
         Handler: "index.lambda_handler"
         Timeout: 30
         Role: !GetAtt "LambdaRole.Arn"
-        Runtime: python3.9
+        Runtime: python3.11
         Environment: 
             Variables:
                 DB_TABLE: !Ref DynamoDBTable
