@@ -74,8 +74,9 @@ The cost estimation for each solution is presented below **(CAUTION: costs may v
 
 - Total 12 months cost: 3.00 USD
 
-
 https://calculator.aws/#/estimate?id=2c9436e8bb220a3a97af2c3a645df70b7da08887
+
+Depending on the usage, AWS Lambda, Amazon SNS and Amazon DynamoDB may fall into Always Free pricing tier: https://aws.amazon.com/free/
 
 # Cleaning Up
 
