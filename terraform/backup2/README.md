@@ -6,7 +6,7 @@ Solution based on this blog: https://medium.com/israeli-tech-radar/what-is-an-aw
 
 Backup selection is based on tag key/value. The tag value indicates corresponding Backup vault for each service. E.g. tag value "rds-true" indicates RDS Backup vault.
 
-![Alt text](../diagrams/backup.png?raw=true "Diagram Image")
+![Alt text](./diagrams/backup.png?raw=true "Diagram Image")
 
 
 ## AWS Backup Supported Resources
