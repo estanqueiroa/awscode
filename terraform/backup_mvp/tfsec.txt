@@ -1,4 +1,4 @@
-tfsec .  --var-file dev.tfvars
+/terraform/backup_mvp$ tfsec .  --var-file dev.tfvars
   timings
   ──────────────────────────────────────────
   disk i/o             750.9µs
