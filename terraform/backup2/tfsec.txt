@@ -1,0 +1,27 @@
+tfsec .  --var-file dev.tfvars
+  timings
+  ──────────────────────────────────────────
+  disk i/o             750.9µs
+  parsing              2.3842ms
+  adaptation           144.7µs
+  checks               15.6008ms
+  total                18.8806ms
+
+  counts
+  ──────────────────────────────────────────
+  modules downloaded   0
+  modules processed    1
+  blocks processed     13
+  files read           4
+
+  results
+  ──────────────────────────────────────────
+  passed               0
+  ignored              0
+  critical             0
+  high                 0
+  medium               0
+  low                  0
+
+
+No problems detected!
