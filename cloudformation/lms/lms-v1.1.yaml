@@ -145,7 +145,7 @@ Mappings:
     us-west-2:
       CentOS7x8664EBSHVM: ami-040f9e8ab2841a9b3
       AmazonLinux2Kernel510: ami-002c2b8d1f5b1eb47
-      Ubuntu2204LTS: ami-0efcece6bed30fd98
+      Ubuntu2204LTS: ami-008fe2fc65df48dac
   # InstanceMap:
   #   sandbox:
   #     InstanceSize: t3.small
