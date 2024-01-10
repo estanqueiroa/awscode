@@ -12,3 +12,8 @@ The TLA Core includes five virtual machines, which are hosted according to the d
 
 https://adlnet.gov/guides/tla/service-definitions/TLA-Reference-Implementation.html#hardware-architecture
 
+
+
+## Troubleshooting
+
+To switch to Ubuntu's default interactive shell, type "bash" to open a new interactive shell within your sh shell
