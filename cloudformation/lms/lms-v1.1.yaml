@@ -559,6 +559,9 @@ Resources:
                 sudo apt-get update -y
                 sudo apt-get install -y awscli
                 sudo apt install -y jq
+                # install linux tools
+                sudo apt-get install vim -y
+                sudo apt-get install unzip -y
                 # Update aws-cfn-bootstrap to the latest (cfn_hup not used in this template)
                 sudo apt-get -y install python3-pip
                 mkdir -p /opt/aws/
