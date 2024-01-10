@@ -548,7 +548,7 @@ Resources:
 
     Fn::ForEach::Instances:
       - InstanceLogicalId
-      - [CoreAuth, CoreContent, CoreDiscovery, CoreKafka, CoreLRSProxy, CorePortal, CoreXI, Moodle, MoodleContent]
+      - [CoreAuth, CoreContent, CoreDiscovery, CoreKafka, CoreLRSProxy, CorePortal, CoreXI, Moodle, MoodleContent, TMP3]
       - ${InstanceLogicalId}:
           Type: AWS::EC2::Instance
           Properties:
@@ -586,9 +586,9 @@ Resources:
                 # Make sure it's executable
                 chmod +x /usr/local/bin/docker-compose
                 # clone TLA repository to /tmp
-                git -C /tmp clone https://github.com/adlnet/tla
-                git -C /tmp clone https://github.com/adlnet/auto-ssl
-                git -C /tmp clone https://github.com/adlnet/xi-lite
+                sudo git clone https://github.com/adlnet/tla ~/tla # home/ssm-user/tla
+                sudo git clone https://github.com/adlnet/auto-ssl ~/auto-ssl # home/ssm-user/auto-ssl
+                sudo git clone https://github.com/adlnet/xi-lite ~/xi-lite # home/ssm-user/xi-lite
             IamInstanceProfile: !Ref InstanceProfile
             ImageId: !FindInMap 
               - RegionMap
