@@ -548,7 +548,7 @@ Resources:
 
     Fn::ForEach::Instances:
       - InstanceLogicalId
-      - [CoreAuth, CoreKafka, CoreRegistry, CoreLRS, CoreCASS, Moodle, MoodleContent]
+      - [CoreAuth, CoreContent, CoreDiscovery, CoreKafka, CoreLRSProxy, CorePortal, CoreXI, Moodle, MoodleContent]
       - ${InstanceLogicalId}:
           Type: AWS::EC2::Instance
           Properties:
@@ -562,6 +562,7 @@ Resources:
                 # install linux tools
                 sudo apt-get install vim -y
                 sudo apt-get install unzip -y
+                sudo apt install npm -y
                 # Update aws-cfn-bootstrap to the latest (cfn_hup not used in this template)
                 sudo apt-get -y install python3-pip
                 mkdir -p /opt/aws/
@@ -584,6 +585,10 @@ Resources:
                 curl -SL https://github.com/docker/compose/releases/download/v2.23.3/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
                 # Make sure it's executable
                 chmod +x /usr/local/bin/docker-compose
+                # clone TLA repository to /tmp
+                git -C /tmp clone https://github.com/adlnet/tla
+                git -C /tmp clone https://github.com/adlnet/auto-ssl
+                git -C /tmp clone https://github.com/adlnet/xi-lite
             IamInstanceProfile: !Ref InstanceProfile
             ImageId: !FindInMap 
               - RegionMap
