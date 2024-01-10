@@ -27,7 +27,7 @@ Current resources checklist:
 - ❌ adl-content (missing instructions)
 - ✅ adl-discovery (pending: database credentials)
 - ✅ adl-kafka
-- 🔨 adl-lem (This repo is here solely 👏 for 👏 reference -- these services will do nothing interesting by themselves.)
+- ⚠️ adl-lem (This repo is here solely 👏 for 👏 reference -- these services will do nothing interesting by themselves.)
 - ❌ adl-lrs-proxy (error step 4 - sudo: ./init-ssl.sh: command not found)
 - ✅ adl-portal
 - ✅ adl-xi (i.e. Experience Index)
