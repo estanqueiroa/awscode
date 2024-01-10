@@ -12,6 +12,11 @@ The TLA Core includes five virtual machines, which are hosted according to the d
 
 https://adlnet.gov/guides/tla/service-definitions/TLA-Reference-Implementation.html#hardware-architecture
 
+## Codebase
+
+Codebase for the ADL Initiative's Total Learning Architecture (TLA) reference implementation.
+
+https://github.com/adlnet/tla
 
 
 ## Troubleshooting
