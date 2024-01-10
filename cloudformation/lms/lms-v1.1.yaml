@@ -550,10 +550,6 @@ Resources:
       - InstanceLogicalId
       - [CoreAuth, CoreKafka, CoreRegistry, CoreLRS, CoreCASS, Moodle, MoodleContent]
       - ${InstanceLogicalId}:
-          CreationPolicy:
-            ResourceSignal:
-              Count: 1
-              Timeout: PT10M
           Type: AWS::EC2::Instance
           Properties:
             UserData:
