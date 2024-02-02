@@ -1,0 +1,115 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: New Relic CloudWatch Metric Stream
+Parameters:
+  AccessKey:
+    Description: Your New Relic API Key
+    Type: String
+    NoEcho: true
+    AllowedPattern: ^.{1,4096}$
+    ConstraintDescription: The API key can have up to 4096 characters.
+Resources:
+  FirehoseToS3Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - firehose.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: newRelic_metric_stream_s3_policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:AbortMultipartUpload
+                  - s3:GetBucketLocation
+                  - s3:GetObject
+                  - s3:ListBucket
+                  - s3:ListBucketMultipartUploads
+                  - s3:PutObject
+                Resource:
+                  - Fn::Sub: $arn:aws:s3:::${StreamBackupBucket}/*
+                  - Fn::Sub: $arn:aws:s3:::${StreamBackupBucket}
+  MetricStreamToFirehoseRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - streams.metrics.cloudwatch.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: newRelic_stream_firehose_policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - firehose:PutRecord
+                  - firehose:PutRecordBatch
+                Resource:
+                  - Fn::Sub: ${MetricKinesisFirehose.Arn}
+  StreamBackupBucket:
+    Type: AWS::S3::Bucket
+  MetricKinesisFirehose:
+    Type: AWS::KinesisFirehose::DeliveryStream
+    Properties:
+      DeliveryStreamName: ExternalFull-RLC-wiJprB
+      DeliveryStreamType: DirectPut
+      HttpEndpointDestinationConfiguration:
+        BufferingHints:
+          IntervalInSeconds: 60
+          SizeInMBs: 1
+        EndpointConfiguration:
+          Name: New Relic
+          Url: https://aws-api.newrelic.com/cloudwatch-metrics/v1
+          AccessKey:
+            Ref: AccessKey
+        RequestConfiguration:
+          ContentEncoding: GZIP
+        RetryOptions:
+          DurationInSeconds: 60
+        S3BackupMode: FailedDataOnly
+        S3Configuration:
+          RoleARN:
+            Fn::GetAtt:
+              - FirehoseToS3Role
+              - Arn
+          BucketARN:
+            Fn::GetAtt:
+              - StreamBackupBucket
+              - Arn
+          ErrorOutputPrefix: newRelic_stream
+          BufferingHints:
+            IntervalInSeconds: 60
+            SizeInMBs: 1
+          CompressionFormat: GZIP
+  MetricStream:
+    Type: AWS::CloudWatch::MetricStream
+    Properties:
+      Name: ExternalFull-RLC-wiJprB
+      OutputFormat: opentelemetry0.7
+      StatisticsConfigurations: []
+      IncludeFilters: []
+      ExcludeFilters: []
+      IncludeLinkedAccountsMetrics: false
+      FirehoseArn:
+        Fn::GetAtt:
+          - MetricKinesisFirehose
+          - Arn
+      RoleArn:
+        Fn::GetAtt:
+          - MetricStreamToFirehoseRole
+          - Arn
