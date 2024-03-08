@@ -1,14 +1,3 @@
-# SME Program
-
-The complexity of the artifact should be 300-level or above.
-
-https://w.amazon.com/bin/view/AWS/Teams/Proserve/CIA/SharedDeliveryTeam/SME_Program/IaC/Artifacts
-
-
-CDK: Model the app through constructs not app, the entire build should be deterministic (use AWS SSM or Secret Manager for sensitive values).
-
-https://docs.aws.amazon.com/cdk/v2/guide/constructs.html#constructs_lib
-
 # NAT basics
 
 You can use a NAT device to allow resources in private subnets to connect to the internet, other VPCs, or on-premises networks. These instances can communicate with services outside the VPC, but they cannot receive unsolicited connection requests.
@@ -34,7 +23,7 @@ Considering the AWS NAT AMI is no longer available since it is built on the last
 NAT AMI: https://docs.aws.amazon.com/vpc/latest/userguide/VPC_NAT_Instance.html#create-nat-ami
 
 
-![Alt text](../diagrams/nat-instance.png?raw=true "Diagram Image")
+![Alt text](./diagrams/nat-instance.png?raw=true "Diagram Image")
 
 This solution includes:
 
@@ -67,7 +56,7 @@ https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/session-manager-to-linux.htm
 
 If there is a response like screen below, the request is being handled successfully by NAT instance. Otherwise, please check the "Troubleshooting" section.
 
-![Alt text](../diagrams/testing.png?raw=true "Diagram Image")
+![Alt text](./diagrams/testing.png?raw=true "Diagram Image")
 
 IMPORTANT: After testing is completed, you can comment testing code block in the filename *EC2VPC_stack.py* to remove EC2 testing instance and VPC SSM endpoints in order to avoid any associated costs.
 
