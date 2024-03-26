@@ -4,7 +4,7 @@ Amazon Rekognition is a cloud-based image and video analysis service that makes 
 
 This simple demo shows the AWS Rekognition "DetectFace" method in action using Python code.
 
-To run this demo, clone the Github repository to your local machine. It includes 3 demo pictures (you can use your pictures if want).
+To run this demo, clone the Github repository to your local machine. It includes 1 demo picture (you can use your pictures if want).
 
 ## Requirements
 
