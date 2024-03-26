@@ -46,11 +46,11 @@ Processing time for 4 faces detected: 1.43 seconds"
 
 Error #1: "botocore.exceptions.ClientError: An error occurred (ExpiredTokenException) when calling the DetectFaces operation: The security token included in the request is expired or not valid"
 
-Resolution: Verify your are providing valid AWS credentials
+Resolution: Verify your are providing valid AWS credentials.
 
 Error #2: "KeyError: 'IMAGE_PATH'"
 
-Resolution: Verify you have create the OS variable IMAGE_PATH
+Resolution: Verify you have create the OS variable IMAGE_PATH.
 
 ```bash
 export IMAGE_PATH="blue-origin.jpg"
