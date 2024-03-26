@@ -29,8 +29,8 @@ python3 recognize.py
 
 * If everything is OK, it should provide a similar output like below:
 
-```json
-"Face ID: None
+```bash
+Face ID: None
 Gender: Female
 Age Range: {'Low': 75, 'High': 83}
 Smile: True
@@ -41,7 +41,7 @@ Mustache: False
 Face Occluded: False
 Emotions: HAPPY
 
-Processing time for 4 faces detected: 1.43 seconds"
+Processing time for 4 faces detected: 1.43 seconds
 ```
 
 ## Troubleshooting
