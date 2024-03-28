@@ -1,0 +1,45 @@
+Face ID: None
+Gender: Male
+Age Range: {'Low': 46, 'High': 54}
+Smile: True
+Eyeglasses: True
+Sunglasses: True
+Beard: True
+Mustache: True
+Face Occluded: True
+Emotions: HAPPY
+
+Face ID: None
+Gender: Male
+Age Range: {'Low': 25, 'High': 33}
+Smile: True
+Eyeglasses: False
+Sunglasses: False
+Beard: False
+Mustache: False
+Face Occluded: False
+Emotions: HAPPY
+
+Face ID: None
+Gender: Male
+Age Range: {'Low': 56, 'High': 64}
+Smile: True
+Eyeglasses: True
+Sunglasses: True
+Beard: False
+Mustache: False
+Face Occluded: True
+Emotions: HAPPY
+
+Face ID: None
+Gender: Female
+Age Range: {'Low': 75, 'High': 83}
+Smile: True
+Eyeglasses: False
+Sunglasses: False
+Beard: False
+Mustache: False
+Face Occluded: False
+Emotions: HAPPY
+
+Processing time for 4 faces detected: 2.15 seconds
