@@ -1,0 +1,267 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: ECS Cluster, Service, and Task Definition with ALB
+
+Parameters:
+
+  pContainerImage:
+    Type: String
+    Default: kale5/rickroll:vclatest
+    Description: The container image to use for the task definition
+    AllowedValues:
+    - kale5/rickroll:vclatest
+    - nginx:latest
+
+  pVPC:
+    Type: AWS::EC2::VPC::Id
+    Description: The VPC ID where the resources will be deployed
+
+  pSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: The subnet IDs where the resources will be deployed
+
+  pContainerPort:
+    Type: String
+    Description: Container TCP port
+    Default: 80
+
+  pMyIPAddress:
+    Type: String
+    Description: My Internet IP address in /32 format for ALB external access (use https://checkip.amazonaws.com/)
+    Default: 187.151.45.33/32
+
+Resources:
+
+# create ECS cluster
+
+  rECSCluster:
+    Type: AWS::ECS::Cluster
+    # checkov:skip=CKV_AWS_65:container insights not required for demo testing
+    Properties:
+      ClusterName: !Sub ${AWS::StackName}-cluster
+      Tags:
+      - Key: Solution
+        Value: !Sub ${AWS::StackName}-ecs
+
+# create Task Definition
+
+  rECSTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub ${AWS::StackName}-task
+      TaskRoleArn: !GetAtt rECSTaskRole.Arn
+      ExecutionRoleArn: !GetAtt rECSTaskExecutionRole.Arn
+      Memory: 0.5 GB
+      Cpu: 256
+      RequiresCompatibilities:
+        - FARGATE
+      NetworkMode: awsvpc
+      ContainerDefinitions:
+        - Name: app
+          Image: !Ref pContainerImage
+          PortMappings:
+            - ContainerPort: !Ref pContainerPort
+              HostPort: !Ref pContainerPort
+              Protocol: tcp
+          HealthCheck:
+            Command:
+            - CMD-SHELL
+            - curl -f http://localhost/ || exit 1
+            Interval: 30
+            Timeout: 5
+            Retries: 3
+            StartPeriod: 60
+      Tags:
+      - Key: Solution
+        Value: !Sub ${AWS::StackName}-ecs
+
+# create ECS service
+
+  rECSService:
+    Type: AWS::ECS::Service
+    DependsOn: rApplicationLoadBalancer
+    Properties:
+      ServiceName: !Sub ${AWS::StackName}-svc
+      Cluster: !Ref rECSCluster
+      TaskDefinition: !Ref rECSTaskDefinition
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 50
+      DesiredCount: 2
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - !GetAtt rECSServiceSecurityGroup.GroupId
+          Subnets: !Ref pSubnets
+      LoadBalancers:
+        - ContainerName: app
+          ContainerPort: !Ref pContainerPort
+          TargetGroupArn: !Ref rALBTargetGroup
+      Tags:
+      - Key: Solution
+        Value: !Sub ${AWS::StackName}-ecs
+
+# create ECS task IAM role
+
+  rECSTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Tags:
+      - Key: Solution
+        Value: !Sub ${AWS::StackName}-ecs
+
+# create ECS task execution IAM role
+
+  rECSTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Tags:
+      - Key: Solution
+        Value: !Sub ${AWS::StackName}-ecs
+
+# create Security Group for ECS service
+
+  rECSServiceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W5
+            reason: only internal outbound traffic is allowed
+          - id: W40
+            reason: only internal outbound traffic is allowed
+    Properties:
+      GroupDescription: Security group for the ECS service
+      VpcId: !Ref pVPC
+      SecurityGroupIngress:
+        - SourceSecurityGroupId: !Ref rALBSecurityGroup
+          FromPort: !Ref pContainerPort
+          IpProtocol: tcp
+          ToPort: !Ref pContainerPort
+          Description: Allow ECS internal traffic
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: -1
+          Description: Allow all internal traffic outbound
+      Tags:
+      - Key: Solution
+        Value: !Sub ${AWS::StackName}-ecs
+
+# create Application Load Balancer
+
+  rApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    # checkov:skip=CKV_AWS_131:header dropping not required for demo testing
+    # checkov:skip=CKV_AWS_91:logging not required for demo testing
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W52
+            reason: No logging required
+    Properties:
+      Scheme: internet-facing
+      SecurityGroups:
+        - !GetAtt rALBSecurityGroup.GroupId
+      Subnets: !Ref pSubnets
+      Tags:
+      - Key: Solution
+        Value: !Sub ${AWS::StackName}-ecs
+
+# create Security Group for ALB
+
+  rALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W5
+            reason: only outbound traffic is allowed
+          - id: W40
+            reason: only outbound traffic is allowed
+    Properties:
+      GroupDescription: Security group for the Application Load Balancer
+      VpcId: !Ref pVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: !Ref pContainerPort
+          ToPort: !Ref pContainerPort
+          CidrIp: !Ref pMyIPAddress
+          Description: Allow internet access to ALB
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: -1
+          Description: Allow all traffic outbound from ALB
+      Tags:
+      - Key: Solution
+        Value: !Sub ${AWS::StackName}-ecs
+
+# create ALB Listener
+
+  rALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    # checkov:skip=CKV_AWS_2:SSL not required for demo testing
+    # checkov:skip=CKV_AWS_103:TLS not required for demo testing
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W56
+            reason: No HTTPS required, demo only
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref rALBTargetGroup
+      LoadBalancerArn: !Ref rApplicationLoadBalancer
+      Port: !Ref pContainerPort
+      Protocol: HTTP
+      Tags:
+      - Key: Solution
+        Value: !Sub ${AWS::StackName}-ecs
+
+# create Target Group for ALB
+
+  rALBTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckPath: /
+      Name: !Sub ${AWS::StackName}-targets
+      Port: !Ref pContainerPort
+      Protocol: HTTP
+      TargetType: ip
+      VpcId: !Ref pVPC
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: '60'
+      Tags:
+      - Key: Solution
+        Value: !Sub ${AWS::StackName}-ecs
+
+
+Outputs:
+  oECSClusterName:
+    Description: The name of the ECS cluster
+    Value: !Ref rECSCluster
+
+  oECSServiceName:
+    Description: The name of the ECS service
+    Value: !Ref rECSService
+
+  oApplicationLoadBalancerDNSName:
+    Description: The DNS name of the Application Load Balancer
+    Value: !GetAtt rApplicationLoadBalancer.DNSName

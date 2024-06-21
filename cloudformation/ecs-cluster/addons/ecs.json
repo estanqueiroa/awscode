@@ -1,0 +1,355 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "ECS Cluster, Service, and Task Definition with ALB",
+    "Parameters": {
+      "pContainerImage": {
+        "Type": "String",
+        "Default": "kale5/rickroll:vclatest",
+        "Description": "The container image to use for the task definition",
+        "AllowedValues": [
+          "kale5/rickroll:vclatest",
+          "nginx:latest"
+        ]
+      },
+      "pVPC": {
+        "Type": "AWS::EC2::VPC::Id",
+        "Description": "The VPC ID where the resources will be deployed"
+      },
+      "pSubnets": {
+        "Type": "List<AWS::EC2::Subnet::Id>",
+        "Description": "The subnet IDs where the resources will be deployed"
+      },
+      "pContainerPort": {
+        "Type": "String",
+        "Description": "Container TCP port",
+        "Default": 80
+      },
+      "pMyIPAddress": {
+        "Type": "String",
+        "Description": "My Internet IP address in /32 format for ALB external access (use https://checkip.amazonaws.com/)",
+        "Default": "187.151.45.33/32"
+      }
+    },
+    "Resources": {
+      "rECSCluster": {
+        "Type": "AWS::ECS::Cluster",
+        "Properties": {
+          "ClusterName": "${AWS::StackName}-cluster",
+          "Tags": [
+            {
+              "Key": "Solution",
+              "Value": "${AWS::StackName}-ecs"
+            }
+          ]
+        }
+      },
+      "rECSTaskDefinition": {
+        "Type": "AWS::ECS::TaskDefinition",
+        "Properties": {
+          "Family": "${AWS::StackName}-task",
+          "TaskRoleArn": "rECSTaskRole.Arn",
+          "ExecutionRoleArn": "rECSTaskExecutionRole.Arn",
+          "Memory": "0.5 GB",
+          "Cpu": 256,
+          "RequiresCompatibilities": [
+            "FARGATE"
+          ],
+          "NetworkMode": "awsvpc",
+          "ContainerDefinitions": [
+            {
+              "Name": "app",
+              "Image": "pContainerImage",
+              "PortMappings": [
+                {
+                  "ContainerPort": "pContainerPort",
+                  "HostPort": "pContainerPort",
+                  "Protocol": "tcp"
+                }
+              ],
+              "HealthCheck": {
+                "Command": [
+                  "CMD-SHELL",
+                  "curl -f http://localhost/ || exit 1"
+                ],
+                "Interval": 30,
+                "Timeout": 5,
+                "Retries": 3,
+                "StartPeriod": 60
+              }
+            }
+          ],
+          "Tags": [
+            {
+              "Key": "Solution",
+              "Value": "${AWS::StackName}-ecs"
+            }
+          ]
+        }
+      },
+      "rECSService": {
+        "Type": "AWS::ECS::Service",
+        "DependsOn": "rApplicationLoadBalancer",
+        "Properties": {
+          "ServiceName": "${AWS::StackName}-svc",
+          "Cluster": "rECSCluster",
+          "TaskDefinition": "rECSTaskDefinition",
+          "DeploymentConfiguration": {
+            "MaximumPercent": 200,
+            "MinimumHealthyPercent": 50
+          },
+          "DesiredCount": 2,
+          "LaunchType": "FARGATE",
+          "NetworkConfiguration": {
+            "AwsvpcConfiguration": {
+              "AssignPublicIp": "ENABLED",
+              "SecurityGroups": [
+                "rECSServiceSecurityGroup.GroupId"
+              ],
+              "Subnets": "pSubnets"
+            }
+          },
+          "LoadBalancers": [
+            {
+              "ContainerName": "app",
+              "ContainerPort": "pContainerPort",
+              "TargetGroupArn": "rALBTargetGroup"
+            }
+          ],
+          "Tags": [
+            {
+              "Key": "Solution",
+              "Value": "${AWS::StackName}-ecs"
+            }
+          ]
+        }
+      },
+      "rECSTaskRole": {
+        "Type": "AWS::IAM::Role",
+        "Properties": {
+          "AssumeRolePolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Principal": {
+                  "Service": "ecs-tasks.amazonaws.com"
+                },
+                "Action": "sts:AssumeRole"
+              }
+            ]
+          },
+          "Tags": [
+            {
+              "Key": "Solution",
+              "Value": "${AWS::StackName}-ecs"
+            }
+          ]
+        }
+      },
+      "rECSTaskExecutionRole": {
+        "Type": "AWS::IAM::Role",
+        "Properties": {
+          "AssumeRolePolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Principal": {
+                  "Service": "ecs-tasks.amazonaws.com"
+                },
+                "Action": "sts:AssumeRole"
+              }
+            ]
+          },
+          "ManagedPolicyArns": [
+            "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+          ],
+          "Tags": [
+            {
+              "Key": "Solution",
+              "Value": "${AWS::StackName}-ecs"
+            }
+          ]
+        }
+      },
+      "rECSServiceSecurityGroup": {
+        "Type": "AWS::EC2::SecurityGroup",
+        "Metadata": {
+          "cfn_nag": {
+            "rules_to_suppress": [
+              {
+                "id": "W5",
+                "reason": "only internal outbound traffic is allowed"
+              },
+              {
+                "id": "W40",
+                "reason": "only internal outbound traffic is allowed"
+              }
+            ]
+          }
+        },
+        "Properties": {
+          "GroupDescription": "Security group for the ECS service",
+          "VpcId": "pVPC",
+          "SecurityGroupIngress": [
+            {
+              "SourceSecurityGroupId": "rALBSecurityGroup",
+              "FromPort": "pContainerPort",
+              "IpProtocol": "tcp",
+              "ToPort": "pContainerPort",
+              "Description": "Allow ECS internal traffic"
+            }
+          ],
+          "SecurityGroupEgress": [
+            {
+              "CidrIp": "0.0.0.0/0",
+              "IpProtocol": -1,
+              "Description": "Allow all internal traffic outbound"
+            }
+          ],
+          "Tags": [
+            {
+              "Key": "Solution",
+              "Value": "${AWS::StackName}-ecs"
+            }
+          ]
+        }
+      },
+      "rApplicationLoadBalancer": {
+        "Type": "AWS::ElasticLoadBalancingV2::LoadBalancer",
+        "Metadata": {
+          "cfn_nag": {
+            "rules_to_suppress": [
+              {
+                "id": "W52",
+                "reason": "No logging required"
+              }
+            ]
+          }
+        },
+        "Properties": {
+          "Scheme": "internet-facing",
+          "SecurityGroups": [
+            "rALBSecurityGroup.GroupId"
+          ],
+          "Subnets": "pSubnets",
+          "Tags": [
+            {
+              "Key": "Solution",
+              "Value": "${AWS::StackName}-ecs"
+            }
+          ]
+        }
+      },
+      "rALBSecurityGroup": {
+        "Type": "AWS::EC2::SecurityGroup",
+        "Metadata": {
+          "cfn_nag": {
+            "rules_to_suppress": [
+              {
+                "id": "W5",
+                "reason": "only outbound traffic is allowed"
+              },
+              {
+                "id": "W40",
+                "reason": "only outbound traffic is allowed"
+              }
+            ]
+          }
+        },
+        "Properties": {
+          "GroupDescription": "Security group for the Application Load Balancer",
+          "VpcId": "pVPC",
+          "SecurityGroupIngress": [
+            {
+              "IpProtocol": "tcp",
+              "FromPort": "pContainerPort",
+              "ToPort": "pContainerPort",
+              "CidrIp": "pMyIPAddress",
+              "Description": "Allow internet access to ALB"
+            }
+          ],
+          "SecurityGroupEgress": [
+            {
+              "CidrIp": "0.0.0.0/0",
+              "IpProtocol": -1,
+              "Description": "Allow all traffic outbound from ALB"
+            }
+          ],
+          "Tags": [
+            {
+              "Key": "Solution",
+              "Value": "${AWS::StackName}-ecs"
+            }
+          ]
+        }
+      },
+      "rALBListener": {
+        "Type": "AWS::ElasticLoadBalancingV2::Listener",
+        "Metadata": {
+          "cfn_nag": {
+            "rules_to_suppress": [
+              {
+                "id": "W56",
+                "reason": "No HTTPS required, demo only"
+              }
+            ]
+          }
+        },
+        "Properties": {
+          "DefaultActions": [
+            {
+              "Type": "forward",
+              "TargetGroupArn": "rALBTargetGroup"
+            }
+          ],
+          "LoadBalancerArn": "rApplicationLoadBalancer",
+          "Port": "pContainerPort",
+          "Protocol": "HTTP",
+          "Tags": [
+            {
+              "Key": "Solution",
+              "Value": "${AWS::StackName}-ecs"
+            }
+          ]
+        }
+      },
+      "rALBTargetGroup": {
+        "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+        "Properties": {
+          "HealthCheckPath": "/",
+          "Name": "${AWS::StackName}-targets",
+          "Port": "pContainerPort",
+          "Protocol": "HTTP",
+          "TargetType": "ip",
+          "VpcId": "pVPC",
+          "TargetGroupAttributes": [
+            {
+              "Key": "deregistration_delay.timeout_seconds",
+              "Value": "60"
+            }
+          ],
+          "Tags": [
+            {
+              "Key": "Solution",
+              "Value": "${AWS::StackName}-ecs"
+            }
+          ]
+        }
+      }
+    },
+    "Outputs": {
+      "oECSClusterName": {
+        "Description": "The name of the ECS cluster",
+        "Value": "rECSCluster"
+      },
+      "oECSServiceName": {
+        "Description": "The name of the ECS service",
+        "Value": "rECSService"
+      },
+      "oApplicationLoadBalancerDNSName": {
+        "Description": "The DNS name of the Application Load Balancer",
+        "Value": "rApplicationLoadBalancer.DNSName"
+      }
+    }
+  }
