@@ -4,6 +4,10 @@ This CloudFormation template creates a custom resource to add tags to a VPC Endp
 
 ![Alt text](../diagrams/custom-resource.png?raw=true "Diagram Image")
 
+It's important to consider these costs when deploying this CloudFormation template and to monitor the usage and costs associated with the resources created.
+
+Note: This is a basic example, and you may need to add additional error handling, logging, and other features to make it more robust and production-ready.
+
 ## Parameters
 
 - **`pVpcEndpointId`**: The ID of the VPC Endpoint to be tagged.
@@ -47,10 +51,6 @@ The resources created by this CloudFormation template may incur the following co
 3. **VPC Endpoint**: There is a cost associated with VPC Endpoints, which is based on the number of VPC Endpoints, the amount of data transferred, and the region. Refer to the [Amazon VPC Pricing](https://aws.amazon.com/vpc/pricing/) for more details.
 
 4. **CloudFormation**: There is no direct cost for using CloudFormation, but it is part of the overall AWS CloudFormation service, which has pricing based on the number of API requests and the amount of data transferred.
-
-It's important to consider these costs when deploying this CloudFormation template and to monitor the usage and costs associated with the resources created.
-
-Note: This is a basic example, and you may need to add additional error handling, logging, and other features to make it more robust and production-ready.
 
 ## Cleanup
 
