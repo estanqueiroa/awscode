@@ -51,3 +51,7 @@ The resources created by this CloudFormation template may incur the following co
 It's important to consider these costs when deploying this CloudFormation template and to monitor the usage and costs associated with the resources created.
 
 Note: This is a basic example, and you may need to add additional error handling, logging, and other features to make it more robust and production-ready.
+
+## Cleanup
+
+Delete the CloudFormation stack to delete all created resources.
