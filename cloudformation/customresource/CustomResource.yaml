@@ -1,0 +1,144 @@
+# WARNING: This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation Custom Resource Example - Add Tags to VPC Endpoints
+
+Parameters:
+
+  pVpcEndpointId:
+    Type: String
+    Description: Input the VPC Endpoint ID for tagging
+    Default: vpce-0ac1ff178e0ea92c6
+
+  pTagKey:
+    Type: String
+    Description: Input the Tag Key for tagging
+    Default: Createdby
+
+  pTagValue:
+    Type: String
+    Description: Input the Tag Value for tagging
+    Default: CloudFormationCustomResource
+
+Resources:
+
+# create IAM role for Lambda function
+
+  rLambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: "sts:AssumeRole"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+      - PolicyName: VPCEndpointsTagging
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+            - 'ec2:Describe*'
+            - 'ec2:CreateTags'
+            Resource: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:vpc-endpoint/${pVpcEndpointId}
+
+# Lambda function to add tagging to VPC endpoint
+
+  rVpcEndpointTaggerFunction:
+    Type: AWS::Lambda::Function
+    # checkov:skip=CKV_AWS_116:Dead Letter Queue(DLQ) for Lambda not required
+    # checkov:skip=CKV_AWS_173:No encryption required for Lambda environment variables
+    # checkov:skip=CKV_AWS_115:function-level concurrent execution limit not required
+    # checkov:skip=CKV_AWS_117:This lambda functions doesnt require a VPC
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "Lambda function needed to automatically associate VPC SPoke to DNS"
+          - id: W92
+            reason: "There is no provision for using this function simultaneously"
+    Properties:
+      Runtime: python3.12
+      Handler: index.lambda_handler
+      Timeout: 30
+      Architectures:
+      - arm64 # AWS graviton
+      Environment:
+        Variables:
+          oTagKey: !Ref pTagKey
+          oTagValue: !Ref pTagValue
+      Code:
+        ZipFile: |
+          import boto3
+          import cfnresponse
+          import json
+          import logging
+          import os
+
+          def lambda_handler(event, context):
+              """
+              AWS Lambda function to add tags to a VPC Endpoint as a CloudFormation custom resource.
+              """
+              # activate logging info
+              logger = logging.getLogger()
+              logger.setLevel(logging.INFO)
+              responseData = {}
+              responseStatus = cfnresponse.FAILED
+              logger.info('Received event: {}'.format(json.dumps(event)))
+
+              try:
+                  print(f"Event: {event}")
+                  
+                  # Get the request type (CREATE, UPDATE, DELETE)
+                  request_type = event['RequestType']
+                  
+                  # Get the resource properties
+                  properties = event['ResourceProperties']
+                  vpc_endpoint_id = properties['VpcEndpointId']
+
+                  pTagKey1 = os.environ['oTagKey']
+                  pTagValue1 = os.environ['oTagValue']
+                  
+                  # Create an EC2 client
+                  ec2 = boto3.client('ec2')
+                  
+                  # Handle the request type
+                  if request_type == 'Create' or request_type == 'Update':
+                      # Add the tags to the VPC Endpoint
+                      ec2.create_tags(
+                          Resources=[vpc_endpoint_id],
+                          Tags=[{'Key': pTagKey1, 'Value': pTagValue1}]
+                      )
+                      
+                      # Return a success response to CloudFormation
+                      cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+                  elif request_type == 'Delete':
+                      # No action needed for delete, return a success response
+                      cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+              
+              except Exception as e:
+                  # Log the error and return a failure response to CloudFormation
+                  print(f'Error: {e}')
+                  cfnresponse.send(event, context, cfnresponse.FAILED, {'Error': str(e)})
+
+      Role: !GetAtt rLambdaExecutionRole.Arn
+
+
+# custom resource to trigger Lambda function for tagging
+
+  rVpcEndpointTagger:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken: !GetAtt rVpcEndpointTaggerFunction.Arn
+      VpcEndpointId: !Ref pVpcEndpointId
+      ServiceTimeout: 600 # seconds
+
+
+
+
