@@ -1,0 +1,275 @@
+# WARNING: This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Automate CloudWatch Logs Export to S3 using Lambda and Event Bridge
+
+Parameters:
+
+  pLogGroup:
+    Description: Log Group Name
+    Type: String
+    Default: instance-scheduler-logs
+    
+  pS3BucketPrefix:
+    Description: Prefix for the exported metric data in the S3 bucket
+    Type: String
+    Default: cloudwatch-exports
+    
+  pDistributionFrequency:
+    Description: Frequency of the export (in minutes)
+    Type: Number
+    Default: 5
+    AllowedValues:
+      - 1
+      - 5
+      - 10
+      - 15
+      - 30
+      - 60
+      
+Resources:
+
+  rS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerPreferred
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldVersions
+            Status: Enabled
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 90
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+
+
+  rBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref rS3Bucket
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: uploadcloudwatchlogs
+            Effect: Allow
+            Principal:
+              Service: !Sub logs.${AWS::Region}.amazonaws.com
+            Action: 
+              - s3:GetBucketAcl
+              - s3:PutObject
+            Resource:
+              - !GetAtt 
+                - rS3Bucket
+                - Arn
+              - !Join 
+                - ''
+                - - !GetAtt 
+                    - rS3Bucket
+                    - Arn
+                  - /*
+
+
+  # rLogGroup:
+  #   Type: AWS::Logs::LogGroup
+  #   Properties:
+  #     LogGroupName: !Sub ${AWS::StackName}-ExportLogs
+  #     RetentionInDays: 90
+
+
+
+# create IAM role for Lambda functions
+
+  rLambdaExportRole:
+    Type: AWS::IAM::Role
+    # checkov:skip=CKV_AWS_107:IAM policies does not allow credentials exposure
+    # checkov:skip=CKV_AWS_108:IAM policies does not allow data exfiltration
+    # checkov:skip=CKV_AWS_111:IAM policies does not allow write access without constraints
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W11
+            reason: "Resource * acceptable for this policy - tagging only."
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: CWLogsExport
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateExportTask'
+                  - 'logs:CancelExportTask'
+                  - 'logs:DescribeExportTasks'
+                  - 'logs:DescribeLogStreams'
+                  - 'logs:DescribeLogGroups'
+                Resource:
+                  - !Join
+                    - ''
+                    - - 'arn:aws:logs:'
+                      - !Ref 'AWS::Region'
+                      - ':'
+                      - !Ref 'AWS::AccountId'
+                      - ':log-group:*'
+              - Effect: Allow
+                Action:
+                  - 's3:GetBucketLocation'
+                  - 's3:GetBucketAcl'
+                  - 's3:PutObject'
+                Resource:
+                  - !GetAtt 
+                    - rS3Bucket
+                    - Arn
+                  - !Join 
+                    - ''
+                    - - !GetAtt 
+                        - rS3Bucket
+                        - Arn
+                      - /*
+
+
+
+  rExportFunction:
+    Type: AWS::Lambda::Function
+    # checkov:skip=CKV_AWS_116:Dead Letter Queue(DLQ) for Lambda not required
+    # checkov:skip=CKV_AWS_173:No encryption required for Lambda environment variables
+    # checkov:skip=CKV_AWS_115:function-level concurrent execution limit not required
+    # checkov:skip=CKV_AWS_117:This lambda functions doesnt require a VPC
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "Lambda function doesnt require VPC"
+          - id: W92
+            reason: "ReservedConcurrentExecutions not required"
+    Properties:
+      Handler: index.lambda_handler
+      Runtime: python3.12
+      Timeout: 30 # seconds
+      Architectures:
+        - arm64 # graviton
+      Code:
+        ZipFile: |
+          import boto3
+          import logging
+          import os
+          import json
+          import datetime
+          from botocore.exceptions import ClientError
+
+          def export_logs(group_name, destination, prefix):
+          
+            NDAYS = 1
+            nDays = int(NDAYS)
+
+            currentTime = datetime.datetime.now()
+            StartDate = currentTime - datetime.timedelta(days=nDays)
+            EndDate = currentTime - datetime.timedelta(days=nDays - 1)
+
+            fromDate = int(StartDate.timestamp() * 1000)
+            toDate = int(EndDate.timestamp() * 1000)
+
+            BUCKET_PREFIX = os.path.join(prefix, StartDate.strftime('%Y{0}%m{0}%d').format(os.path.sep))
+
+            try:
+
+              client = boto3.client('logs')
+
+              response = client.create_export_task(
+                  logGroupName=group_name,
+                  fromTime=fromDate,
+                  to=toDate,
+                  destination=destination,
+                  destinationPrefix=BUCKET_PREFIX
+                  )
+              print(response)
+
+              return {'statusCode': 200, 'body': 'Process completed.'}
+              
+            except ClientError as err:
+              err.response['Error']['Code'], err.response['Error']['Message']
+              raise
+
+          def lambda_handler(event, context):
+
+            logger = logging.getLogger()
+            logger.setLevel(logging.INFO)
+            logger.info('Received event: {}'.format(json.dumps(event)))
+
+            try:
+
+              # Access an environment variable
+              group_name = os.getenv('GROUP_NAME')
+              destination = os.getenv('DESTINATION_BUCKET')
+              prefix = os.getenv('PREFIX')
+
+              # create logs export
+
+              response = export_logs(group_name, destination, prefix)
+              print (response)
+              print('Run this command to get task id status aws logs describe-export-tasks --task-id <<taskId>>')
+
+            except ClientError as error:
+              # Log the error and return a failure response to CloudFormation
+              print(f'Error: {error}')
+              raise
+
+      Role: !GetAtt rLambdaExportRole.Arn
+      Environment:
+        Variables:
+          GROUP_NAME: !Ref pLogGroup
+          DESTINATION_BUCKET: !Ref rS3Bucket
+          PREFIX: !Ref pS3BucketPrefix
+
+  rCloudFormationEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: !Sub rate(${pDistributionFrequency} minutes)
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt rExportFunction.Arn
+          Id: LambdaExportLogs
+
+  rPermissionForEventsToInvokeLambda: 
+      Type: AWS::Lambda::Permission
+      Properties: 
+          FunctionName: !Ref rExportFunction
+          Action: "lambda:InvokeFunction"
+          Principal: "events.amazonaws.com"
+          SourceArn: 
+              Fn::GetAtt: 
+                  - "rCloudFormationEventRule"
+                  - "Arn"
+
+Outputs:
+  # LogGroupName:
+  #   Description: The name of the created CloudWatch Log Group
+  #   Value: !Ref rLogGroup
+
+  BucketName:
+    Description: S3 Bucket Name
+    Value: !Ref rS3Bucket  
+
