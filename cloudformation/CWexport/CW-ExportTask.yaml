@@ -1,6 +1,13 @@
 # WARNING: This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 # CONDITIONS OF ANY KIND, either express or implied. See the License for the
 # specific language governing permissions and limitations under the License.
+#
+# References:
+#
+# https://dev.to/rasankhalsa/automate-cloudwatch-logs-export-to-s3-using-lambda-and-event-bridge-2mdd
+#
+# This solution is for single-account export. For cross-account export, please check this link https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/S3ExportTasksConsole.html#ExportCrossAccount
+
 
 AWSTemplateFormatVersion: '2010-09-09'
 Description: Automate CloudWatch Logs Export to S3 using Lambda and Event Bridge
