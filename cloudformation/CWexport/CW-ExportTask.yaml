@@ -15,7 +15,7 @@ Description: Automate CloudWatch Logs Export to S3 using Lambda and Event Bridge
 Parameters:
 
   pLogGroup:
-    Description: Log Group Name
+    Description: Existing Log Group Name
     Type: String
     Default: instance-scheduler-logs
     
@@ -37,6 +37,8 @@ Parameters:
       - 60
       
 Resources:
+
+# create S3 bucket
 
   rS3Bucket:
     Type: AWS::S3::Bucket
@@ -64,6 +66,7 @@ Resources:
             AbortIncompleteMultipartUpload:
               DaysAfterInitiation: 7
 
+# create bucket policy for logs export
 
   rBucketPolicy:
     Type: AWS::S3::BucketPolicy
@@ -90,6 +93,7 @@ Resources:
                     - Arn
                   - /*
 
+# REMOVED to use existing log group, instead of creating a new one
 
   # rLogGroup:
   #   Type: AWS::Logs::LogGroup
@@ -99,7 +103,7 @@ Resources:
 
 
 
-# create IAM role for Lambda functions
+# create IAM role for Lambda function (logs export)
 
   rLambdaExportRole:
     Type: AWS::IAM::Role
@@ -157,7 +161,7 @@ Resources:
                         - Arn
                       - /*
 
-
+# create Lambda function (logs export)
 
   rExportFunction:
     Type: AWS::Lambda::Function
@@ -237,7 +241,7 @@ Resources:
 
               response = export_logs(group_name, destination, prefix)
               print (response)
-              print('Run this command to get task id status aws logs describe-export-tasks --task-id <<taskId>>')
+              print('Run this command to get task id status "aws logs describe-export-tasks --task-id <<taskId>>"')
 
             except ClientError as error:
               # Log the error and return a failure response to CloudFormation
@@ -251,14 +255,19 @@ Resources:
           DESTINATION_BUCKET: !Ref rS3Bucket
           PREFIX: !Ref pS3BucketPrefix
 
+
+# create EventBridge rule to schedule task
+
   rCloudFormationEventRule:
     Type: AWS::Events::Rule
     Properties:
-      ScheduleExpression: !Sub rate(${pDistributionFrequency} minutes)
+      ScheduleExpression: !Sub rate(${pDistributionFrequency} minutes) # Valid values: minute | minutes | hour | hours | day | days
       State: ENABLED
       Targets:
         - Arn: !GetAtt rExportFunction.Arn
           Id: LambdaExportLogs
+
+# grant EventBridge persmission to trigger Lambda
 
   rPermissionForEventsToInvokeLambda: 
       Type: AWS::Lambda::Permission
