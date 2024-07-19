@@ -1,0 +1,95 @@
+# WARNING: This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Create an EC2 instance as a proxy server
+
+Parameters:
+  KeyPair:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: The ID of the VPC where the proxy server will be deployed
+
+  VpcCIDR:
+    Type: String
+    Description: The CIDR block of the VPC
+
+Resources:
+  ProxyInstance:
+    Type: AWS::EC2::Instance
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          packages:
+            yum:
+              squid: []
+          services:
+            sysvinit:
+              squid:
+                enabled: true
+                ensureRunning: true
+          files:
+            "/etc/profile.d/proxy.sh":
+              content: |
+                export HTTP_PROXY=http://localhost:3128
+                export HTTPS_PROXY=http://localhost:3128
+                export NO_PROXY="localhost,127.0.0.1"
+    Properties:
+      # Use the latest Amazon Linux 2 AMI in us-east-1
+      ImageId: ami-0b72821e2f351e396
+      InstanceType: t2.micro
+      KeyName: !Ref KeyPair
+      SecurityGroupIds:
+        - !Ref ProxySecurityGroup
+      # Configure the instance using user data
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          # Install the files and packages from the metadata
+          yum install -y aws-cfn-bootstrap
+          # Install and configure the proxy server using cfn-init
+          /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource ProxyInstance --region ${AWS::Region}
+          
+          # Send the CFN signal to indicate successful instance setup
+          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ProxyInstance --region ${AWS::Region}
+      Tags:
+        - Key: Name
+          Value: proxy-server
+          
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT5M
+
+
+  ProxySecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      # Create a security group that allows inbound HTTP/HTTPS traffic
+      GroupDescription: Allows inbound HTTP/HTTPS traffic to the proxy server
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: !Ref VpcCIDR
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: !Ref VpcCIDR
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 0
+          ToPort: 65535
+          CidrIp: 0.0.0.0/0
+
+Outputs:
+  ProxyInstanceId:
+    Description: The ID of the proxy server instance
+    Value: !Ref ProxyInstance
+  ProxyInstanceDNS:
+    Description: The public DNS name of the proxy server instance
+    Value: !GetAtt ProxyInstance.PublicDnsName
