@@ -262,7 +262,7 @@ Resources:
                           birthdays.append("*** Happy birthday! ***")
                           birthdays.append(day1)
                           birthdays.append("Age:")
-                          birthdays.append(age)
+                          birthdays.append(str(age) + ' years')
 
                   #Send email notification with birthday results
                   if found != 0: #birthday found
