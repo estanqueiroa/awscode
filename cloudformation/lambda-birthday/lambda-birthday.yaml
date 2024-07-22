@@ -240,12 +240,21 @@ Resources:
                   #format today date as month-day (substring)
                   current = (str(today)[5:])
 
+                  #Calculate age based on the current year
+                  current_year = datetime.datetime.now().year
+
+                  #age = current_year - date.year
+
                   birthdays.append("Today is: " + str(today))
 
                   #Read each record from DynamoDB table and validate birthday date
                   for item in items:
                       #read record and format birthday date as month-day (substring)
                       bday = (str(item['BDate'])[5:])
+                      
+                      birth_year = int(item['BDate'][:4]) # convert string to integer
+                      
+                      age = current_year - birth_year
                       
                       # check if current date is same as birthday (month-day)
                       if current == bday:
@@ -254,6 +263,8 @@ Resources:
                           day1 = item['Name']
                           birthdays.append("*** Happy birthday! ***")
                           birthdays.append(day1)
+                          birthdays.append("Age:")
+                          birthdays.append(age)
 
                   #Send email notification with birthday results
                   if found != 0: #birthday found
@@ -262,13 +273,16 @@ Resources:
                           Subject='Found :-) ' + str(found) + ' birthday(s) today: Account AWS id ' + acctID,
                           Message=str(birthdays)
                       )
+                      return ":-) Found! Process success"
                   else: #birthday not found
                       sns_client.publish(
                           TargetArn=os.environ["SNS_ARN"],
                           Subject='No birthday today: Account AWS id ' + acctID,
                           Message=str(birthdays) + ' // No birthdays today :-( '
                       )
-                  return "success"
+                      return "Not found! Process success"
+                      
+              
 
               except Exception as e:
                   print('Failed to process:', e)
@@ -319,40 +333,47 @@ Resources:
             #Create sample record into DynamoDB table
             def lambda_handler(event,context):
 
-                # logger.info('event: {}'.format(event))
-                # logger.info('context: {}'.format(context))
-                responseData = {}
+              # logger.info('event: {}'.format(event))
+              # logger.info('context: {}'.format(context))
+              responseData = {}
 
-                status = cfnresponse.SUCCESS
-                
-                if event['RequestType'] == 'Delete':
-                    responseData = {'Success': 'Custom Resource removed'}
-                    cfnresponse.send(event, context, status, responseData, 'CustomResourcePhysicalID') 
+              print(f"Event: {event}")
 
-                if event['RequestType'] == 'Create':
-                    try:
-                        dynamodb = boto3.resource('dynamodb')
-                        #table name
-                        Target=os.environ["DB_TABLE"]
-                        table = dynamodb.Table(Target)
-                        #inserting values into table
-                        response = table.put_item(
-                            Item={
-                                'Name': 'SampleRecord',
-                                'BDate': '2023-02-24'
-                                
-                            }
-                        )
-                    except Exception as e:
-                        status = cfnresponse.FAILED
-                        print(traceback.format_exc())
-                        responseData = {'Error': traceback.format_exc(e)}
-                    finally:
-                        #send event validation to CFN custom resource
-                        print("Sending CFN")
-                        responseStatus = 'SUCCESS'
-                        responseData = {'Success': 'Check Logs.'}
-                        cfnresponse.send(event, context, responseStatus, responseData)
+              # Get the request type (CREATE, UPDATE, DELETE)
+              request_type = event['RequestType']
+
+              status = cfnresponse.SUCCESS
+              
+              # Handle the request type
+
+              if request_type == 'Delete':
+                  responseData = {'Success': 'Custom Resource removed'}
+                  cfnresponse.send(event, context, status, responseData, 'CustomResourcePhysicalID') 
+
+              if request_type == 'Create' or request_type == 'Update':
+                  try:
+                      dynamodb = boto3.resource('dynamodb')
+                      #table name
+                      Target=os.environ["DB_TABLE"]
+                      table = dynamodb.Table(Target)
+                      #inserting values into table
+                      response = table.put_item(
+                          Item={
+                              'Name': 'SampleRecord',
+                              'BDate': '2023-02-24'
+                              
+                          }
+                      )
+                  except Exception as e:
+                      status = cfnresponse.FAILED
+                      print(traceback.format_exc())
+                      responseData = {'Error': traceback.format_exc(e)}
+                  finally:
+                      #send event validation to CFN custom resource
+                      print("Sending CFN")
+                      responseStatus = 'SUCCESS'
+                      responseData = {'Success': 'Check Logs.'}
+                      cfnresponse.send(event, context, responseStatus, responseData)
                   
 
         FunctionName: !Sub "${SolutionName}-sample-record"

@@ -84,5 +84,5 @@ Delete CloudFormation stack for resources termination/deletion.
 
 # Next Steps
 
-1) Include math to calculate people ages.
+1) Include math to calculate people ages. DONE in new version
 2) Automate records management.
