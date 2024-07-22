@@ -243,8 +243,6 @@ Resources:
                   #Calculate age based on the current year
                   current_year = datetime.datetime.now().year
 
-                  #age = current_year - date.year
-
                   birthdays.append("Today is: " + str(today))
 
                   #Read each record from DynamoDB table and validate birthday date
@@ -273,14 +271,14 @@ Resources:
                           Subject='Found :-) ' + str(found) + ' birthday(s) today: Account AWS id ' + acctID,
                           Message=str(birthdays)
                       )
-                      return ":-) Found! Process success"
+                      return ":-) Found! Process successfully"
                   else: #birthday not found
                       sns_client.publish(
                           TargetArn=os.environ["SNS_ARN"],
                           Subject='No birthday today: Account AWS id ' + acctID,
                           Message=str(birthdays) + ' // No birthdays today :-( '
                       )
-                      return "Not found! Process success"
+                      return "Not found! Process successfully"
                       
               
 
