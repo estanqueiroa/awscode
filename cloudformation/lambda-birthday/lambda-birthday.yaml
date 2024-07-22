@@ -212,80 +212,98 @@ Resources:
       Properties:
         Code:
           ZipFile: |
-            #!/usr/bin/env python3
             import os
             import boto3
             import datetime
 
-            #initialize boto3
-            sns_client = boto3.client('sns')
+            # Initialize boto3
             dynamodb = boto3.resource('dynamodb')
 
-            #Read records from DynamoDB and validate with current date
+            def check_birthdays(db_items):
+                """
+                Checks a list of birthday records and returns a list of birthday information.
+                
+                Args:
+                    db_items (list): A list of birthday records, where each record is a dictionary with 'BDate' and 'Name' keys.
+                    
+                Returns:
+                    list: A list of birthday information, where each item is a string with the birthday details.
+                """
+                today = datetime.date.today()
+                today_month_day = str(today)[5:]
+                
+                birthdays = []
+                
+                birthdays.append(f"Checking today: {today}")
+                        
+                for item in db_items:
+                    bday = str(item['BDate'])[5:]
+                    birth_year = int(item['BDate'][:4])
+                    age = today.year - birth_year
+                    
+                    if bday == today_month_day:
+                        birthdays.append(f"*** Happy birthday, {item['Name']}! ***")
+                        birthdays.append(f"Age: {age} years")
+                
+                return birthdays
+                
+            def send_sns_notification(account_id, birthdays):
+                """
+                Sends an SNS notification with the birthday information.
+                
+                Args:
+                    account_id (str): The AWS account ID.
+                    birthdays (list): A list of birthday information strings.
+                    
+                Returns:
+                    str: 'Success' if the notification was sent successfully, 'Failure' otherwise.
+                """
+                sns_client = boto3.client('sns')
+                
+                try:
+                    # Determine the subject and message based on the number of birthdays
+                    birthday_count = len(birthdays) // 2
+                    if birthday_count > 0:
+                        subject = f"Found {birthday_count} birthday(s) today: Account AWS ID {account_id}"
+                        message = "\n".join(birthdays)
+                    else:
+                        subject = f"No birthday today: Account AWS ID {account_id}"
+                        message = "No birthdays today :-( " + str(birthdays)
+                    
+                    # Send the SNS notification
+                    sns_client.publish(
+                        TargetArn=os.environ["SNS_ARN"],
+                        Subject=subject,
+                        Message=message
+                    )
+                    
+                    return ("Process Successfully - " + subject)
+                
+                except Exception as e:
+                    print(f"Failed to send SNS notification: {e}")
+                    return "Failure"
+
             def lambda_handler(event, context):
+                try:
+                    # Read AWS Account ID
+                    account_id = context.invoked_function_arn.split(":")[4]
 
-              try:
+                    # Read environment variables and scan DynamoDB table
+                    table_name = os.environ["DB_TABLE"]
+                    table = dynamodb.Table(table_name)
+                    items = table.scan()['Items']
 
-                  # read AWS Account id
-                  acctID = context.invoked_function_arn.split(":")[4]
-                  birthdays = []
-                  found = 0 #flag to configure email message content
-                  # read environment variables and scan table items                
-                  Target=os.environ["DB_TABLE"]
-                  table = dynamodb.Table(Target)
-                  items = table.scan()['Items']
+                    # Check for birthdays
+                    birthdays = check_birthdays(items)
 
-                #Read current date from system
-                  today = datetime.date.today()
-                  #format today date as month-day (substring)
-                  current = (str(today)[5:])
+                    # Send SNS notification
+                    result = send_sns_notification(account_id, birthdays)
 
-                  #Calculate age based on the current year
-                  current_year = datetime.datetime.now().year
+                    return result
 
-                  birthdays.append("Today is: " + str(today))
-
-                  #Read each record from DynamoDB table and validate birthday date
-                  for item in items:
-                      #read record and format birthday date as month-day (substring)
-                      bday = (str(item['BDate'])[5:])
-                      
-                      birth_year = int(item['BDate'][:4]) # convert string to integer
-                      
-                      age = current_year - birth_year
-                      
-                      # check if current date is same as birthday (month-day)
-                      if current == bday:
-                          print("Birthday found!")
-                          found += 1 #change flag value to send email message below
-                          day1 = item['Name']
-                          birthdays.append("*** Happy birthday! ***")
-                          birthdays.append(day1)
-                          birthdays.append("Age:")
-                          birthdays.append(str(age) + ' years')
-
-                  #Send email notification with birthday results
-                  if found != 0: #birthday found
-                      sns_client.publish(
-                          TargetArn=os.environ["SNS_ARN"],
-                          Subject='Found :-) ' + str(found) + ' birthday(s) today: Account AWS id ' + acctID,
-                          Message=str(birthdays)
-                      )
-                      return ":-) Found! Process successfully"
-                  else: #birthday not found
-                      sns_client.publish(
-                          TargetArn=os.environ["SNS_ARN"],
-                          Subject='No birthday today: Account AWS id ' + acctID,
-                          Message=str(birthdays) + ' // No birthdays today :-( '
-                      )
-                      return "Not found! Process successfully"
-                      
-              
-
-              except Exception as e:
-                  print('Failed to process:', e)
-                  responseStatus = 'FAILURE'
-                  responseData = {'Failure': 'Check Logs.'}
+                except Exception as e:
+                    print('Failed to process:', e)
+                    return "Failure: Check Logs."
 
         FunctionName: !Ref SolutionName
         Handler: "index.lambda_handler"
