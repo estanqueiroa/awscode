@@ -198,7 +198,7 @@ Resources:
                     - "EventsRule"
                     - "Arn"
 
-# Create Lambda Function To Scan DynamoDB table
+# Create Lambda Function To Scan DynamoDB table records and send SNS notifications
 
     LambdaBirthday:
       Type: AWS::Lambda::Function
@@ -218,6 +218,9 @@ Resources:
 
             # Initialize boto3
             dynamodb = boto3.resource('dynamodb')
+
+
+            # scan DynamoDB table records
 
             def check_birthdays(db_items):
                 """
@@ -246,7 +249,9 @@ Resources:
                         birthdays.append(f"Age: {age} years")
                 
                 return birthdays
-                
+            
+            # send SNS notifications
+
             def send_sns_notification(account_id, birthdays):
                 """
                 Sends an SNS notification with the birthday information.
@@ -311,7 +316,7 @@ Resources:
         Architectures:
         - arm64   # Arm-based AWS Graviton2 processors
         Role: !GetAtt "LambdaRole.Arn"
-        Runtime: python3.11
+        Runtime: python3.12
         Environment: 
             Variables:
                 SNS_ARN: !Ref SNSTopic
@@ -396,7 +401,7 @@ Resources:
         Handler: "index.lambda_handler"
         Timeout: 30
         Role: !GetAtt "LambdaRole.Arn"
-        Runtime: python3.11
+        Runtime: python3.12
         Environment: 
             Variables:
                 DB_TABLE: !Ref DynamoDBTable
