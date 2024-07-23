@@ -78,9 +78,21 @@ https://calculator.aws/#/estimate?id=2c9436e8bb220a3a97af2c3a645df70b7da08887
 
 Depending on the usage, AWS Lambda, Amazon SNS and Amazon DynamoDB may fall into Always Free pricing tier: https://aws.amazon.com/free/
 
+# (Optional) Import CSV into existing DynamoDB table
+
+This CloudFormation template "dynamodb-import-csv.yaml" is designed to import data from a CSV file stored in an Amazon S3 bucket into a DynamoDB table.
+
+Parameters:
+
+* S3BucketName: The name of the S3 bucket containing the CSV file.
+* S3FileName: The name of the CSV file in the S3 bucket.
+* DynamoDBTableName: The name of the DynamoDB table to import the data into.
+
+When the CloudFormation stack is created or updated, the CustomResource triggers the LambdaFunction.
+
 # Cleaning Up
 
-Delete CloudFormation stack for resources termination/deletion.
+Delete CloudFormation stack(s) for resources termination/deletion.
 
 # Next Steps
 

@@ -1,0 +1,183 @@
+# WARNING: This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Import data from S3 to DynamoDB
+
+Parameters:
+  S3BucketName:
+    Type: String
+    Description: Name of the S3 bucket containing the CSV file
+  S3FileName:
+    Type: String
+    Description: Name of the CSV file in the S3 bucket
+  DynamoDBTableName:
+    Type: String
+    Description: Name of the DynamoDB table to import data into
+
+Resources:
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: S3ReadAccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 's3:GetObject'
+                Resource:
+                  - !Sub 'arn:aws:s3:::${S3BucketName}/${S3FileName}'
+        - PolicyName: DynamoDBWriteAccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'dynamodb:BatchWriteItem'
+                Resource:
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${DynamoDBTableName}'
+
+  LambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: python3.12
+      Timeout: 60
+      Architectures:
+      - arm64
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaRole.Arn
+      Environment:
+        Variables:
+          S3_BUCKET_NAME: !Ref S3BucketName
+          S3_FILE_NAME: !Ref S3FileName
+          DYNAMODB_TABLE_NAME: !Ref DynamoDBTableName
+      Code:
+        ZipFile: |
+          import csv
+          import boto3
+          from botocore.exceptions import ClientError
+          import cfnresponse
+          import os
+
+          def download_csv_from_s3(s3_bucket_name, s3_file_name, aws_region):
+              """
+              Download a CSV file from an S3 bucket.
+              """
+              s3 = boto3.client('s3',
+                              region_name=aws_region)
+              try:
+                  s3.download_file(s3_bucket_name, s3_file_name, '/tmp/data.csv')
+              except ClientError as error:
+                  # Log the error and return a failure response to CloudFormation
+                  print(f'Error: {error}')
+                  cfnresponse.send(event, context, cfnresponse.FAILED, {'Error': str(error)})
+
+          def read_csv_data(file_path):
+              """
+              Read data from a CSV file.
+              """
+              try:
+                  with open(file_path, 'r') as csv_file:
+                      reader = csv.DictReader(csv_file)
+                      items = []
+                      for row in reader:
+                          item = {k: {'S': str(v)} for k, v in row.items()}
+                          items.append({'PutRequest': {'Item': item}})
+                  return items
+              except ClientError as error:
+                  # Log the error and return a failure response to CloudFormation
+                  print(f'Error: {error}')
+                  cfnresponse.send(event, context, cfnresponse.FAILED, {'Error': str(error)})
+
+          def import_data_to_dynamodb(table_name, items, aws_region):
+              """
+              Import data from a list of items to a DynamoDB table.
+              """
+              dynamodb = boto3.client('dynamodb',
+                                    region_name=aws_region)
+              try:
+                  for i in range(0, len(items), 25):
+                      batch = items[i:i+25]
+                      response = dynamodb.batch_write_item(
+                          RequestItems={
+                              table_name: batch
+                          }
+                      )
+                      unprocessed_items = response.get('UnprocessedItems', {})
+                      if unprocessed_items:
+                          print(f"Retrying {len(unprocessed_items)} items...")
+                          dynamodb.batch_write_item(RequestItems=unprocessed_items)
+                  print("Data import complete!")
+              except ClientError as error:
+                  # Log the error and return a failure response to CloudFormation
+                  print(f'Error: {error}')
+                  cfnresponse.send(event, context, cfnresponse.FAILED, {'Error': str(error)})
+
+          def lambda_handler(event, context):
+              # # AWS credentials and region
+              # AWS_ACCESS_KEY_ID = 'your_access_key_id'
+              # AWS_SECRET_ACCESS_KEY = 'your_secret_access_key'
+              # AWS_REGION = 'us-west-2'
+
+              # DynamoDB table name
+              TABLE_NAME = os.environ['DYNAMODB_TABLE_NAME']
+
+              # S3 bucket and file name
+              S3_BUCKET_NAME = os.environ['S3_BUCKET_NAME']
+              S3_FILE_NAME = os.environ['S3_FILE_NAME']
+              
+              # Get the Region from the Lambda function ARN
+              AWS_REGION = context.invoked_function_arn.split(':')[3]
+
+              try:
+              
+                print(f"Event: {event}")
+                
+                # Get the request type (CREATE, UPDATE, DELETE)
+                request_type = event['RequestType']
+
+                if request_type == 'Create' or request_type == 'Update':
+
+                  download_csv_from_s3(S3_BUCKET_NAME, S3_FILE_NAME, AWS_REGION)
+                  items = read_csv_data('/tmp/data.csv')
+                  import_data_to_dynamodb(TABLE_NAME, items, AWS_REGION)
+
+                  # Return a success response to CloudFormation
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+
+                elif request_type == 'Delete':
+                  # No action needed for delete, return a success response
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+
+              except ClientError as error:
+                  # Log the error and return a failure response to CloudFormation
+                  print(f'Error: {error}')
+                  cfnresponse.send(event, context, cfnresponse.FAILED, {'Error': str(error)})
+
+
+
+  CustomResource:
+    Type: Custom::DataImport
+    Properties:
+      ServiceToken: !GetAtt LambdaFunction.Arn
+      Timeout: 60 # seconds
+      S3BucketName: !Ref S3BucketName
+      S3FileName: !Ref S3FileName
+      DynamoDBTableName: !Ref DynamoDBTableName
+
+Outputs:
+  LambdaFunctionArn:
+    Description: ARN of the Lambda function
+    Value: !GetAtt LambdaFunction.Arn
