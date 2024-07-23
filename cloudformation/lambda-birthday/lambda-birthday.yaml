@@ -15,27 +15,27 @@ Description: "Birthday Reminder App with Email Notification on daily basis"
 
 Parameters:
 
-    SolutionName: 
+    pSolutionName: 
       Description: The name of this Automation Solution.
       Type: String
       Default: "Birthday-App-Reminder"
 
-    EmailAddress: 
+    pEmailAddress: 
       Description: The email address for SNS topic notifications.
       Type: String
       Default: "youremail@domain.com"
 
-    ScheduleEvent: 
+    pScheduleEvent: 
       Description: The schedule for Lambda function trigger (default run daily at 10AM GMT)
       Type: String
       Default: "cron(0 10 * * ? *)"
 
-    DynamoDBTable: 
+    pDynamoDBTable: 
       Description: The name of DynamoDB table for birthday records.
       Type: String
       Default: "BirthdayApp"
 
-    SampleRecord:
+    pSampleRecord:
       Description: Create Sample Record in DynamoDB Table (Yes or No)?.
       Default: "Yes"
       Type: String
@@ -46,14 +46,14 @@ Parameters:
 
 
 Conditions:
-  CreateSampleRecord: !Equals [!Ref SampleRecord, "Yes"]
+  CreateSampleRecord: !Equals [!Ref pSampleRecord, "Yes"]
 
 Resources:
 
 
 # Create DynamoDB table for birthday App
 
-    myDynamoDBTable: 
+    rDynamoDBTable: 
       Type: AWS::DynamoDB::Table
       Metadata:
         cfn_nag:
@@ -81,7 +81,7 @@ Resources:
 
         BillingMode: PAY_PER_REQUEST  #On Demand table (no provisioned capacity)
         DeletionProtectionEnabled: True
-        TableName: !Ref DynamoDBTable
+        TableName: !Ref pDynamoDBTable
         PointInTimeRecoverySpecification:
           PointInTimeRecoveryEnabled: True
         Tags: 
@@ -90,11 +90,11 @@ Resources:
             - Key: cfn-stack-id
               Value: !Sub ${AWS::StackId}
             - Key: aws-solution
-              Value: !Ref SolutionName
+              Value: !Ref pSolutionName
 
 # Create new role for our lambda functions. :- Create new role and attach below policies to it.
 
-    LambdaRole:
+    rLambdaRole:
       Type: 'AWS::IAM::Role'
       Metadata:
         cfn_nag:
@@ -114,37 +114,40 @@ Resources:
               Version: "2012-10-17"
               Statement:
                 - Effect: Allow
+                  Sid: AllowOperationsOnServices
                   Action:
                     - "sts:AssumeRole"
                     - "logs:*"
-                    - "sns:ListTopics"
-                    - "sns:ListSubscriptions"
-                    - "sns:ListOriginationNumbers"
-                    - "sns:ListEndpointsByPlatformApplication"
+                  Resource: "*"
+                - Effect: Allow
+                  Sid: AllowSNStopic
+                  Action:
+                    - "sns:List*"
                     - "sns:Publish"
-                    - "sns:ListSubscriptionsByTopic"
-                    - "sns:GetTopicAttributes"
-                    - "sns:ListSMSSandboxPhoneNumbers"
-                    - "sns:ListPlatformApplications"
+                    - "sns:Get*"
+                  Resource: !Sub ${rSNSTopic}
+                - Effect: Allow
+                  Sid: AllowGetOperationsOnDynamoDBTable
+                  Action:
                     - "dynamodb:List*"
                     - "dynamodb:DescribeTable"
                     - "dynamodb:Get*"
                     - "dynamodb:Query"
                     - "dynamodb:Scan"
                     - "dynamodb:PutItem"
-                  Resource: "*"
+                  Resource: !Sub arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${rDynamoDBTable}
         Tags: 
             - Key: "cfn-stack-name"
               Value: !Sub ${AWS::StackName}
             - Key: cfn-stack-id
               Value: !Sub ${AWS::StackId}
             - Key: aws-solution
-              Value: !Ref SolutionName
+              Value: !Ref pSolutionName
             
 
 # Create SNS Topic to send notifications
 
-    SNSTopic:
+    rSNSTopic:
         Type: "AWS::SNS::Topic"
         Metadata:
           cfn_nag:
@@ -152,55 +155,55 @@ Resources:
               - id: W47
                 reason: "Not Required for Automation solution"
         Properties:
-            DisplayName: !Ref SolutionName
-            TopicName: !Ref SolutionName
+            DisplayName: !Ref pSolutionName
+            TopicName: !Ref pSolutionName
             Tags: 
                 - Key: "cfn-stack-name"
                   Value: !Sub ${AWS::StackName}
                 - Key: cfn-stack-id
                   Value: !Sub ${AWS::StackId}
                 - Key: aws-solution
-                  Value: !Ref SolutionName
+                  Value: !Ref pSolutionName
 
 # Subscribe to SNS Topic to receive notifications
 
-    MySubscription:
+    rMySubscription:
       Type: AWS::SNS::Subscription
       Properties:
-        Endpoint: !Ref EmailAddress
+        Endpoint: !Ref pEmailAddress
         Protocol: email
-        TopicArn: !Ref SNSTopic
+        TopicArn: !Ref rSNSTopic
 
 # Create Amazon EventBridge Schedule Lambda On Daily Basis
 
-    EventsRule:
+    rEventsRule:
         Type: "AWS::Events::Rule"
         Properties:
-            Name: !Ref SolutionName
-            Description: !Ref SolutionName
-            ScheduleExpression: !Ref ScheduleEvent
+            Name: !Ref pSolutionName
+            Description: !Ref pSolutionName
+            ScheduleExpression: !Ref pScheduleEvent
             State: "ENABLED"
             Targets: 
               - 
-                Arn: !GetAtt LambdaBirthday.Arn
-                Id: "Idd123456"
+                Arn: !GetAtt rLambdaBirthday.Arn
+                Id: "Idd12345678"
             EventBusName: "default"
 
 
-    PermissionForEventsToInvokeLambda: 
+    rPermissionForEventsToInvokeLambda: 
         Type: AWS::Lambda::Permission
         Properties: 
-            FunctionName: !Ref SolutionName
+            FunctionName: !Ref pSolutionName
             Action: "lambda:InvokeFunction"
             Principal: "events.amazonaws.com"
             SourceArn: 
                 Fn::GetAtt: 
-                    - "EventsRule"
+                    - "rEventsRule"
                     - "Arn"
 
 # Create Lambda Function To Scan DynamoDB table records and send SNS notifications
 
-    LambdaBirthday:
+    rLambdaBirthday:
       Type: AWS::Lambda::Function
       Metadata:
         cfn_nag:
@@ -245,7 +248,7 @@ Resources:
                     age = today.year - birth_year
                     
                     if bday == today_month_day:
-                        birthdays.append(f"*** Happy birthday, {item['Name']}! ***")
+                        birthdays.append(f"*** Happy birthday 🎉 😊, {item['Name']}! ***")
                         birthdays.append(f"Age: {age} years")
                 
                 return birthdays
@@ -273,7 +276,7 @@ Resources:
                         message = "\n".join(birthdays)
                     else:
                         subject = f"No birthday today: Account AWS ID {account_id}"
-                        message = "No birthdays today :-( " + str(birthdays)
+                        message = "No birthdays today 😢 " + str(birthdays)
                     
                     # Send the SNS notification
                     sns_client.publish(
@@ -310,31 +313,31 @@ Resources:
                     print('Failed to process:', e)
                     return "Failure: Check Logs."
 
-        FunctionName: !Ref SolutionName
+        FunctionName: !Ref pSolutionName
         Handler: "index.lambda_handler"
         Timeout: 30
         Architectures:
         - arm64   # Arm-based AWS Graviton2 processors
-        Role: !GetAtt "LambdaRole.Arn"
+        Role: !GetAtt "rLambdaRole.Arn"
         Runtime: python3.12
         Environment: 
             Variables:
-                SNS_ARN: !Ref SNSTopic
-                DB_TABLE: !Ref DynamoDBTable
+                SNS_ARN: !Ref rSNSTopic
+                DB_TABLE: !Ref pDynamoDBTable
         Tags: 
             - Key: "cfn-stack-name"
               Value: !Sub ${AWS::StackName}
             - Key: cfn-stack-id
               Value: !Sub ${AWS::StackId}
             - Key: aws-solution
-              Value: !Ref SolutionName
+              Value: !Ref pSolutionName
 
 # Create Lambda Function To inject sample record into DynamoDB table
 
-    LambdaSample:
+    rLambdaSample:
       Type: AWS::Lambda::Function
       Condition: CreateSampleRecord
-      DependsOn: myDynamoDBTable
+      DependsOn: rDynamoDBTable
       Metadata:
         cfn_nag:
           rules_to_suppress:
@@ -397,27 +400,28 @@ Resources:
                       cfnresponse.send(event, context, responseStatus, responseData)
                   
 
-        FunctionName: !Sub "${SolutionName}-sample-record"
+        FunctionName: !Sub "${pSolutionName}-sample-record"
         Handler: "index.lambda_handler"
         Timeout: 30
-        Role: !GetAtt "LambdaRole.Arn"
+        Role: !GetAtt "rLambdaRole.Arn"
         Runtime: python3.12
         Environment: 
             Variables:
-                DB_TABLE: !Ref DynamoDBTable
+                DB_TABLE: !Ref pDynamoDBTable
         Tags: 
             - Key: "cfn-stack-name"
               Value: !Sub ${AWS::StackName}
             - Key: cfn-stack-id
               Value: !Sub ${AWS::StackId}
             - Key: aws-solution
-              Value: !Ref SolutionName
+              Value: !Ref pSolutionName
 
 # Trigger Lambda to create sample record
 
     CustomResource:
       Type: Custom::LambdaSample
       Condition: CreateSampleRecord
-      DependsOn: LambdaSample
+      DependsOn: rLambdaSample
       Properties:
-        ServiceToken: !GetAtt "LambdaSample.Arn"
+        ServiceToken: !GetAtt "rLambdaSample.Arn"
+        ServiceTimeout: 60 # seconds
