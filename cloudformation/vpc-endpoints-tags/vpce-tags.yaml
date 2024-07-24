@@ -448,7 +448,7 @@ Resources:
   #   Type: AWS::CloudFormation::CustomResource
   #   DependsOn: rECSVPCEndpoint # wait for endpoints creation
   #   Properties:
-  #     ServiceToken: !ImportValue eTagging-LambdaId
+  #     ServiceToken: !ImportValue eTagging-LambdaId # Import Lambda ARN from another stack output
   #     VPCRegion: !Ref AWS::Region
   #     VPCId: !Ref rVPC
   #     VPCName: !Ref pVPCName

@@ -1,6 +1,6 @@
 # VPC Endpoints Tagging with CloudFormation Custom Resource and Lambda
 
-This CloudFormation (CFN) template includes a Lambda function that automatically tags the VPC endpoints with custom tags. Aditionally, it creates for demonstration only a private VPC with two private subnets, and also sets up VPC endpoints for Amazon CloudWatch Logs, Amazon S3, and Amazon DynamoDB. 
+This CloudFormation (CFN) template includes a Lambda function that automatically tags the VPC endpoints with custom tags. Aditionally, it creates (for demonstration only) a private VPC with two private subnets, and also sets up VPC endpoints for Amazon CloudWatch Logs, Amazon S3, and Amazon DynamoDB. 
 
 ![Alt text](../diagrams/custom-resource.png?raw=true "Diagram Image")
 
@@ -47,6 +47,24 @@ Lambda Function and Custom Resource:
 
 * Deploy the CloudFormation stack using the AWS CLI, AWS Management Console, or AWS RAIN. Customize the parameter values as needed.
 * After the stack is deployed, the VPC endpoints will be automatically tagged with the specified tags.
+
+if you want to run the Lambda from other stacks, use the code block below in your template:
+
+```
+  rTaggingVPCEndpoints:
+     Type: AWS::CloudFormation::CustomResource
+     DependsOn: rECSVPCEndpoint # wait for endpoints creation
+     Properties:
+       ServiceToken: !ImportValue eTagging-LambdaId # Import Lambda ARN from another stack output
+       VPCRegion: !Ref AWS::Region
+       VPCId: !Ref rVPC
+       VPCName: !Ref pVPCName
+       TAGKEY1: !Ref pTagKey1
+       TAGVALUE1: !Ref pTagValue1
+       TAGKEY2: !Ref pTagKey2
+       TAGVALUE2: !Ref pTagValue2
+       ServiceTimeout: 60 # custom resource operation times out (seconds)
+```
 
 ## Notes
 
