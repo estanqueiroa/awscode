@@ -80,7 +80,7 @@ Depending on the usage, AWS Lambda, Amazon SNS and Amazon DynamoDB may fall into
 
 # (Optional) Import CSV into existing DynamoDB table
 
-This CloudFormation template "dynamodb-import-csv.yaml" is designed to import data from a CSV file stored in an Amazon S3 bucket into a DynamoDB table.
+After the DynamoDB table creation, you can import a CSV file (sample CSV available in the repo) with birth dates using this CloudFormation template "dynamodb-import-csv.yaml". First upload the CSV file to a S3 bucket, then create a new CloudFormation stack and fill out the parameters below:
 
 Parameters:
 
