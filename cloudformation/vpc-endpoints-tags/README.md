@@ -1,6 +1,6 @@
 # VPC Endpoints Tagging with CloudFormation Custom Resource and Lambda
 
-This CloudFormation (CFN) template creates a private VPC with two private subnets, and also sets up VPC endpoints for Amazon CloudWatch Logs, Amazon S3, and Amazon DynamoDB. Additionally, it includes a Lambda function that automatically tags the VPC endpoints with custom tags.
+This CloudFormation (CFN) template includes a Lambda function that automatically tags the VPC endpoints with custom tags. Aditionally, it creates for demonstration only a private VPC with two private subnets, and also sets up VPC endpoints for Amazon CloudWatch Logs, Amazon S3, and Amazon DynamoDB. 
 
 ![Alt text](../diagrams/custom-resource.png?raw=true "Diagram Image")
 
