@@ -1,0 +1,247 @@
+####################################################################################
+# WARNING: This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+#
+#
+# Before you can create an alarm for your estimated charges, you must enable billing alerts, so that you can monitor your estimated AWS charges
+# and create an alarm using billing metric data. After you enable billing alerts, you can't disable data collection,
+# but you can delete any billing alarms that you created.
+# After you enable billing alerts for the first time, it takes about 15 minutes before you can view billing data and set billing alarms.
+#
+# https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/monitor_estimated_charges_with_cloudwatch.html
+#
+####################################################################################
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Top 5 AWS Service Costs Lambda Function and CloudWatch billing alarm
+
+Parameters:
+
+  pEmail:
+    Description: Email address to notify with the AWS service costs
+    Type: String
+    Default: your_email@example.com
+
+  pAlarmThreshold:
+    Description: The threshold of estimated charges in USD
+    Type: Number
+    Default: 200
+
+  pScheduleEvent: 
+    Description: The schedule for Lambda function trigger (default run daily at 11PM GMT)
+    Type: String
+    Default: "cron(0 23 * * ? *)"
+
+Resources:
+
+# create SNS topic for notifications
+
+  rSNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: top-aws-service-costs-notification
+      Subscription:
+        - Protocol: email
+          Endpoint: !Ref pEmail
+
+# create billing alarm using CloudWatch metric
+
+  rBillingAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: 'Billing Alarm'
+      AlarmDescription: 'Alarm when the estimated charges exceed the specified threshold'
+      MetricName: 'EstimatedCharges'
+      Namespace: 'AWS/Billing'
+      Statistic: Maximum
+      Period: 21600 # 6 hours
+      EvaluationPeriods: 1
+      Threshold: !Ref pAlarmThreshold
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: missing
+      AlarmActions:
+        - !Ref rSNSTopic
+      InsufficientDataActions:
+        - !Ref rSNSTopic
+
+# create role for Lambda function
+
+  rTopCostLambdaExecutionRole:
+    Type: AWS::IAM::Role
+    # checkov:skip=CKV_AWS_107:IAM policies does not allow credentials exposure
+    # checkov:skip=CKV_AWS_108:IAM policies does not allow data exfiltration
+    # checkov:skip=CKV_AWS_111:IAM policies does not allow write access without constraints
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W11
+            reason: "Resource * acceptable for this policy - reporting only."
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: AWSCostExplorerReadOnlyAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'ce:GetCostAndUsage'
+                Resource: '*'
+        - PolicyName: AmazonSNSPublishAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'sns:Publish'
+                Resource: !Ref rSNSTopic
+
+# create Lambda function for costs reporting
+
+  rTopCostLambdaFunction:
+    Type: AWS::Lambda::Function
+    # checkov:skip=CKV_AWS_116:Dead Letter Queue(DLQ) for Lambda not required
+    # checkov:skip=CKV_AWS_173:No encryption required for Lambda environment variables
+    # checkov:skip=CKV_AWS_115:function-level concurrent execution limit not required
+    # checkov:skip=CKV_AWS_117:This lambda functions doesnt require a VPC
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "Lambda function needed to automatically associate VPC SPoke to DNS"
+          - id: W92
+            reason: "There is no provision for using this function simultaneously"
+    Properties:
+      FunctionName: top-5-aws-service-costs
+      Runtime: python3.12
+      Architectures:
+          - arm64 # graviton
+      Timeout: 120 # seconds
+      Handler: index.lambda_handler
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          from datetime import datetime, timedelta
+          import os
+
+
+          # Constants
+          SNS_TOPIC_ARN = os.environ['SNS_TOPIC_ARN']
+
+          def lambda_handler(event, context):
+
+            # Get the current AWS account ID from the Lambda context
+            account_id = context.invoked_function_arn.split(':')[4]
+
+            # Get region from Lambda context
+            region = context.invoked_function_arn.split(':')[3]
+
+            # Initialize AWS clients
+            client_sns = boto3.client('sns', region_name=region)
+            client_ce = boto3.client('ce', region_name=region)
+
+            try:
+                
+                # Set the start and end dates for the last 30 days
+                end = datetime.now().date()
+                start = end - timedelta(days=30)
+            
+                # Call the Cost Explorer API
+                response = client_ce.get_cost_and_usage(
+                    TimePeriod={
+                        'Start': start.strftime('%Y-%m-%d'),
+                        'End': end.strftime('%Y-%m-%d')
+                    },
+                    Granularity='MONTHLY',
+                    Metrics=['UnblendedCost'],
+                    GroupBy=[{'Type': 'DIMENSION', 'Key': 'SERVICE'}]
+                )
+            
+                # Extract costs and sort them
+                results = response['ResultsByTime'][0]['Groups']
+                costs = []
+            
+                for group in results:
+                    service = group['Keys'][0]
+                    cost = float(group['Metrics']['UnblendedCost']['Amount'])
+                    costs.append((service, cost))
+            
+                # Sort the services by cost
+                costs.sort(key=lambda x: x[1], reverse=True)
+            
+                # Get the top 5 costs
+                top_costs = costs[:5]
+                
+                # Create notification message
+                message_lines = ["Top 5 AWS Costs in last 30 days:"]
+                for service, cost in top_costs:
+                    message_lines.append(f"{service}: ${cost:.2f}")
+            
+                message = "\n".join(message_lines)
+            
+                # Send notification via SNS
+                response = client_sns.publish(
+                    TopicArn=SNS_TOPIC_ARN,
+                    Message=message,
+                    Subject='Top 5 AWS Costs Notification - Account: ' + account_id
+                )
+            
+                return {
+                    'statusCode': 200,
+                    'body': json.dumps('SNS notification sent successfully!')
+                }
+                
+            except Exception as e:
+                # Log the error and return a custom error message
+                print(f"Error: {e}")
+                return {
+                    'error': 'An error occurred while processing the request. Check logs'
+                  }
+
+      Role: !GetAtt rTopCostLambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          SNS_TOPIC_ARN: !Ref rSNSTopic
+
+
+
+# create EventBridge rule to schedule task
+
+  rNotificationEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: !Ref pScheduleEvent
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt rTopCostLambdaFunction.Arn
+          Id: costsmonitor
+
+# grant EventBridge persmission to trigger Lambda
+
+  rPermissionForEventsToInvokeLambda: 
+      Type: AWS::Lambda::Permission
+      Properties: 
+          FunctionName: !Ref rTopCostLambdaFunction
+          Action: "lambda:InvokeFunction"
+          Principal: "events.amazonaws.com"
+          SourceArn: 
+              Fn::GetAtt: 
+                  - "rNotificationEventRule"
+                  - "Arn"
+
+
+
+Outputs:
+  oTopCostLambdaFunctionArn:
+    Description: ARN of the Top 5 AWS Service Costs Lambda function
+    Value: !GetAtt rTopCostLambdaFunction.Arn
