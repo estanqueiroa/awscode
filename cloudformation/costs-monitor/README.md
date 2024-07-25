@@ -51,13 +51,15 @@ Replace your_email@example.com with the email address you want to receive the bi
 
 ## Sample Notification
 
+Sample email message:
+
 ```bash
 From: AWS Notifications <no-reply@sns.amazonaws.com> 
 Sent: Thursday, July 25, 2024 12:53 PM
 To: your_email@example.com
 Subject: Top 5 AWS Costs Notification - Account: 123456789012
 
-Top 5 AWS Costs in last 30 days:
+Top 5 AWS Costs in the last 30 days:
 Amazon SageMaker: $139.38
 EC2 - Other: $41.09
 Amazon ElastiCache: $32.11
