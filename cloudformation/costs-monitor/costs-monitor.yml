@@ -183,7 +183,7 @@ Resources:
                 top_costs = costs[:5]
                 
                 # Create notification message
-                message_lines = ["Top 5 AWS Costs in last 30 days:"]
+                message_lines = ["Top 5 AWS Costs in the last 30 days:"]
                 for service, cost in top_costs:
                     message_lines.append(f"{service}: ${cost:.2f}")
             
