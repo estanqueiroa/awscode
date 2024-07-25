@@ -49,6 +49,23 @@ aws cloudformation create-stack \
 
 Replace your_email@example.com with the email address you want to receive the billing alarm notifications.
 
+## Sample Notification
+
+```bash
+From: AWS Notifications <no-reply@sns.amazonaws.com> 
+Sent: Thursday, July 25, 2024 12:53 PM
+To: your_email@example.com
+Subject: Top 5 AWS Costs Notification - Account: 123456789012
+
+Top 5 AWS Costs in last 30 days:
+Amazon SageMaker: $139.38
+EC2 - Other: $41.09
+Amazon ElastiCache: $32.11
+Amazon Virtual Private Cloud: $21.08
+Amazon QuickSight: $17.44
+```
+
+
 ## Security Considerations
 
 This CloudFormation template uses the principle of least privilege to grant the Lambda function the necessary permissions to perform its tasks. However, it's important to review the IAM permissions and adjust them as needed to align with your security requirements.
