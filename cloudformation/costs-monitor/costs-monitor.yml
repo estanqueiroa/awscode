@@ -24,14 +24,14 @@ Parameters:
     Default: your_email@example.com
 
   pAlarmThreshold:
-    Description: The threshold of estimated charges in USD
+    Description: The threshold of estimated charges in USD (period 6h)
     Type: Number
-    Default: 200
+    Default: 50
 
   pScheduleEvent: 
-    Description: The schedule for Lambda function trigger (default run daily at 11PM GMT)
+    Description: The schedule for Lambda function trigger (default run daily at 4AM GMT)
     Type: String
-    Default: "cron(0 23 * * ? *)"
+    Default: "cron(0 4 * * ? *)"
 
 Resources:
 
@@ -152,9 +152,9 @@ Resources:
 
             try:
                 
-                # Set the start and end dates for the last 30 days
+                # Set the start and end dates for the last 7 days
                 end = datetime.now().date()
-                start = end - timedelta(days=30)
+                start = end - timedelta(days=7)
             
                 # Call the Cost Explorer API
                 response = client_ce.get_cost_and_usage(
@@ -162,7 +162,7 @@ Resources:
                         'Start': start.strftime('%Y-%m-%d'),
                         'End': end.strftime('%Y-%m-%d')
                     },
-                    Granularity='MONTHLY',
+                    Granularity='DAILY',
                     Metrics=['UnblendedCost'],
                     GroupBy=[{'Type': 'DIMENSION', 'Key': 'SERVICE'}]
                 )
@@ -183,7 +183,7 @@ Resources:
                 top_costs = costs[:5]
                 
                 # Create notification message
-                message_lines = ["Top 5 AWS Costs in the last 30 days:"]
+                message_lines = ["Top 5 AWS Daily Costs in the last 7 days:"]
                 for service, cost in top_costs:
                     message_lines.append(f"{service}: ${cost:.2f}")
             
