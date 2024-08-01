@@ -43,8 +43,8 @@ aws cloudformation create-stack \
   --stack-name top-5-aws-service-costs \
   --template-body file://costs-monitor.yml \
   --parameters ParameterKey=pEmail,ParameterValue=your_email@example.com \
-               ParameterKey=pAlarmThreshold,ParameterValue=200 \
-               ParameterKey=pScheduleEvent,ParameterValue="cron(0 23 * * ? *)"
+               ParameterKey=pAlarmThreshold,ParameterValue=50 \
+               ParameterKey=pScheduleEvent,ParameterValue="cron(0 4 * * ? *)"
 ```
 
 Replace your_email@example.com with the email address you want to receive the billing alarm notifications.
