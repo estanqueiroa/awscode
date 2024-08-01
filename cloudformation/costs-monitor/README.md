@@ -18,7 +18,7 @@ The CloudFormation template creates the following resources:
 * Billing Alarm: A CloudWatch alarm that monitors the EstimatedCharges metric and triggers when the estimated charges exceed the specified threshold.
 * Lambda Execution Role: An IAM role with the necessary permissions for the Lambda function to access the Cost Explorer API and publish to the SNS topic.
 * Lambda Function: A Lambda function that retrieves the top 5 highest cost AWS services for the current billing period and sends a notification to the SNS topic.
-* EventBridge Rule: A CloudWatch Events rule that triggers the Lambda function on a schedule (default is daily at 11 PM GMT).
+* EventBridge Rule: A CloudWatch Events rule that triggers the Lambda function on a schedule (default is daily at 4 AM GMT).
 
 ## Configuration Parameters
 
@@ -26,7 +26,7 @@ The template accepts the following configuration parameters:
 
 * pEmail: The email address to receive the billing alarm notifications.
 * pAlarmThreshold: The threshold of estimated charges in USD that will trigger the billing alarm.
-* pScheduleEvent: The schedule for the Lambda function to run (default is daily at 11 PM GMT).
+* pScheduleEvent: The schedule for the Lambda function to run (default is daily at 4 AM GMT).
 
 ## Outputs
 
@@ -57,9 +57,10 @@ Sample email message:
 From: AWS Notifications <no-reply@sns.amazonaws.com> 
 Sent: Thursday, July 25, 2024 12:53 PM
 To: your_email@example.com
-Subject: Top 5 AWS Costs Notification - Account: 123456789012
+Subject: Top 5 AWS Daily Costs Notification - Account: 123456789012
 
-Top 5 AWS Costs in the last 30 days:
+Top 5 AWS Costs in the last 7 days:
+
 Amazon SageMaker: $139.38
 EC2 - Other: $41.09
 Amazon ElastiCache: $32.11
