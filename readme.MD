@@ -12,11 +12,16 @@ Template files for AWS CloudFormation stacks deployment.
 
 Python codes for daily activities / automations in general.
 
+# Folder /cdk/
+
+AWS CDK (Python) codes for daily activities / automations in general.
+
 # Useful Resources
 
 | Description  | Link | Topic |
 | -------------| ---- | ----- |
 | Generate IAC from existing AWS resources  | https://former2.com/ | DevOps |
+| Create your first AWS CDK App | https://docs.aws.amazon.com/cdk/v2/guide/hello_world.html | DevOps |
 | Twelve-factor methodology for apps development | https://12factor.net/ | DevOps |
 | Don´t Repeat Yourself (DRY) | https://en.wikipedia.org/wiki/Don%27t_repeat_yourself | DevOps |
 | KISS principle (or Keep It Simple, Stupid) | https://www.freecodecamp.org/news/keep-it-simple-stupid-how-to-use-the-kiss-principle-in-design/ | DevOps |
