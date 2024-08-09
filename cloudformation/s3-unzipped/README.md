@@ -43,7 +43,7 @@ After the stack is created, you can upload zip files to root folder of the S3 bu
 
 Error message: Resource handler returned message: "Unable to validate the following destination configurations (Service: S3, Status Code: 400, Request ID
 
-This is a known issue documented in AWS S3 Cloudformation [documentation](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-s3-bucket-notificationconfiguration.html#aws-properties-s3-bucket-notificationconfiguration--examples)
+This is a known issue documented in AWS S3 Cloudformation [documentation](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-s3-bucket-notificationconfiguration.html)
 
 To avoid this dependency, you can create all resources without specifying the notification configuration. Then, update the stack with a notification configuration.
 
