@@ -4,6 +4,7 @@ import os.path
 import aws_cdk as cdk
 
 from endpoints.endpoints_stack import EndpointsStack
+from endpoints.custom_resource import VpcEndpointTagsStack
 
 app = cdk.App()
 
@@ -24,6 +25,12 @@ EndpointsStack(app, "EndpointsStack",
 
     # For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html
     )
+
+VpcEndpointTagsStack(app, "VpcEndpointTagsStack",
+                     
+                     env=cdk.Environment(account=os.getenv('CDK_DEFAULT_ACCOUNT'), region=os.getenv('CDK_DEFAULT_REGION'))
+                     
+                     )
 
 dirname = os.path.dirname(__file__)
 

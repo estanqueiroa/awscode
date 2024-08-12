@@ -1,3 +1,7 @@
+######
+#
+# Example on how to create multiple VPC endpoints (with no tagging - see the Custom Resource python file for tagging)
+#
 
 from aws_cdk.aws_s3_assets import Asset
 

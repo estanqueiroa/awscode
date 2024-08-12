@@ -1,8 +1,8 @@
 ## Description
 
-Single Proof of Concept (Poc) to validate VPC endpoints tagging using AWS CDK
+Single Proof of Concept (Poc) to validate VPC endpoints (vpce) tagging using AWS CDK
 
-**Conclusion**: 8/2024 - Currently vpce tagging is not supported by CloudFormation, therefore the creation using AWS CDK doesn´t provide tagging capabilities
+**Conclusion**: 8/2024 - Currently vpce tagging is not supported by CloudFormation, therefore the creation using AWS CDK doesn´t provide tagging capabilities. Custom resource app is included for vpce tagging :-)
 
 # Welcome to your CDK Python project!
 
