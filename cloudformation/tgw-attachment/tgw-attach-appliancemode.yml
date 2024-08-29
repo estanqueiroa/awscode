@@ -31,7 +31,7 @@ Resources:
       InstanceTenancy: default
       Tags:
         - Key: Name
-          Value: My VPC
+          Value: Inspection VPC
 
   Subnet1:
     Type: AWS::EC2::Subnet
@@ -39,7 +39,7 @@ Resources:
       VpcId: !Ref VPC
       AvailabilityZone: !Select [0, !GetAZs '']
       CidrBlock: !Select [0, !Ref SubnetCidrs]
-      MapPublicIpOnLaunch: true
+      #MapPublicIpOnLaunch: true
 
   Subnet2:
     Type: AWS::EC2::Subnet
@@ -47,7 +47,7 @@ Resources:
       VpcId: !Ref VPC
       AvailabilityZone: !Select [1, !GetAZs '']
       CidrBlock: !Select [1, !Ref SubnetCidrs]
-      MapPublicIpOnLaunch: true
+      #MapPublicIpOnLaunch: true
 
   TransitGateway:
     Type: AWS::EC2::TransitGateway
