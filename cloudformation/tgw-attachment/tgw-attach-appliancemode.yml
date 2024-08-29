@@ -1,0 +1,86 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Creates a VPC, Transit Gateway, and VPC Attachment with Appliance Mode support enabled
+
+Parameters:
+  VpcCidr:
+    Type: String
+    Default: 10.0.0.0/16
+    Description: CIDR block for the VPC
+
+  SubnetCidrs:
+    Type: CommaDelimitedList
+    Default: 10.0.0.0/24,10.0.1.0/24
+    Description: Comma-delimited list of subnet CIDR blocks
+
+  TransitGatewayName:
+    Type: String
+    Description: Name of the Transit Gateway
+
+  VpcAttachmentName:
+    Type: String
+    Description: Name of the VPC Attachment
+
+Resources:
+
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: My VPC
+
+  Subnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: !Select [0, !Ref SubnetCidrs]
+      MapPublicIpOnLaunch: true
+
+  Subnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock: !Select [1, !Ref SubnetCidrs]
+      MapPublicIpOnLaunch: true
+
+  TransitGateway:
+    Type: AWS::EC2::TransitGateway
+    Properties:
+      DefaultRouteTableAssociation: disable
+      DefaultRouteTablePropagation: disable
+      Tags:
+        - Key: Name
+          Value: !Ref TransitGatewayName
+
+  VpcAttachment:
+    Type: AWS::EC2::TransitGatewayAttachment
+    Properties:
+      SubnetIds:
+        - !Ref Subnet1
+        - !Ref Subnet2
+      TransitGatewayId: !Ref TransitGateway
+      VpcId: !Ref VPC
+      Options:
+        ApplianceModeSupport: enable
+      Tags:
+        - Key: Name
+          Value: !Ref VpcAttachmentName
+
+Outputs:
+  VpcId:
+    Description: ID of the created VPC
+    Value: !Ref VPC
+
+  TransitGatewayId:
+    Description: ID of the created Transit Gateway
+    Value: !Ref TransitGateway
+
+  VpcAttachmentId:
+    Description: ID of the created VPC Attachment
+    Value: !Ref VpcAttachment
