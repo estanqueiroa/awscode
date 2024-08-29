@@ -1,4 +1,4 @@
-## VPC Transit Gateway with Appliance Mode
+## VPC Transit Gateway with Appliance Mode Support for Inspection VPC
 
 This CloudFormation template creates the following resources:
 
