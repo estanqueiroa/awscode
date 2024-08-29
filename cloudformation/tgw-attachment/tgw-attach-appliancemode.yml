@@ -68,6 +68,7 @@ Resources:
       VpcId: !Ref VPC
       Options:
         ApplianceModeSupport: enable
+        DnsSupport: enable
       Tags:
         - Key: Name
           Value: !Ref VpcAttachmentName
