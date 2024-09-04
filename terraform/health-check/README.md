@@ -15,18 +15,36 @@ Based on this [article](https://amod-kadam.medium.com/health-check-using-terrafo
 ## Usage
 
 Clone the repository:
-```git clone https://github.com/estanqueiroa/awscode.git``` 
+```bash
+git clone https://github.com/estanqueiroa/awscode.git
+``` 
 
 Navigate to the project directory:
-``` cd \terraform\health-check```
+```bash
+cd /terraform/health-check
+```
 
 Initialize the Terraform working directory:
-``` terraform init``` 
+```bash
+terraform init
+```
 
-Review the Terraform configuration files and update the necessary variables, such as the URL of your web application and the email address for notifications.
+Format the Terraform working directory:
+```bash
+terraform fmt
+``` 
+
+Validate the Terraform working directory:
+```bash
+terraform validate
+``` 
+
+Review the Terraform configuration files and update the necessary variables, such as the key name of EC2 instance and tags.
 
 Apply the Terraform configuration to create the health check resources:
-``` terraform apply``` 
+```bash
+terraform apply
+``` 
 
 Verify the creation of the resources in the AWS Management Console.
 
@@ -37,7 +55,9 @@ The Terraform configuration creates the following resources: EC2 instance with p
 ## Cleanup
 To destroy the resources created by Terraform, run the following command:
 
-``` terraform destroy``` 
+```bash
+terraform destroy
+``` 
 
 ## Conclusion
 This Terraform configuration provides a simple and automated way to set up a health check for your web application using Terraform.
