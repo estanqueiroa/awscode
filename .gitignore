@@ -19,3 +19,6 @@ yarn.lock
 cdk.out
 __pycache__
 
+### AWS CLI ###
+awscliv2.zip
+
