@@ -43,6 +43,11 @@ terraform validate
 
 Review the Terraform configuration files and update the necessary variables, such as the key name of EC2 instance and tags.
 
+Plan the Terraform configuration to create the health check resources:
+```bash
+terraform plan
+``` 
+
 Apply the Terraform configuration to create the health check resources:
 ```bash
 terraform apply
