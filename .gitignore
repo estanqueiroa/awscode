@@ -19,6 +19,3 @@ yarn.lock
 cdk.out
 __pycache__
 
-
-### aws cli ###
-aws/
