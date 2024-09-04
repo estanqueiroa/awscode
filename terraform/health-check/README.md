@@ -2,7 +2,9 @@
 
 # Introduction
 
-This article explains how to use Terraform to create a health check for a web application. The health check is implemented using Terraform "check_apache_status" [resource](https://developer.hashicorp.com/terraform/language/checks).
+This article explains how to use Terraform to create a health check for a web application. The health check is implemented using Terraform "check" [block](https://developer.hashicorp.com/terraform/language/checks).
+
+The check block can validate your infrastructure outside the usual resource lifecycle. Check blocks address a gap between post-apply and functional validation of infrastructure.
 
 Based on this [article](https://amod-kadam.medium.com/health-check-using-terraform-71248e9fb508)
 
