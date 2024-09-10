@@ -16,6 +16,10 @@ Python codes for daily activities / automations in general.
 
 AWS CDK (Python) codes for daily activities / automations in general.
 
+# Folder /scripts/ 
+
+Bash scripts to automate AWS tasks in general (mostly using AWS CLI).
+
 # Useful Resources
 
 | Description  | Link | Topic |
