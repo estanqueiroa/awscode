@@ -1,6 +1,6 @@
-# Disclaimer - ⚠️ Personal Repository
+# Disclaimer - Personal Repository
 
-This is not expected to be an excellent repository, but rather a simple personal repository with a few examples for your guidance. Enjoy 😀
+⚠️ This is not expected to be an excellent repository, but rather a simple personal repository with a few examples for your guidance. Enjoy 😀
 
 # Folder 📁 /cloudformation/
 
