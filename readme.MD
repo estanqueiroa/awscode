@@ -1,18 +1,18 @@
-# Disclaimer - Personal Repository
+# Disclaimer - ⚠️ Personal Repository
 
 This is not expected to be an excellent repository, but rather a simple personal repository with a few examples for your guidance. Enjoy 😀
 
-# Folder /cloudformation/
+# Folder 📁 /cloudformation/
 
 Template files for AWS CloudFormation stacks deployment.
 
 We recommend to use 🌧️ [RAIN](https://aws-cloudformation.github.io/rain/) to deploy.
 
-# Folder /python/
+# Folder 📁 /python/
 
 Python3 🤖 codes for daily activities / automations in general.
 
-# Folder /cdk/
+# Folder 📁 /cdk/
 
 I´d consider AWS CDK as CloudFormation on 💪 steroids LOL, you can use your favorite programming language to create CFN templates 🚀
 
@@ -20,7 +20,7 @@ AWS CDK (Python) codes for daily activities / automations in general.
 
 [Tutorial: Create your first AWS CDK app](https://docs.aws.amazon.com/cdk/v2/guide/hello_world.html)
 
-# Folder /scripts/ 
+# Folder 📁 /scripts/ 
 
 Bash scripts 🛠️ to automate AWS tasks in general (mostly using AWS CLI).
 
