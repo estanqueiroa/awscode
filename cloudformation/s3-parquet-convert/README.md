@@ -31,7 +31,7 @@ The template includes the following parameters:
 
 # Deployment
 
-You can use [RAIN](https://github.com/aws-cloudformation/rain) to deploy the Cloudformation stack using the provided template:
+You can use [RAIN](https://github.com/aws-cloudformation/rain) to deploy the Cloudformation stack using the provided template (tags values are optional):
 
 ```bash
 s3-parquet-convert$ rain deploy s3-parquet-convert.yaml --tags valor1=titanic -y
