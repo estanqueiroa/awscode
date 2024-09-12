@@ -27,7 +27,7 @@ The Lambda function downloads the Parquet file from the S3 bucket, analyzes its 
 The template includes the following parameters:
 
 - pMemorySize: Allows you to adjust the memory size of the Lambda function to optimize processing time for large Parquet files.
-- pS3FileKey: Allows you to specify the path to the Parquet file within the S3 bucket.
+- pTimeout: Configure Lambda function timeout according your parquet file size.
 
 # Deployment
 
@@ -51,8 +51,13 @@ To avoid this dependency, you can create all resources without specifying the Bu
                   Value: '.parquet'
          Function: !GetAtt rConvertParquetLambdaFunction.Arn
 ```
+After stack is created, uncomment the block in the template and update the stack, this will create the bucket notification configuration.
 
-Then, uncomment the block and update the stack with a notification configuration.
+You can use same RAIN command to update the stack, it will create the change set and apply to existing stack:
+
+```bash
+s3-parquet-convert$ rain deploy s3-parquet-convert.yaml --tags valor1=titanic -y
+```
 
 # Testing the Solution
 
