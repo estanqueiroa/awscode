@@ -1,0 +1,160 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Creates an S3 bucket and a Lambda function to convert a Parquet file from the bucket to CSV.
+
+Parameters:
+  
+  pMemorySize:
+    Type: Number
+    Default: 256
+    Description: Adjust Lambda function memory size to reduce processing time for large Parquet files.
+
+  pTimeout:
+    Type: Number
+    Default: 30
+    Description: Adjust Lambda function timeout according Parquet files size.
+
+  # pS3FileKey:
+  #   Type: String
+  #   Default: titanic.parquet
+  #   Description: The path to the Parquet file within the S3 bucket.
+
+Resources:
+  rS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      VersioningConfiguration:
+        Status: Enabled
+      # If you create the target resource and related permissions in the same template, you might have a circular dependency.
+      # To avoid this dependency, you can create all resources without specifying the notification configuration. 
+      # Then, update the stack with a notification configuration.  
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: suffix
+                    Value: '.parquet'
+            Function: !GetAtt rConvertParquetLambdaFunction.Arn
+
+  rPermissionForS3ToInvokeLambda: 
+      Type: AWS::Lambda::Permission
+      Properties: 
+          FunctionName: !Ref rConvertParquetLambdaFunction
+          Action: "lambda:InvokeFunction"
+          Principal: "s3.amazonaws.com"
+          SourceArn: !GetAtt rS3Bucket.Arn
+
+  rConvertParquetLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: python3.11
+      Architectures:
+          - arm64
+      Role: !GetAtt rConvertParquetLambdaRole.Arn
+      Handler: index.lambda_handler
+      Timeout: !Ref pTimeout
+      MemorySize: !Ref pMemorySize
+      Code:
+        ZipFile: |
+          import boto3
+          import os
+          import pandas as pd
+          import pyarrow.parquet as pq
+
+          def lambda_handler(event, context):
+
+              print("Received event:", event)
+
+              # Get the object information from the event
+              s3 = boto3.client('s3')
+              bucket = event['Records'][0]['s3']['bucket']['name']
+              key = event['Records'][0]['s3']['object']['key']
+
+              # # Get the Parquet file from the input S3 bucket
+              # s3 = boto3.client('s3')
+              # bucket = os.environ['S3_BUCKET_NAME']
+              # key = os.environ['S3_FILE_KEY']
+
+              # Download the Parquet file to the Lambda function's temporary directory
+              tmp_dir = '/tmp'
+              if not os.path.exists(tmp_dir):
+                  os.makedirs(tmp_dir)
+              local_path = os.path.join(tmp_dir, os.path.basename(key))
+              s3.download_file(bucket, key, local_path)
+
+              # Print the properties of the Parquet file
+              print("Analyzing Parquet file properties...\n======================================")
+              pq_file = pq.ParquetFile(local_path)
+              print(f"File path: {local_path}")
+              print(f"Number of rows: {pq_file.metadata.num_rows}")
+              print(f"Number of columns: {len(pq_file.schema.names)}")
+              print(f"Schema: {pq_file.schema}")
+
+              # Check if the Parquet file is compressed
+              compression = pq_file.metadata.row_group(0).column(0).compression
+              print("Checking file compression...\n======================================")
+              if compression == 'UNCOMPRESSED':
+                  print(f"The Parquet file {key} is not compressed.")
+              else:
+                  print(f"The Parquet file {key} is compressed using the {compression} codec.")
+
+              # Convert the Parquet file to a CSV file
+              df = pd.read_parquet(local_path)
+              csv_path = os.path.splitext(local_path)[0] + '.csv'
+              df.to_csv(csv_path, index=False)
+
+              # Print the header of the Parquet file
+              print("Parquet file header...\n======================================")
+              print(df.head)
+
+              # Upload the CSV file to the output S3 bucket
+              output_bucket = bucket
+              output_key = os.path.splitext(key)[0] + '.csv'
+              s3.upload_file(csv_path, output_bucket, output_key)
+
+              return {
+                  'statusCode': 200,
+                  'body': f'Converted {key} to {output_key}'
+              }
+
+      # Environment:
+      #   Variables:
+      #     S3_BUCKET_NAME: !Ref rS3Bucket
+      #     S3_FILE_KEY: !Ref pS3FileKey
+      Layers:
+        # https://aws-sdk-pandas.readthedocs.io/en/stable/layers.html
+        - arn:aws:lambda:us-east-1:336392948345:layer:AWSSDKPandas-Python311-Arm64:17
+
+  rConvertParquetLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: ConvertParquetLambdaS3WritePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 's3:PutObject'
+                  - 's3:GetObject'
+                #Resource: !Join ['/', [!GetAtt rS3Bucket.Arn, '*']]
+                Resource: "*" # to avoid circular dependency
+
+Outputs:
+  oS3BucketName:
+    Description: The name of the S3 bucket where the Parquet file is stored.
+    Value: !Ref rS3Bucket
+  
+  oConvertParquetLambdaFunctionArn:
+    Description: The ARN of the Lambda function that converts the Parquet file from S3.
+    Value: !GetAtt rConvertParquetLambdaFunction.Arn
