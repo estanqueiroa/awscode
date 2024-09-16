@@ -60,7 +60,7 @@ You first need to create stack without the Target ARN, then you can uncomment th
 You can also use [RAIN](https://github.com/aws-cloudformation/rain) to deploy the stack (Recommended):
 
 ```bash
-rain deploy api-gateway-alb.yaml --tags tag1=value1,tag2=value2
+rain deploy lambda-apigw-alb.yaml --tags tag1=value1,tag2=value2
 ```
 
 # Testing
@@ -99,7 +99,7 @@ To delete the resources created by this CloudFormation template, simply delete t
 Remove stack using RAIN:
 
 ```bash
-rain rm api-gateway-alb
+rain rm lambda-apigw-alb
 ```
 
 # Troubleshooting
@@ -128,8 +128,13 @@ rain rm api-gateway-alb
 
 # References
 [AWS Documentation: Application Load Balancer](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html)
+
 [AWS Documentation: API Gateway](https://docs.aws.amazon.com/apigateway/latest/developerguide/welcome.html)
+
 [AWS Blog: Serverless Architecture with Amazon API Gateway and AWS Lambda](https://aws.amazon.com/blogs/compute/serverless-architecture-with-amazon-api-gateway-and-aws-lambda/)
-[AWS Demo](https://exampleloadbalancer.com/)
+
+[AWS Demos ELB](https://exampleloadbalancer.com/)
+
 [AWS Samples ALB Serverless App](https://github.com/aws/elastic-load-balancing-tools/tree/master/application-load-balancer-serverless-app)
+
 [CloudFormation API Gateway integration to Lambda function](https://gist.github.com/magnetikonline/c314952045eee8e8375b82bc7ec68e88)
