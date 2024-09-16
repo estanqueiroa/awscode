@@ -1,0 +1,265 @@
+# WARNING: This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+#
+# This template will implement AWS services which may have associated cost - USE AT YOUR OWN RISK :-)
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: AWS Architecture with ALB and API Gateway integrating with Lambda function to demonstrate simple serverless app
+
+# parameters
+Parameters:
+
+  pVpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC ID where the resources will be created
+  
+  pPublicSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Public subnets for the Application Load Balancer
+
+  pYourIPAddress:
+    Type: String
+    Default: 177.139.57.244/32
+    Description: Use https://checkip.amazonaws.com/ to get your public IP address, to be configured in the ALB Security Group ingress rule
+
+  pApiGatewayStageName:
+    Type: String
+    AllowedPattern: '[a-z0-9]+'
+    Default: call
+
+  pApiGatewayHTTPMethod:
+    Type: String
+    Default: POST
+
+# resources
+Resources:
+
+  # Application Load Balancer
+  rApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Scheme: internet-facing
+      SecurityGroups:
+        - !Ref rALBSecurityGroup
+      Subnets: !Ref pPublicSubnets
+      Type: application
+
+  # ALB Listener
+  rALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref rALBTargetGroup
+      LoadBalancerArn: !Ref rApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+
+  # ALB Target Group
+  rALBTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckPath: /
+      Name: ALB-TargetGroup
+      TargetType: lambda
+      ########################################
+      # remove comment after first deployment
+      ########################################
+      Targets:
+        - Id: !GetAtt rLambdaFunctionALB.Arn
+
+  # ALB Target Group Permission
+  rALBTargetGroupPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !GetAtt rLambdaFunctionALB.Arn
+      Principal: 'elasticloadbalancing.amazonaws.com'
+      SourceArn: !GetAtt rALBTargetGroup.TargetGroupArn
+
+  # Security Group for ALB
+  rALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for the Application Load Balancer
+      VpcId: !Ref pVpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: !Ref pYourIPAddress
+
+
+####################
+# Lambda section
+
+  rLambdaFunctionALB:
+      Type: "AWS::Lambda::Function"
+      Properties:
+          Description: "Lambda testing for public ALB"
+          Handler: "index.lambda_handler"
+          Architectures: 
+            - "arm64"
+          Code: 
+            ZipFile: |
+
+                # Reference: https://github.com/aws/elastic-load-balancing-tools/blob/master/application-load-balancer-serverless-app/whatismyip/whatismyip.py
+
+                def lambda_handler(event, context):
+                  print('==event==')
+                  print(event)
+
+
+                  response = {
+                    "statusCode": 200,
+                    "statusDescription": "200 OK",
+                    "isBase64Encoded": False,
+                    "headers": {
+                      "Content-Type": "text/html; charset=utf-8"
+                  }
+                  }
+
+                  if event['headers']['user-agent'] == 'ELB-HealthChecker/2.0':
+                    print('HealthCheck Request')
+                    data = 'Response to HealthCheck'
+                    response['body'] = data
+                    return response
+
+                  sourceip_list = event['headers']['x-forwarded-for'].split(',')
+
+                  if sourceip_list:
+                    sourceip = str(sourceip_list[0])
+                    ip_address = "<h1>Your IP is {}</h1>".format(sourceip)
+                  else:
+                    ip_address = '<h1>No source IP found</h1>'
+
+                  # Construct the HTML response
+                  html_body = f"""
+                  <html>
+                      <head>
+                          <title>Your IP Address</title>
+                      </head>
+                      <body>
+                          <p><h1>Hello World from Lambda using ALB</h1></p>
+                          <p>{ip_address}</p>
+                      </body>
+                  </html>
+                  """
+
+                  # Construct the response
+                  response = {
+                      "statusCode": 200,
+                      "headers": {
+                          "Content-Type": "text/html"
+                      },
+                      "body": html_body
+                  }
+
+                  return response
+
+          MemorySize: 128
+          Role: !GetAtt rLambdaIAMRole.Arn
+          Runtime: "python3.12"
+          Timeout: 10
+          TracingConfig: 
+              Mode: "PassThrough"
+          EphemeralStorage: 
+              Size: 512
+
+  rLambdaIAMRole:
+      Type: "AWS::IAM::Role"
+      Properties:
+          Path: "/service-role/"
+          AssumeRolePolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Principal:
+                  Service: lambda.amazonaws.com
+                Action: "sts:AssumeRole"
+          MaxSessionDuration: 3600
+          ManagedPolicyArns: 
+            - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+#########################
+##  API GATEWAY SECTION
+#########################
+
+  rApiGateway:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Description: Example API Gateway
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+      Name: test-api-gateway-lambda
+
+  rApiGatewayRootMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: !Ref pApiGatewayHTTPMethod
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri: !Sub
+          - arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${lambdaArn}/invocations
+          - lambdaArn: !GetAtt rLambdaFunction.Arn
+      ResourceId: !GetAtt rApiGateway.RootResourceId
+      RestApiId: !Ref rApiGateway
+
+  rapiGatewayDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - rApiGatewayRootMethod
+    Properties:
+      RestApiId: !Ref rApiGateway
+      StageName: !Ref pApiGatewayStageName
+
+  rLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |
+          def handler(event,context):
+            return {
+              'body': 'Hello from Lambda with API Gateway! Your IP address: {0}'.format(event['requestContext']['identity']['sourceIp']),
+              'headers': {
+                'Content-Type': 'text/plain'
+              },
+              'statusCode': 200
+            }
+      Description: Example Lambda function with API Gateway
+      Timeout: 10
+      Handler: index.handler
+      MemorySize: 128
+      Role: !GetAtt rLambdaIAMRole.Arn
+      Runtime: python3.12
+
+  rlambdaApiGatewayInvoke:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt rLambdaFunction.Arn
+      Principal: apigateway.amazonaws.com
+      # note: if route *not* at API Gateway root, `SourceArn` would take the form of:
+      #               arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${rApiGateway}/${pApiGatewayStageName}/${pApiGatewayHTTPMethod}/PATH_PART
+      # SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${rApiGateway}/${pApiGatewayStageName}/${pApiGatewayHTTPMethod}/
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${rApiGateway}/*
+
+# outputs
+
+Outputs:
+
+  oApplicationLoadBalancerURL:
+    Description: URL of the Application Load Balancer (Open up in Web Browser)
+    Value: !GetAtt rApplicationLoadBalancer.DNSName
+
+  oAPIGwID:
+    Description: API Gateway id
+    Value: !Ref rApiGateway
+
+  oApiGatewayInvokeURL:
+    Description: API Gateway Invoke URL - use "CURL --request POST <<URL>>" in Shell terminal
+    Value: !Sub https://${rApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${pApiGatewayStageName}
