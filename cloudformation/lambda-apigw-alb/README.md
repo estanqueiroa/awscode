@@ -124,7 +124,7 @@ rain rm lambda-apigw-alb
       # Targets:
       #   - Id: !GetAtt rLambdaFunctionALB.Arn
 ```
-
+* Error "503 Service Temporarily Unavailable" when testing ALB: You need to remove comment from section above to configure the Target ARN for ALB.
 
 # References
 [AWS Documentation: Application Load Balancer](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html)
