@@ -1,0 +1,118 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template to create a Lambda function for CPF validation
+
+Resources:
+
+  CPFValidatorFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.lambda_handler
+      Runtime: python3.12
+      Timeout: 10
+      Role: !GetAtt CPFFunctionRole.Arn
+      Architectures:
+          - arm64
+      Code:
+        ZipFile: |
+          import re
+
+          def is_valid_cpf(cpf):
+              # Remove non-digit characters from the CPF number
+              cpf = re.sub(r'\D', '', cpf)
+
+              # Check if the CPF has 11 digits
+              if len(cpf) != 11:
+                  return False
+
+              # Check if all digits are the same
+              if all(digit == cpf[0] for digit in cpf):
+                  return False
+
+              # Calculate the first verification digit
+              sum_digits = sum(int(cpf[i]) * (10 - i) for i in range(9))
+              first_digit = 11 - (sum_digits % 11)
+              if first_digit > 9:
+                  first_digit = 0
+
+              # Calculate the second verification digit
+              sum_digits = sum(int(cpf[i]) * (11 - i) for i in range(9))
+              sum_digits += first_digit * 2
+              second_digit = 11 - (sum_digits % 11)
+              if second_digit > 9:
+                  second_digit = 0
+
+              # Check if the calculated verification digits match the CPF number
+              return cpf[-2:] == f"{first_digit}{second_digit}"
+
+          def lambda_handler(event, context):
+              cpf = event.get('cpf')
+              if not cpf:
+                  return {'valid': False, 'message': 'CPF number is missing'}
+
+              if is_valid_cpf(cpf):
+                  return {'valid': True, 'message': 'CPF number is valid'}
+              else:
+                  return {'valid': False, 'message': 'CPF number is invalid'}
+
+
+  CPFGeneratorFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.lambda_handler
+      Architectures:
+          - arm64
+      Runtime: python3.12
+      Timeout: 10
+      Role: !GetAtt CPFFunctionRole.Arn
+      Code:
+        ZipFile: |
+          import random
+
+          def generate_cpf():
+              # Generate the first 9 digits
+              digits = [random.randint(0, 9) for _ in range(9)]
+
+              # Calculate the first verification digit
+              sum_digits = sum(digit * (10 - i) for i, digit in enumerate(digits))
+              first_digit = 11 - (sum_digits % 11)
+              if first_digit > 9:
+                  first_digit = 0
+
+              # Calculate the second verification digit
+              sum_digits = sum(digit * (11 - i) for i, digit in enumerate(digits))
+              sum_digits += first_digit * 2
+              second_digit = 11 - (sum_digits % 11)
+              if second_digit > 9:
+                  second_digit = 0
+
+              # Combine the digits and verification digits
+              return f"{''.join(map(str, digits))}{first_digit}{second_digit}"
+
+          def lambda_handler(event, context):
+              quantity = event.get('quantity', 1)
+              cpfs = [generate_cpf() for _ in range(quantity)]
+              return {'cpfs': cpfs}
+
+  CPFFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: "sts:AssumeRole"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+
+Outputs:
+
+  CPFValidatorFunctionArn:
+    Description: The ARN of the CPF Validator Lambda function
+    Value: !GetAtt CPFValidatorFunction.Arn
+
+  CPFGeneratorFunctionArn:
+    Description: The ARN of the CPF Generator Lambda function
+    Value: !GetAtt CPFGeneratorFunction.Arn
