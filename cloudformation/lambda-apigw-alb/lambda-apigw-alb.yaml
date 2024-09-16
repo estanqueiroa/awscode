@@ -16,7 +16,7 @@ Parameters:
   
   pPublicSubnets:
     Type: List<AWS::EC2::Subnet::Id>
-    Description: Public subnets for the Application Load Balancer
+    Description: Public subnets for the Application Load Balancer (at least two)
 
   pYourIPAddress:
     Type: String
@@ -26,10 +26,12 @@ Parameters:
   pApiGatewayStageName:
     Type: String
     AllowedPattern: '[a-z0-9]+'
+    Description: Stage name for API Gateway
     Default: call
 
   pApiGatewayHTTPMethod:
     Type: String
+    Description: Method for API Gateway
     Default: POST
 
 # resources
