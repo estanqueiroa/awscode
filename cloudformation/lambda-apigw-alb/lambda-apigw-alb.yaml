@@ -66,8 +66,8 @@ Resources:
       ########################################
       # remove comment after first deployment
       ########################################
-      Targets:
-        - Id: !GetAtt rLambdaFunctionALB.Arn
+      # Targets:
+      #   - Id: !GetAtt rLambdaFunctionALB.Arn
 
   # ALB Target Group Permission
   rALBTargetGroupPermission:
