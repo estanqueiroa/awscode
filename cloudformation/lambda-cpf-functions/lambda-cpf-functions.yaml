@@ -109,10 +109,10 @@ Resources:
 
 Outputs:
 
-  CPFValidatorFunctionArn:
+  oCPFValidatorFunction:
     Description: The Name of the CPF Validator Lambda function
     Value: !Ref CPFValidatorFunction
 
-  CPFGeneratorFunctionArn:
+  oCPFGeneratorFunction:
     Description: The Name of the CPF Generator Lambda function
     Value: !Ref CPFGeneratorFunction
