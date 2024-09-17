@@ -250,6 +250,70 @@ Resources:
       # SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${rApiGateway}/${pApiGatewayStageName}/${pApiGatewayHTTPMethod}/
       SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${rApiGateway}/*
 
+########################################
+# Quick create HTTP API
+########################################
+
+  rHttpApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: HTTP Lambda Proxy
+      Description: HTTP Lambda proxy using quick create
+      ProtocolType: HTTP
+      #Target: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${HttpApiLambdaFunction}/invocations
+
+  rHttpApiLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Role: !GetAtt rLambdaIAMRole.Arn
+      Runtime: python3.12
+      Timeout: 10
+      Handler: index.handler
+      Code:
+        ZipFile: |
+            def handler(event, context):
+                return {
+                    'statusCode': 200,
+                    'body': 'Hello from Lambda using HTTP API Gateway!'
+                }
+
+  rlambdaHttpApiGatewayInvoke:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt rHttpApiLambdaFunction.Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${rHttpApi}/*
+
+
+  # HTTPApi:
+  #   Type: AWS::ApiGatewayV2::Api
+  #   Properties:
+  #     Name: my-http-api
+  #     ProtocolType: HTTP
+
+  rHTTPApiRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref rHttpApi
+      RouteKey: 'GET /'
+      Target: !Join ['/', ['integrations', !Ref rHTTPApiIntegration]]
+
+  rHTTPApiIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref rHttpApi
+      PayloadFormatVersion: 2.0 # https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-develop-integrations-lambda.html
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt rHttpApiLambdaFunction.Arn
+
+  rHTTPApiStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref rHttpApi
+      StageName: '$default'
+      AutoDeploy: true
+
 # outputs
 
 Outputs:
@@ -265,3 +329,7 @@ Outputs:
   oApiGatewayInvokeURL:
     Description: API Gateway Invoke URL - use "CURL --request POST <<URL>>" in Shell terminal
     Value: !Sub https://${rApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${pApiGatewayStageName}
+
+  oHttpApiURL:
+    Description: URL of the HTTP API Gateway (Open up in Web Browser)
+    Value: !GetAtt rHttpApi.ApiEndpoint

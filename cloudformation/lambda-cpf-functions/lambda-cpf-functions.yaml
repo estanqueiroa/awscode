@@ -110,9 +110,9 @@ Resources:
 Outputs:
 
   CPFValidatorFunctionArn:
-    Description: The ARN of the CPF Validator Lambda function
-    Value: !GetAtt CPFValidatorFunction.Arn
+    Description: The Name of the CPF Validator Lambda function
+    Value: !Ref CPFValidatorFunction
 
   CPFGeneratorFunctionArn:
-    Description: The ARN of the CPF Generator Lambda function
-    Value: !GetAtt CPFGeneratorFunction.Arn
+    Description: The Name of the CPF Generator Lambda function
+    Value: !Ref CPFGeneratorFunction

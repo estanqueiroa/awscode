@@ -1,8 +1,8 @@
 ##################################################################################################
-# AWS Architecture with Application Load Balancer and API Gateway integrated with Lambda functions
+# AWS Serverless Architecture with Application Load Balancer and API Gateway integrations with Lambda functions
 ##################################################################################################
 
-This CloudFormation template creates an AWS architecture with two Lambda functions, one integrated with an API Gateway and other integrated with Application Load Balancer (ALB).
+This CloudFormation template creates an AWS architecture for three Serverless scenarios using Lambda functions, API Gateway and Application Load Balancer.
 
 
 ![Alt text](../diagrams/lambda-apigw-alb.png?raw=true "Diagram Image")
@@ -14,9 +14,9 @@ The CloudFormation template creates the following resources:
 - Application Load Balancer (ALB): The load balancer that receives incoming traffic from clients.
 - ALB Listener: The listener that forwards traffic from the ALB to the target group.
 - ALB Target Group: The target group that the ALB forwards traffic to, which is a Lambda function.
-- API Gateway: The API Gateway that serves as the entry point for the application's API.
+- API Gateway: Two API Gateways (Rest and HTTP) that serve as the entry point for the application's API.
 - API Gateway Method: The method configured on the API Gateway to integrate with the Lambda function.
-- Lambda Function: A sample Lambda function that will be executed when the API Gateway receives a request.
+- Lambda Functions: Three sample Lambda functions that will be executed when the API Gateway or ALB receives a request.
 - Lambda Role: The IAM role associated with the Lambda function, granting it the necessary permissions to execute.
 - API Gateway Deployment: The deployment of the API Gateway to the 'prod' stage.
 - ALB Security Group: The security group for the Application Load Balancer, allowing inbound traffic on port 80.
@@ -67,18 +67,31 @@ rain deploy lambda-apigw-alb.yaml --tags tag1=value1,tag2=value2
 
 To test the deployed architecture, follow these steps:
 
-**API GAteway:**
+**Rest API Gateway:**
 
 Don´t use web browser (it will return error message "{"message":"Missing Authentication Token"}")
 
 - In the AWS Management Console, navigate to the CloudFormation service, select the created stack, "Outputs" section and copy the Invoke URL for the "call" stage.
-- Open a Linux Shell terminal and use a tool like Postman or cURL to send a request to the API Gateway endpoint.
+- Open a Linux Shell terminal and use a tool like Postman or cURL to send a request to the Rest API Gateway endpoint.
 
 ```bash
 curl --request POST https://rnk0lfld0b.execute-api.us-east-1.amazonaws.com/call
 {"statusCode": 200, "body": "\"Hello from Lambda with API Gateway!\""}
 ```
 - Verify that you receive a successful response (HTTP status code 200) with the message "Hello from Lambda wity API Gateway!".
+
+**HTTP Api Gateway:**
+
+You can use web browser.
+
+- In the AWS Management Console, navigate to the CloudFormation service, select the created stack, "Outputs" section and copy the DNS name of the HTTP API Gateway.
+- Use a web browser or a tool like cURL to send a request to the HTTP API Gateway endpoint.
+
+```bash
+https://xyzabc123z4.execute-api.us-east-1.amazonaws.com
+```
+
+- Verify that the request is forwarded to the Lambda function and you receive a response "Hello from Lambda using HTTP API Gateway!".
 
 **ALB:**
 
@@ -104,7 +117,7 @@ rain rm lambda-apigw-alb
 
 # Troubleshooting
 
-* Cannot open up the ALB URL: Verify your IP address is correct in the Security Group rule.
+* Cannot open up the ALB URL: Verify your IP address is configured correctly in the Security Group Ingress rule.
 
 * Error {"message":"Missing Authentication Token"}: You are testing API Gateway using web browser, use a Linux terminal with CURL instead.
 
