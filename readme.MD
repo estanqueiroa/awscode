@@ -2,15 +2,15 @@
 
 ⚠️ This is not expected to be an excellent repository, but rather a simple personal repository with a few examples for your guidance. Enjoy 😀
 
+###############################
+## IAC
+###############################
+
 # Folder 📁 /cloudformation/
 
 Template files for AWS CloudFormation stacks deployment.
 
 We recommend to use 🌧️ [RAIN](https://aws-cloudformation.github.io/rain/) to deploy.
-
-# Folder 📁 /python/
-
-Python3 🤖 codes for daily activities / automations in general.
 
 # Folder 📁 /cdk/
 
@@ -19,6 +19,18 @@ I´d consider AWS CDK as CloudFormation on 💪 steroids LOL, you can use your f
 AWS CDK (Python) codes for daily activities / automations in general.
 
 [Tutorial: Create your first AWS CDK app](https://docs.aws.amazon.com/cdk/v2/guide/hello_world.html)
+
+# Folder 📁 /terraform/
+
+Template files for Terraform deployment of AWS services.
+
+###############################
+## Other Tools
+###############################
+
+# Folder 📁 /python/
+
+Python3 🤖 codes for daily activities / automations in general.
 
 # Folder 📁 /scripts/ 
 
