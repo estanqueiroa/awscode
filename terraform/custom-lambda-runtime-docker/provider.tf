@@ -1,14 +1,8 @@
-terraform {
-    required_providers {
-        aws = {
-            source = "hashicorp/aws"
-            version = "~> 3.0"
-        }
-    }
-}
-
 provider "aws" {
-    region = "us-east-1"
+  alias  = "source"
+  region = var.region
+  #profile = "<source-profile-name>"
+
 
   default_tags {
     tags = {
@@ -17,7 +11,7 @@ provider "aws" {
       Project     = "Backup"
       Terraform   = "True"
       Client      = "Internal"
-      Repo = "/mnt/c/aws/cliente/backup"
+      Repo        = "/mnt/c/aws/awscode/terraform/custom-lambda-runtime-docker/"
     }
   }
 
