@@ -1,0 +1,412 @@
+Resources:
+    CloudWatchAlarm1:
+        Type: AWS::CloudWatch::Alarm
+        Metadata:
+            Intent: This alarm is used to detect high CPU utilization.
+            ThresholdJustification: Typically, you can set the threshold for CPU utilization
+                to 70-80%. However, you can adjust this value based on your
+                acceptable performance level and workload characteristics. For
+                some systems, consistently high CPU utilization may be normal
+                and not indicate a problem, while for others, it may be cause of
+                concern. Analyze historical CPU utilization data to identify the
+                usage, find what CPU utilization is acceptable for your system,
+                and set the threshold accordingly.
+        Properties:
+            AlarmName: AWS/EC2 CPUUtilization InstanceId=i-01fcfb64dffcc4b37
+            AlarmDescription: This alarm helps to monitor the CPU utilization of an EC2
+                instance. Depending on the application, consistently high
+                utilization levels might be normal. But if performance is
+                degraded, and the application is not constrained by disk I/O,
+                memory, or network resources, then a maxed-out CPU might
+                indicate a resource bottleneck or application performance
+                problems. High CPU utilization might indicate that an upgrade to
+                a more CPU intensive instance is required. If detailed
+                monitoring is enabled, you can change the period to 60 seconds
+                instead of 300 seconds. For more information, see [Enable or
+                turn off detailed monitoring for your
+                instances](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-cloudwatch-new.html).
+            MetricName: CPUUtilization
+            Namespace: AWS/EC2
+            Statistic: Average
+            Dimensions:
+                - Name: InstanceId
+                  Value: i-01fcfb64dffcc4b37
+            Period: 300
+            EvaluationPeriods: 3
+            DatapointsToAlarm: 3
+            Threshold: 80
+            ComparisonOperator: GreaterThanThreshold
+            TreatMissingData: missing
+            ActionsEnabled: false
+            OKActions: []
+            AlarmActions: []
+            InsufficientDataActions: []
+    CloudWatchAlarm2:
+        Type: AWS::CloudWatch::Alarm
+        Metadata:
+            Intent: This alarm is used to detect high CPU utilization.
+            ThresholdJustification: Typically, you can set the threshold for CPU utilization
+                to 70-80%. However, you can adjust this value based on your
+                acceptable performance level and workload characteristics. For
+                some systems, consistently high CPU utilization may be normal
+                and not indicate a problem, while for others, it may be cause of
+                concern. Analyze historical CPU utilization data to identify the
+                usage, find what CPU utilization is acceptable for your system,
+                and set the threshold accordingly.
+        Properties:
+            AlarmName: AWS/EC2 CPUUtilization InstanceId=i-02b6521ddb3bff251
+            AlarmDescription: This alarm helps to monitor the CPU utilization of an EC2
+                instance. Depending on the application, consistently high
+                utilization levels might be normal. But if performance is
+                degraded, and the application is not constrained by disk I/O,
+                memory, or network resources, then a maxed-out CPU might
+                indicate a resource bottleneck or application performance
+                problems. High CPU utilization might indicate that an upgrade to
+                a more CPU intensive instance is required. If detailed
+                monitoring is enabled, you can change the period to 60 seconds
+                instead of 300 seconds. For more information, see [Enable or
+                turn off detailed monitoring for your
+                instances](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-cloudwatch-new.html).
+            MetricName: CPUUtilization
+            Namespace: AWS/EC2
+            Statistic: Average
+            Dimensions:
+                - Name: InstanceId
+                  Value: i-02b6521ddb3bff251
+            Period: 300
+            EvaluationPeriods: 3
+            DatapointsToAlarm: 3
+            Threshold: 80
+            ComparisonOperator: GreaterThanThreshold
+            TreatMissingData: missing
+            ActionsEnabled: false
+            OKActions: []
+            AlarmActions: []
+            InsufficientDataActions: []
+    CloudWatchAlarm3:
+        Type: AWS::CloudWatch::Alarm
+        Metadata:
+            Intent: This alarm is used to detect high CPU utilization.
+            ThresholdJustification: Typically, you can set the threshold for CPU utilization
+                to 70-80%. However, you can adjust this value based on your
+                acceptable performance level and workload characteristics. For
+                some systems, consistently high CPU utilization may be normal
+                and not indicate a problem, while for others, it may be cause of
+                concern. Analyze historical CPU utilization data to identify the
+                usage, find what CPU utilization is acceptable for your system,
+                and set the threshold accordingly.
+        Properties:
+            AlarmName: AWS/EC2 CPUUtilization InstanceId=i-060735a613a30fe52
+            AlarmDescription: This alarm helps to monitor the CPU utilization of an EC2
+                instance. Depending on the application, consistently high
+                utilization levels might be normal. But if performance is
+                degraded, and the application is not constrained by disk I/O,
+                memory, or network resources, then a maxed-out CPU might
+                indicate a resource bottleneck or application performance
+                problems. High CPU utilization might indicate that an upgrade to
+                a more CPU intensive instance is required. If detailed
+                monitoring is enabled, you can change the period to 60 seconds
+                instead of 300 seconds. For more information, see [Enable or
+                turn off detailed monitoring for your
+                instances](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-cloudwatch-new.html).
+            MetricName: CPUUtilization
+            Namespace: AWS/EC2
+            Statistic: Average
+            Dimensions:
+                - Name: InstanceId
+                  Value: i-060735a613a30fe52
+            Period: 300
+            EvaluationPeriods: 3
+            DatapointsToAlarm: 3
+            Threshold: 80
+            ComparisonOperator: GreaterThanThreshold
+            TreatMissingData: missing
+            ActionsEnabled: false
+            OKActions: []
+            AlarmActions: []
+            InsufficientDataActions: []
+    CloudWatchAlarm4:
+        Type: AWS::CloudWatch::Alarm
+        Metadata:
+            Intent: This alarm is used to detect high CPU utilization.
+            ThresholdJustification: Typically, you can set the threshold for CPU utilization
+                to 70-80%. However, you can adjust this value based on your
+                acceptable performance level and workload characteristics. For
+                some systems, consistently high CPU utilization may be normal
+                and not indicate a problem, while for others, it may be cause of
+                concern. Analyze historical CPU utilization data to identify the
+                usage, find what CPU utilization is acceptable for your system,
+                and set the threshold accordingly.
+        Properties:
+            AlarmName: AWS/EC2 CPUUtilization InstanceId=i-0db9db4ebf6de21f4
+            AlarmDescription: This alarm helps to monitor the CPU utilization of an EC2
+                instance. Depending on the application, consistently high
+                utilization levels might be normal. But if performance is
+                degraded, and the application is not constrained by disk I/O,
+                memory, or network resources, then a maxed-out CPU might
+                indicate a resource bottleneck or application performance
+                problems. High CPU utilization might indicate that an upgrade to
+                a more CPU intensive instance is required. If detailed
+                monitoring is enabled, you can change the period to 60 seconds
+                instead of 300 seconds. For more information, see [Enable or
+                turn off detailed monitoring for your
+                instances](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-cloudwatch-new.html).
+            MetricName: CPUUtilization
+            Namespace: AWS/EC2
+            Statistic: Average
+            Dimensions:
+                - Name: InstanceId
+                  Value: i-0db9db4ebf6de21f4
+            Period: 300
+            EvaluationPeriods: 3
+            DatapointsToAlarm: 3
+            Threshold: 80
+            ComparisonOperator: GreaterThanThreshold
+            TreatMissingData: missing
+            ActionsEnabled: false
+            OKActions: []
+            AlarmActions: []
+            InsufficientDataActions: []
+    CloudWatchAlarm5:
+        Type: AWS::CloudWatch::Alarm
+        Metadata:
+            Intent: This alarm is used to detect high CPU utilization.
+            ThresholdJustification: Typically, you can set the threshold for CPU utilization
+                to 70-80%. However, you can adjust this value based on your
+                acceptable performance level and workload characteristics. For
+                some systems, consistently high CPU utilization may be normal
+                and not indicate a problem, while for others, it may be cause of
+                concern. Analyze historical CPU utilization data to identify the
+                usage, find what CPU utilization is acceptable for your system,
+                and set the threshold accordingly.
+        Properties:
+            AlarmName: AWS/EC2 CPUUtilization InstanceId=i-0f63a59d448a0cdbe
+            AlarmDescription: This alarm helps to monitor the CPU utilization of an EC2
+                instance. Depending on the application, consistently high
+                utilization levels might be normal. But if performance is
+                degraded, and the application is not constrained by disk I/O,
+                memory, or network resources, then a maxed-out CPU might
+                indicate a resource bottleneck or application performance
+                problems. High CPU utilization might indicate that an upgrade to
+                a more CPU intensive instance is required. If detailed
+                monitoring is enabled, you can change the period to 60 seconds
+                instead of 300 seconds. For more information, see [Enable or
+                turn off detailed monitoring for your
+                instances](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-cloudwatch-new.html).
+            MetricName: CPUUtilization
+            Namespace: AWS/EC2
+            Statistic: Average
+            Dimensions:
+                - Name: InstanceId
+                  Value: i-0f63a59d448a0cdbe
+            Period: 300
+            EvaluationPeriods: 3
+            DatapointsToAlarm: 3
+            Threshold: 80
+            ComparisonOperator: GreaterThanThreshold
+            TreatMissingData: missing
+            ActionsEnabled: false
+            OKActions: []
+            AlarmActions: []
+            InsufficientDataActions: []
+    CloudWatchAlarm6:
+        Type: AWS::CloudWatch::Alarm
+        Metadata:
+            Intent: This alarm is used to detect the underlying problems with instances,
+                including both system status check failures and instance status
+                check failures.
+            ThresholdJustification: When a status check fails, the value of this metric is
+                1. The threshold is set so that whenever the status check fails,
+                the alarm is in ALARM state.
+        Properties:
+            AlarmName: AWS/EC2 StatusCheckFailed InstanceId=i-01fcfb64dffcc4b37
+            AlarmDescription: This alarm helps to monitor both system status checks and
+                instance status checks. If either type of status check fails,
+                then this alarm should be in ALARM state.
+            MetricName: StatusCheckFailed
+            Namespace: AWS/EC2
+            Statistic: Maximum
+            Dimensions:
+                - Name: InstanceId
+                  Value: i-01fcfb64dffcc4b37
+            Period: 300
+            EvaluationPeriods: 2
+            DatapointsToAlarm: 2
+            Threshold: 1
+            ComparisonOperator: GreaterThanOrEqualToThreshold
+            TreatMissingData: missing
+            ActionsEnabled: false
+            OKActions: []
+            AlarmActions: []
+            InsufficientDataActions: []
+    CloudWatchAlarm7:
+        Type: AWS::CloudWatch::Alarm
+        Metadata:
+            Intent: This alarm is used to detect the underlying problems with instances,
+                including both system status check failures and instance status
+                check failures.
+            ThresholdJustification: When a status check fails, the value of this metric is
+                1. The threshold is set so that whenever the status check fails,
+                the alarm is in ALARM state.
+        Properties:
+            AlarmName: AWS/EC2 StatusCheckFailed InstanceId=i-02b6521ddb3bff251
+            AlarmDescription: This alarm helps to monitor both system status checks and
+                instance status checks. If either type of status check fails,
+                then this alarm should be in ALARM state.
+            MetricName: StatusCheckFailed
+            Namespace: AWS/EC2
+            Statistic: Maximum
+            Dimensions:
+                - Name: InstanceId
+                  Value: i-02b6521ddb3bff251
+            Period: 300
+            EvaluationPeriods: 2
+            DatapointsToAlarm: 2
+            Threshold: 1
+            ComparisonOperator: GreaterThanOrEqualToThreshold
+            TreatMissingData: missing
+            ActionsEnabled: false
+            OKActions: []
+            AlarmActions: []
+            InsufficientDataActions: []
+    CloudWatchAlarm8:
+        Type: AWS::CloudWatch::Alarm
+        Metadata:
+            Intent: This alarm is used to detect the underlying problems with instances,
+                including both system status check failures and instance status
+                check failures.
+            ThresholdJustification: When a status check fails, the value of this metric is
+                1. The threshold is set so that whenever the status check fails,
+                the alarm is in ALARM state.
+        Properties:
+            AlarmName: AWS/EC2 StatusCheckFailed InstanceId=i-060735a613a30fe52
+            AlarmDescription: This alarm helps to monitor both system status checks and
+                instance status checks. If either type of status check fails,
+                then this alarm should be in ALARM state.
+            MetricName: StatusCheckFailed
+            Namespace: AWS/EC2
+            Statistic: Maximum
+            Dimensions:
+                - Name: InstanceId
+                  Value: i-060735a613a30fe52
+            Period: 300
+            EvaluationPeriods: 2
+            DatapointsToAlarm: 2
+            Threshold: 1
+            ComparisonOperator: GreaterThanOrEqualToThreshold
+            TreatMissingData: missing
+            ActionsEnabled: false
+            OKActions: []
+            AlarmActions: []
+            InsufficientDataActions: []
+    CloudWatchAlarm9:
+        Type: AWS::CloudWatch::Alarm
+        Metadata:
+            Intent: This alarm is used to detect unreachable Amazon EBS volumes attached to
+                an instance. These can cause failures in I/O operations.
+            ThresholdJustification: When a status check fails, the value of this metric is
+                1. The threshold is set so that whenever the status check fails,
+                the alarm is in ALARM state.
+        Properties:
+            AlarmName: AWS/EC2 StatusCheckFailed_AttachedEBS InstanceId=i-01fcfb64dffcc4b37
+            AlarmDescription: "This alarm helps you monitor whether the Amazon EBS volumes
+                attached to an instance are reachable and able to complete I/O
+                operations. This status check detects underlying issues with the
+                compute or Amazon EBS infrastructure such as the following: 1)
+                Hardware or software issues on the storage subsystems underlying
+                the EBS volumes, 2) Hardware issues on the physical host that
+                impact reachability of the EBS volumes, 3) connectivity issues
+                between the instance and EBS volumes. When the attached EBS
+                status check fails, you can either wait for Amazon to resolve
+                the issue, or you can take actions, such as replacing the
+                affected volumes or stopping and restarting the instance."
+            MetricName: StatusCheckFailed_AttachedEBS
+            Namespace: AWS/EC2
+            Statistic: Maximum
+            Dimensions:
+                - Name: InstanceId
+                  Value: i-01fcfb64dffcc4b37
+            Period: 60
+            EvaluationPeriods: 10
+            DatapointsToAlarm: 10
+            Threshold: 1
+            ComparisonOperator: GreaterThanOrEqualToThreshold
+            TreatMissingData: missing
+            ActionsEnabled: false
+            OKActions: []
+            AlarmActions: []
+            InsufficientDataActions: []
+    CloudWatchAlarm10:
+        Type: AWS::CloudWatch::Alarm
+        Metadata:
+            Intent: This alarm is used to detect unreachable Amazon EBS volumes attached to
+                an instance. These can cause failures in I/O operations.
+            ThresholdJustification: When a status check fails, the value of this metric is
+                1. The threshold is set so that whenever the status check fails,
+                the alarm is in ALARM state.
+        Properties:
+            AlarmName: AWS/EC2 StatusCheckFailed_AttachedEBS InstanceId=i-02b6521ddb3bff251
+            AlarmDescription: "This alarm helps you monitor whether the Amazon EBS volumes
+                attached to an instance are reachable and able to complete I/O
+                operations. This status check detects underlying issues with the
+                compute or Amazon EBS infrastructure such as the following: 1)
+                Hardware or software issues on the storage subsystems underlying
+                the EBS volumes, 2) Hardware issues on the physical host that
+                impact reachability of the EBS volumes, 3) connectivity issues
+                between the instance and EBS volumes. When the attached EBS
+                status check fails, you can either wait for Amazon to resolve
+                the issue, or you can take actions, such as replacing the
+                affected volumes or stopping and restarting the instance."
+            MetricName: StatusCheckFailed_AttachedEBS
+            Namespace: AWS/EC2
+            Statistic: Maximum
+            Dimensions:
+                - Name: InstanceId
+                  Value: i-02b6521ddb3bff251
+            Period: 60
+            EvaluationPeriods: 10
+            DatapointsToAlarm: 10
+            Threshold: 1
+            ComparisonOperator: GreaterThanOrEqualToThreshold
+            TreatMissingData: missing
+            ActionsEnabled: false
+            OKActions: []
+            AlarmActions: []
+            InsufficientDataActions: []
+    CloudWatchAlarm11:
+        Type: AWS::CloudWatch::Alarm
+        Metadata:
+            Intent: This alarm is used to detect unreachable Amazon EBS volumes attached to
+                an instance. These can cause failures in I/O operations.
+            ThresholdJustification: When a status check fails, the value of this metric is
+                1. The threshold is set so that whenever the status check fails,
+                the alarm is in ALARM state.
+        Properties:
+            AlarmName: AWS/EC2 StatusCheckFailed_AttachedEBS InstanceId=i-060735a613a30fe52
+            AlarmDescription: "This alarm helps you monitor whether the Amazon EBS volumes
+                attached to an instance are reachable and able to complete I/O
+                operations. This status check detects underlying issues with the
+                compute or Amazon EBS infrastructure such as the following: 1)
+                Hardware or software issues on the storage subsystems underlying
+                the EBS volumes, 2) Hardware issues on the physical host that
+                impact reachability of the EBS volumes, 3) connectivity issues
+                between the instance and EBS volumes. When the attached EBS
+                status check fails, you can either wait for Amazon to resolve
+                the issue, or you can take actions, such as replacing the
+                affected volumes or stopping and restarting the instance."
+            MetricName: StatusCheckFailed_AttachedEBS
+            Namespace: AWS/EC2
+            Statistic: Maximum
+            Dimensions:
+                - Name: InstanceId
+                  Value: i-060735a613a30fe52
+            Period: 60
+            EvaluationPeriods: 10
+            DatapointsToAlarm: 10
+            Threshold: 1
+            ComparisonOperator: GreaterThanOrEqualToThreshold
+            TreatMissingData: missing
+            ActionsEnabled: false
+            OKActions: []
+            AlarmActions: []
+            InsufficientDataActions: []
