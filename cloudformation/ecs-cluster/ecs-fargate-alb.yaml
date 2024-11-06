@@ -35,6 +35,12 @@ Parameters:
     Description: My Internet IP address in /32 format for ALB external access (use https://checkip.amazonaws.com/)
     Default: 187.151.45.33/32
 
+  pNumberTasks:
+    Type: String
+    Default: 2
+    ConstraintDescription: "Must be a number between 1 and 10."
+    Description: "Enter a number from 1 to 10."  
+
 Resources:
 
 # create ECS cluster
@@ -92,7 +98,7 @@ Resources:
       DeploymentConfiguration:
         MaximumPercent: 200
         MinimumHealthyPercent: 50
-      DesiredCount: 2
+      DesiredCount: !Ref pNumberTasks
       LaunchType: FARGATE
       NetworkConfiguration:
         AwsvpcConfiguration:
