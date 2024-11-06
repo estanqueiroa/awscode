@@ -1,4 +1,4 @@
-# Script to delete CloudWatch log groups that haven't been updated in the last 30 days using the AWS CLI
+# Script to delete CloudWatch log groups that haven't been updated (it checks log streams last event time) in the last 30 days using the AWS CLI
 
 #!/bin/bash
 
@@ -75,6 +75,8 @@ process_log_group() {
         # Debug output
         # echo "Stream: $stream_name, Last Event: $(date -d @$last_event_seconds '+%Y-%m-%d %H:%M:%S')"
         
+        echo "Processing logstream # $total_streams"
+
         if [ "$last_event_seconds" -lt "$cutoff_time" ]; then
             streams_to_delete+=("$stream_name")
             #echo "  [MARKED FOR DELETION]"
@@ -83,6 +85,7 @@ process_log_group() {
         fi
     done < <(aws logs describe-log-streams --log-group-name "$log_group_name" --order-by LastEventTime --descending --output text --query 'logStreams[*].[lastEventTimestamp,logStreamName]')
 
+    # THIS IS OPTIONAL - TO DELETE LOG STREAMS
     # # Now delete the identified streams
     # for stream in "${streams_to_delete[@]}"; do
     #     delete_log_stream "$log_group_name" "$stream"
