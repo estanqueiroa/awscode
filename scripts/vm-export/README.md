@@ -35,6 +35,18 @@ In addition, there might be a small charge for the temporary use of an Amazon EB
 
 ## Limitations
 
-Check all [here](https://docs.aws.amazon.com/vm-import/latest/userguide/vmexport-limits.html)
+* The instance must not have more than one network interface.
 
+* The instance must not have more than one disk attached.
 
+Check all limitations [here](https://docs.aws.amazon.com/vm-import/latest/userguide/vmexport-limits.html)
+
+## Notes
+
+* The export process can take some time, depending on the size of your instance.
+
+* There may be costs associated with using VM Export and S3 storage.
+
+* Make sure your EC2 instance uses a supported operating system for VM Export.
+
+* The exported VM might require some configuration changes to work properly in VMware, such as network settings and drivers.
