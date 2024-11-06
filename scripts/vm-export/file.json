@@ -1,0 +1,6 @@
+{
+    "ContainerFormat": "ova",
+    "DiskImageFormat": "VMDK",
+    "S3Bucket": "amzn-s3-demo-export-bucket",
+    "S3Prefix": "vms/"
+}
