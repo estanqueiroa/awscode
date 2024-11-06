@@ -17,6 +17,8 @@ Additionally, the bucket must belong to the AWS account where you are performing
 
 * Create JSON file with export image parameters.
 
+* Stopping EC2 instance is recommended (not mandatory).
+
 # To create export task:
 
 `aws ec2 create-instance-export-task --instance-id instance-id --target-environment vmware --export-to-s3-task file://C:\file.json`
@@ -30,5 +32,9 @@ Additionally, the bucket must belong to the AWS account where you are performing
 When you export an instance, you are charged the standard Amazon S3 rates for the bucket where the exported VM is stored. 
 
 In addition, there might be a small charge for the temporary use of an Amazon EBS snapshot.
+
+# Limitations
+
+Check all [here](https://docs.aws.amazon.com/vm-import/latest/userguide/vmexport-limits.html)
 
 
