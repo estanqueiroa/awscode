@@ -69,6 +69,10 @@ The template provides the following outputs:
 
 To deploy the template, you can use the AWS CloudFormation console, AWS CLI, or AWS SDK. Provide the necessary parameter values and deploy the template.
 
+You can use [RAIN](https://github.com/aws-cloudformation/rain):
+
+```rain deploy ecs-fargate-alb.yaml ecs-fargate-test --tags project=testDRstress -y```
+
 ## Security Considerations
 
 - The template creates security groups to control inbound and outbound traffic for the ECS service and the ALB.
@@ -78,7 +82,11 @@ To deploy the template, you can use the AWS CloudFormation console, AWS CLI, or 
 
 ## Monitoring and Logging
 
-This template does not include specific monitoring and logging configurations. It's recommended to set up appropriate CloudWatch alarms and logs to monitor the health and performance of the ECS cluster, service, and ALB.
+This template new version includes Container Insights logging configuration. It's recommended to set up appropriate CloudWatch alarms and logs to monitor the health and performance of the ECS cluster, service, and ALB.
+
+## Load Testing
+
+Run Siege to [Load Test the application](https://ecsworkshop.com/container_insights/performloadtest/)
 
 ## Cost Estimation
 

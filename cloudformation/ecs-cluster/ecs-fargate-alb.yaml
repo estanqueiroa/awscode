@@ -43,6 +43,22 @@ Parameters:
 
 Resources:
 
+# create CW log group for stress testing
+
+  rCloudWatchLogGroupStress:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /ecs/stress-test
+      RetentionInDays: 14
+
+# create CW log group for app
+
+  rCloudWatchLogGroupApp:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /ecs/app
+      RetentionInDays: 14
+
 # create ECS cluster
 
   rECSCluster:
@@ -50,6 +66,9 @@ Resources:
     # checkov:skip=CKV_AWS_65:container insights not required for demo testing
     Properties:
       ClusterName: !Sub ${AWS::StackName}-cluster
+      ClusterSettings:
+        - Name: containerInsights
+          Value: enabled
       Tags:
       - Key: Solution
         Value: !Sub ${AWS::StackName}-ecs
@@ -59,7 +78,7 @@ Resources:
   rECSTaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
-      Family: !Sub ${AWS::StackName}-task
+      Family: !Sub ${AWS::StackName}-app-task
       TaskRoleArn: !GetAtt rECSTaskRole.Arn
       ExecutionRoleArn: !GetAtt rECSTaskExecutionRole.Arn
       Memory: 0.5 GB
@@ -82,6 +101,12 @@ Resources:
             Timeout: 5
             Retries: 3
             StartPeriod: 60
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref rCloudWatchLogGroupApp
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: ecs
       Tags:
       - Key: Solution
         Value: !Sub ${AWS::StackName}-ecs
@@ -98,7 +123,7 @@ Resources:
       DeploymentConfiguration:
         MaximumPercent: 200
         MinimumHealthyPercent: 50
-      DesiredCount: !Ref pNumberTasks
+      DesiredCount: !Ref pNumberTasks # this is overwritten by Auto Scaling settings (Min / Max Capacity)
       LaunchType: FARGATE
       NetworkConfiguration:
         AwsvpcConfiguration:
@@ -144,6 +169,20 @@ Resources:
             Action: 'sts:AssumeRole'
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: ContainerInsights
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - events:PutRule
+                  - events:PutTargets
+                  - events:DescribeRule
+                  - events:ListTargetsByRule
+                  - logs:CreateLogGroup
+                  - logs:DescribeLogGroups
+                Resource: "*"
       Tags:
       - Key: Solution
         Value: !Sub ${AWS::StackName}-ecs
@@ -264,6 +303,160 @@ Resources:
       - Key: Solution
         Value: !Sub ${AWS::StackName}-ecs
 
+###############################
+# ECS Auto Scaling
+###############################
+
+  rAutoScalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: 10
+      MinCapacity: 1
+      ResourceId: !Join 
+        - /
+        - - service
+          - !Ref rECSCluster
+          - !GetAtt rECSService.Name
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+      RoleARN: !GetAtt rAutoScalingRole.Arn
+
+  # rAutoScalingPolicyCPU:
+  #   Type: AWS::ApplicationAutoScaling::ScalingPolicy
+  #   Properties:
+  #     PolicyName: CPUScaling1
+  #     PolicyType: TargetTrackingScaling
+  #     ScalingTargetId: !Ref rAutoScalingTarget
+  #     TargetTrackingScalingPolicyConfiguration:
+  #       PredefinedMetricSpecification:
+  #         PredefinedMetricType: ECSServiceAverageCPUUtilization
+  #       TargetValue: 70
+  #       ScaleInCooldown: 180
+  #       ScaleOutCooldown: 60
+
+  # rAutoScalingPolicyMem:
+  #   Type: AWS::ApplicationAutoScaling::ScalingPolicy
+  #   Properties:
+  #     PolicyName: MemScaling1
+  #     PolicyType: TargetTrackingScaling
+  #     ScalingTargetId: !Ref rAutoScalingTarget
+  #     TargetTrackingScalingPolicyConfiguration:
+  #       PredefinedMetricSpecification:
+  #         PredefinedMetricType: ECSServiceAverageMemoryUtilization
+  #       TargetValue: 90
+  #       ScaleInCooldown: 180
+  #       ScaleOutCooldown: 60
+
+  rServiceScalingPolicyALB:
+      Type: AWS::ApplicationAutoScaling::ScalingPolicy
+      Properties:
+        PolicyName: AlbScaling1
+        PolicyType: TargetTrackingScaling
+        ScalingTargetId: !Ref rAutoScalingTarget
+        TargetTrackingScalingPolicyConfiguration:
+          TargetValue: 50
+          ScaleInCooldown: 180
+          ScaleOutCooldown: 30
+          #DisableScaleIn: true
+          PredefinedMetricSpecification:
+            PredefinedMetricType: ALBRequestCountPerTarget
+            ResourceLabel: !Join 
+              - '/' 
+              - - !GetAtt rApplicationLoadBalancer.LoadBalancerFullName
+                - !GetAtt rALBTargetGroup.TargetGroupFullName
+
+  rAutoScalingRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: application-autoscaling.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ECSAutoscaling
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecs:DescribeServices
+                  - ecs:UpdateService
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - cloudwatch:PutMetricAlarm
+                  - cloudwatch:DescribeAlarms
+                  - cloudwatch:DeleteAlarms
+                Resource: "*"
+
+########################
+# Stress testing
+########################
+# To monitor the stress test:
+
+# Go to the ECS console and find your cluster and service.
+# Check the "Metrics" tab to see CPU utilization increasing.
+# Watch the "Tasks" tab to see if new tasks are launched as CPU utilization increases.
+# Check CloudWatch Logs for detailed output from the stress command.
+#
+# Amazon ECS cluster-level free metrics are only available for tasks that are hosted on an Amazon EC2 instance. 
+# To view cluster-level metrics for your Fargate tasks, you can use Container Insights
+# https://docs.aws.amazon.com/AmazonECS/latest/developerguide/cloudwatch-container-insights.html
+
+# # create Task Definition
+
+  rECSTaskDefinitionStress:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: stress-test-task
+      TaskRoleArn: !GetAtt rECSTaskRole.Arn
+      ExecutionRoleArn: !GetAtt rECSTaskExecutionRole.Arn
+      Memory: '2048'  # 2 GB
+      Cpu: '1024'  # 1 vCPU
+      RequiresCompatibilities:
+        - FARGATE
+      NetworkMode: awsvpc
+      ContainerDefinitions:
+        - Name: stress-test-container
+          #Image: public.ecr.aws/amazonlinux/amazonlinux:2
+          Image: public.ecr.aws/amazonlinux/amazonlinux:2023
+          Command: # Runs the stress command to simulate CPU load on 2 cores and memory 128MB for 1 hour (3600 seconds)
+            - /bin/sh
+            - -c
+            - |
+              yum install stress -y && \
+              stress --cpu 2 --vm 1 --vm-bytes 128M --timeout 3600s
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref rCloudWatchLogGroupStress
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: ecs
+
+
+  # # create ECS service
+
+  # rECSServiceStress:
+  #   Type: AWS::ECS::Service
+  #   #DependsOn: rApplicationLoadBalancer
+  #   Properties:
+  #     ServiceName: StressTestService
+  #     Cluster: !Ref rECSCluster
+  #     TaskDefinition: !Ref rECSTaskDefinitionStress
+  #     DeploymentConfiguration:
+  #       MaximumPercent: 200
+  #       MinimumHealthyPercent: 50
+  #     DesiredCount: 1
+  #     LaunchType: FARGATE
+  #     NetworkConfiguration:
+  #       AwsvpcConfiguration:
+  #         AssignPublicIp: ENABLED
+  #         SecurityGroups:
+  #           - !GetAtt rECSServiceSecurityGroup.GroupId
+  #         Subnets: !Ref pSubnets
 
 Outputs:
   oECSClusterName:
