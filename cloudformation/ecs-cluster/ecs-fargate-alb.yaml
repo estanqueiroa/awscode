@@ -10,7 +10,6 @@ Description: ECS Cluster, Service, and Task Definition with ALB
 
 Parameters:
 
-
   pVPC:
     Type: AWS::EC2::VPC::Id
     Description: The VPC ID where the resources will be deployed
@@ -78,7 +77,6 @@ Metadata:
           - pContainerImage
           - pContainerPort
 
-
 Resources:
 
 # create CW log group for stress testing
@@ -86,7 +84,7 @@ Resources:
   rCloudWatchLogGroupStress:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: /ecs/stress-test
+      LogGroupName: !Sub '/ecs/stress-test-${AWS::StackName}'
       RetentionInDays: 14
 
 # create CW log group for app
@@ -94,7 +92,7 @@ Resources:
   rCloudWatchLogGroupApp:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: /ecs/app
+      LogGroupName: !Sub '/ecs/app-${AWS::StackName}'
       RetentionInDays: 14
 
 # create ECS cluster
@@ -273,11 +271,11 @@ Resources:
           ToPort: !Ref pContainerPort
           Description: Allow ECS internal traffic
       SecurityGroupEgress:
-        - DestinationPrefixListId: !Ref rTestFailoverPrefixList
+        - CidrIp: 0.0.0.0/0 # all destinations
           IpProtocol: -1
           FromPort: -1    # All ports
           ToPort: -1      # All ports
-          Description: test FAILOVER - Prefix List
+          Description: Allow all ports and destinations
       Tags:
       - Key: Solution
         Value: !Sub ${AWS::StackName}-ecs
