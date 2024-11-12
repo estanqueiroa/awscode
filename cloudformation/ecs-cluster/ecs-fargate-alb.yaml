@@ -38,11 +38,11 @@ Parameters:
     Description: My Internet IP address in /32 format for ALB external access (use https://checkip.amazonaws.com/)
     Default: 187.151.45.33/32
 
-  pNumberTasksNoAutoScaling:
+  pNumberDesiredTasks:
     Type: String
     Default: 2
     ConstraintDescription: "Must be a number between 1 and 10."
-    Description: "Number of tasks for ECS service when AutoScaling is disabled. Enter a number from 1 to 10."
+    Description: "Number of desired tasks for ECS service. Enter a number from 1 to 10."
 
   pAutoScalingMax:
     Type: String
@@ -64,7 +64,7 @@ Metadata:
         Parameters: 
           - pAutoScalingMin
           - pAutoScalingMax
-          - pNumberTasksNoAutoScaling
+          - pNumberDesiredTasks
       - Label:
           default: "VPC Parameters"
         Parameters: 
@@ -163,7 +163,7 @@ Resources:
         MinimumHealthyPercent: 50
       DeploymentController:
         Type: ECS # rolling update (ECS) deployment type
-      DesiredCount: !Ref pNumberTasksNoAutoScaling # this is overwritten by Auto Scaling settings (Min / Max Capacity)
+      DesiredCount: !Ref pNumberDesiredTasks # this is overwritten by Auto Scaling settings (Min / Max Capacity)
       LaunchType: FARGATE
       NetworkConfiguration:
         AwsvpcConfiguration:
