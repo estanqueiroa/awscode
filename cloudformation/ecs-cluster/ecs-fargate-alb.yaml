@@ -10,6 +10,15 @@ Description: ECS Cluster, Service, and Task Definition with ALB
 
 Parameters:
 
+
+  pVPC:
+    Type: AWS::EC2::VPC::Id
+    Description: The VPC ID where the resources will be deployed
+
+  pSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: The subnet IDs where the resources will be deployed
+
   pContainerImage:
     Type: String
     Default: kale5/rickroll:vclatest
@@ -19,14 +28,6 @@ Parameters:
     - nginx:latest
     - nouchka/hackmyresume:latest
     - ymuski/resume
-
-  pVPC:
-    Type: AWS::EC2::VPC::Id
-    Description: The VPC ID where the resources will be deployed
-
-  pSubnets:
-    Type: List<AWS::EC2::Subnet::Id>
-    Description: The subnet IDs where the resources will be deployed
 
   pContainerPort:
     Type: String
@@ -38,7 +39,7 @@ Parameters:
     Description: My Internet IP address in /32 format for ALB external access (use https://checkip.amazonaws.com/)
     Default: 187.151.45.33/32
 
-  pNumberTasks:
+  pNumberTasksNoAutoScaling:
     Type: String
     Default: 2
     ConstraintDescription: "Must be a number between 1 and 10."
@@ -55,6 +56,28 @@ Parameters:
     Default: 1
     ConstraintDescription: "Must be a number between 1 and 10."
     Description: "Min Number of tasks for ECS Service AutoScaling. Enter a number from 1 to 10."
+
+Metadata:
+  "AWS::CloudFormation::Interface":
+    ParameterGroups:
+      - Label:
+          default: "AutoScaling Parameters"
+        Parameters: 
+          - pAutoScalingMin
+          - pAutoScalingMax
+          - pNumberTasksNoAutoScaling
+      - Label:
+          default: "VPC Parameters"
+        Parameters: 
+          - pVPC
+          - pSubnets
+          - pMyIPAddress
+      - Label:
+          default: "Container Parameters"
+        Parameters: 
+          - pContainerImage
+          - pContainerPort
+
 
 Resources:
 
@@ -142,7 +165,7 @@ Resources:
         MinimumHealthyPercent: 50
       DeploymentController:
         Type: ECS # rolling update (ECS) deployment type
-      DesiredCount: !Ref pNumberTasks # this is overwritten by Auto Scaling settings (Min / Max Capacity)
+      DesiredCount: !Ref pNumberTasksNoAutoScaling # this is overwritten by Auto Scaling settings (Min / Max Capacity)
       LaunchType: FARGATE
       NetworkConfiguration:
         AwsvpcConfiguration:
