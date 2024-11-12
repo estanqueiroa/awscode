@@ -20,16 +20,6 @@ Parameters:
     - nouchka/hackmyresume:latest
     - ymuski/resume
 
-  # pPath:
-  #   Type: String
-  #   Default: "*"
-  #   Description: A path on the public load balancer that this service should be connected to. Use * to send all load balancer traffic to this service.
-
-  # pPriority:
-  #   Type: Number
-  #   Default: 1
-  #   Description: The priority for the routing rule added to the load balancer. This only applies if your have multiple services which have been assigned to different paths on the load balancer.
-
   pVPC:
     Type: AWS::EC2::VPC::Id
     Description: The VPC ID where the resources will be deployed
@@ -216,6 +206,29 @@ Resources:
       - Key: Solution
         Value: !Sub ${AWS::StackName}-ecs
 
+# create Prefix List for Test Failover in SGRP
+# commenting ranges here will block all traffic to the particular subnet
+
+  rTestFailoverPrefixList:
+    Type: AWS::EC2::PrefixList
+    Properties:
+      PrefixListName: !Sub '${AWS::StackName}-test-failover'
+      AddressFamily: IPv4
+      MaxEntries: 6
+      Entries: 
+        - Cidr: 172.31.80.0/20
+          Description: default-pub1 us-east-1a
+        - Cidr: 172.31.16.0/20
+          Description: default-pub2 us-east-1b
+        - Cidr: 172.31.32.0/20
+          Description: default-pub3 us-east-1c
+        - Cidr: 172.31.0.0/20
+          Description: default-pub4 us-east-1d
+        - Cidr: 172.31.48.0/20
+          Description: default-pub5 us-east-1e
+        - Cidr: 172.31.64.0/20
+          Description: default-pub6 us-east-1f
+
 # create Security Group for ECS service
 
   rECSServiceSecurityGroup:
@@ -237,9 +250,11 @@ Resources:
           ToPort: !Ref pContainerPort
           Description: Allow ECS internal traffic
       SecurityGroupEgress:
-        - CidrIp: 0.0.0.0/0
+        - DestinationPrefixListId: !Ref rTestFailoverPrefixList
           IpProtocol: -1
-          Description: Allow all internal traffic outbound
+          FromPort: -1    # All ports
+          ToPort: -1      # All ports
+          Description: test FAILOVER - Prefix List
       Tags:
       - Key: Solution
         Value: !Sub ${AWS::StackName}-ecs
@@ -290,9 +305,13 @@ Resources:
           CidrIp: !Ref pMyIPAddress
           Description: Allow internet access to ALB
       SecurityGroupEgress:
-        - CidrIp: 0.0.0.0/0
+        # test FAILOVER
+        - DestinationPrefixListId: !Ref rTestFailoverPrefixList
           IpProtocol: -1
-          Description: Allow all traffic outbound from ALB
+          FromPort: -1    # All ports
+          ToPort: -1      # All ports
+          Description: test FAILOVER - Prefix List
+
       Tags:
       - Key: Solution
         Value: !Sub ${AWS::StackName}-ecs
@@ -318,36 +337,6 @@ Resources:
       Tags:
       - Key: Solution
         Value: !Sub ${AWS::StackName}-ecs
-
-  # # Create a rule on the load balancer for routing traffic to the target group
-  # rListenerRule:
-  #   Type: AWS::ElasticLoadBalancingV2::ListenerRule
-  #   Properties:
-  #     Actions:
-  #       - TargetGroupArn: !Ref rALBTargetGroup
-  #         Type: 'forward'
-  #     Conditions:
-  #       - Field: path-pattern
-  #         Values: [!Ref 'pPath']
-  #     ListenerArn: !Ref rALBListener
-  #     Priority: !Ref 'pPriority'
-
-  # # A dummy target group is used to setup the ALB to just drop traffic
-  # # initially, before any real service target groups have been added.
-  # rDummyTargetGroupPublic:
-  #   Type: AWS::ElasticLoadBalancingV2::TargetGroup
-  #   Properties:
-  #     HealthCheckIntervalSeconds: 6
-  #     HealthCheckPath: /
-  #     HealthCheckProtocol: HTTP
-  #     HealthCheckTimeoutSeconds: 5
-  #     HealthyThresholdCount: 2
-  #     Name: !Join ['-', [!Ref 'AWS::StackName', 'drop-11']]
-  #     Port: !Ref pContainerPort
-  #     Protocol: HTTP
-  #     UnhealthyThresholdCount: 2
-  #     TargetType: ip
-  #     VpcId: !Ref pVPC
 
 # create Target Group for ALB
 
@@ -395,6 +384,7 @@ Resources:
       ServiceNamespace: ecs
       RoleARN: !GetAtt rAutoScalingRole.Arn
 
+  
   # rAutoScalingPolicyCPU:
   #   Type: AWS::ApplicationAutoScaling::ScalingPolicy
   #   Properties:
@@ -511,7 +501,7 @@ Resources:
               awslogs-stream-prefix: ecs
 
 
-  # # create ECS service
+  # # create ECS service for STRESS testing
 
   # rECSServiceStress:
   #   Type: AWS::ECS::Service
@@ -544,3 +534,7 @@ Outputs:
   oApplicationLoadBalancerDNSName:
     Description: The DNS name of the Application Load Balancer
     Value: !GetAtt rApplicationLoadBalancer.DNSName
+
+  oPrefixListId:
+    Description: The ID of the created Prefix List for Test Failover
+    Value: !Ref rTestFailoverPrefixList
