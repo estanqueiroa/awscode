@@ -271,11 +271,11 @@ Resources:
           ToPort: !Ref pContainerPort
           Description: Allow ECS internal traffic
       SecurityGroupEgress:
-        - CidrIp: 0.0.0.0/0 # all destinations
-          IpProtocol: -1
-          FromPort: -1    # All ports
-          ToPort: -1      # All ports
-          Description: Allow all ports and destinations
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: Allow HTTPS access to AWS public ECR repositories
       Tags:
       - Key: Solution
         Value: !Sub ${AWS::StackName}-ecs
@@ -328,10 +328,10 @@ Resources:
       SecurityGroupEgress:
         # test FAILOVER
         - DestinationPrefixListId: !Ref rTestFailoverPrefixList
-          IpProtocol: -1
-          FromPort: -1    # All ports
-          ToPort: -1      # All ports
-          Description: test FAILOVER - Prefix List
+          IpProtocol: tcp
+          FromPort: 1    # All ports
+          ToPort: 65535     # All ports
+          Description: test FAILOVER - Prefix List - allow all tcp traffic
 
       Tags:
       - Key: Solution
@@ -440,8 +440,8 @@ Resources:
         ScalingTargetId: !Ref rAutoScalingTarget
         TargetTrackingScalingPolicyConfiguration:
           TargetValue: 50
-          ScaleInCooldown: 180
-          ScaleOutCooldown: 30
+          ScaleInCooldown: 60
+          ScaleOutCooldown: 60
           #DisableScaleIn: true
           PredefinedMetricSpecification:
             PredefinedMetricType: ALBRequestCountPerTarget
