@@ -79,6 +79,37 @@ Metadata:
 
 Resources:
 
+# create S3 bucket for ALB logs
+
+  rLogBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Sub '${AWS::StackName}-alb-logs'
+      VersioningConfiguration:
+        Status: Enabled
+
+  rBucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref rLogBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: 'AllowELBAccessLogs'
+            Effect: Allow
+            Principal:
+              AWS: 'arn:aws:iam::127311923021:root' # https://docs.aws.amazon.com/elasticloadbalancing/latest/application/enable-access-logging.html#attach-bucket-policy
+            Action: 
+              - s3:PutObject
+              - s3:PutObjectAcl
+            #Resource: !Sub 'arn:aws:s3:::${rLogBucket}/*/AWSLogs/${AWS::AccountId}/*'
+            Resource: !Join
+            - ''
+            - - 'arn:aws:s3:::'
+              - !Ref rLogBucket
+              - /*
+
+
 # create CW log group for stress testing
 
   rCloudWatchLogGroupStress:
@@ -286,6 +317,7 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     # checkov:skip=CKV_AWS_131:header dropping not required for demo testing
     # checkov:skip=CKV_AWS_91:logging not required for demo testing
+    DependsOn: rBucketPolicy
     Metadata:
       cfn_nag:
         rules_to_suppress:
@@ -298,6 +330,18 @@ Resources:
           Value: '5'
         - Key: client_keep_alive.seconds
           Value: '60'
+        - Key: access_logs.s3.enabled
+          Value: 'true'
+        - Key: access_logs.s3.bucket
+          Value: !Ref rLogBucket
+        - Key: access_logs.s3.prefix
+          Value: 'access'
+        - Key: connection_logs.s3.enabled
+          Value: 'true'
+        - Key: connection_logs.s3.bucket
+          Value: !Ref rLogBucket
+        - Key: connection_logs.s3.prefix
+          Value: 'connections'
       SecurityGroups:
         - !GetAtt rALBSecurityGroup.GroupId
       Subnets: !Ref pSubnets
