@@ -56,6 +56,18 @@ Parameters:
     ConstraintDescription: "Must be a number between 1 and 10."
     Description: "Min Number of tasks for ECS Service AutoScaling. Enter a number from 1 to 10."
 
+  pLogsLifeCycle:
+    Type: Number
+    Description: Number in days to retain files/logs
+    Default: 30
+    AllowedValues:
+      - 5
+      - 7
+      - 14
+      - 30
+      - 60
+      - 90
+
 Metadata:
   "AWS::CloudFormation::Interface":
     ParameterGroups:
@@ -76,6 +88,10 @@ Metadata:
         Parameters: 
           - pContainerImage
           - pContainerPort
+      - Label:
+          default: "ALB Logs Parameters"
+        Parameters: 
+          - pLogsLifeCycle
 
 Resources:
 
@@ -91,6 +107,12 @@ Resources:
       BucketName: !Sub '${AWS::StackName}-alb-logs'
       VersioningConfiguration:
         Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: !Sub 'DeleteEverythingIn${pLogsLifeCycle}Days'
+            #Prefix: '' # all
+            Status: Enabled
+            ExpirationInDays: !Ref pLogsLifeCycle
 
   rBucketPolicy:
     Type: 'AWS::S3::BucketPolicy'
