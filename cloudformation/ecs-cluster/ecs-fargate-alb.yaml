@@ -80,6 +80,10 @@ Metadata:
 Resources:
 
 # create S3 bucket for ALB logs
+#
+# Using Athena to Query Application Load Balancer logs
+# https://docs.aws.amazon.com/athena/latest/ug/application-load-balancer-logs.html
+# 
 
   rLogBucket:
     Type: 'AWS::S3::Bucket'
