@@ -104,7 +104,7 @@ Resources:
   rLogBucket:
     Type: 'AWS::S3::Bucket'
     Properties:
-      BucketName: !Sub '${AWS::StackName}-alb-logs'
+      BucketName: !Sub '${AWS::StackName}-logs-${AWS::AccountId}'
       VersioningConfiguration:
         Status: Enabled
       LifecycleConfiguration:
