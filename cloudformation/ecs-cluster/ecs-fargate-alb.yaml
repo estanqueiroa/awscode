@@ -25,12 +25,13 @@ Parameters:
     AllowedValues:
     - kale5/rickroll:vclatest
     - nginx:latest
+    - gbaeke/princejs:v1 # uses container port 8080
     - nouchka/hackmyresume:latest
     - ymuski/resume
 
   pContainerPort:
     Type: String
-    Description: Container TCP port
+    Description: Container TCP port (uses container port 8080 for PrinceJS - update CURL health check below)
     Default: 80
 
   pMyIPAddress:
@@ -186,10 +187,10 @@ Resources:
             - ContainerPort: !Ref pContainerPort
               HostPort: !Ref pContainerPort
               Protocol: tcp
-          HealthCheck: # remove it to not confuse ALB health check
+          HealthCheck:
             Command:
             - CMD-SHELL
-            - curl -f http://localhost/ || exit 1
+            - curl -f http://localhost:8080/ || exit 1
             Interval: 30
             Timeout: 5
             Retries: 3
@@ -623,8 +624,10 @@ Outputs:
     Value: !Ref rECSService
 
   oApplicationLoadBalancerDNSName:
-    Description: The DNS name of the Application Load Balancer
-    Value: !GetAtt rApplicationLoadBalancer.DNSName
+    Description: The DNS name of the Application URL (ALB + Container Port)
+    Value: !Join 
+      - ''
+      - [!GetAtt rApplicationLoadBalancer.DNSName, !Sub ':${pContainerPort}']
 
   oPrefixListId:
     Description: The ID of the created Prefix List for Test Failover
