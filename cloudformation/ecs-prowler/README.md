@@ -86,3 +86,43 @@ rain deploy ecs-prowler.yaml
 - Monitor CloudWatch Logs for scan results
 - Review S3 bucket for assessment reports
 - Check EventBridge rule for scheduling changes if needed
+
+## Other Commands
+
+`prowler -r eu-central-1 -f eu-central-1 | ansi2html -la > public/index.html`
+
+`prowler aws --list-services`
+
+`prowler aws --output-filename prowler_report --output-formats html`
+
+`prowler aws --service s3 --output-filename s3_report --output-formats html`
+
+## Troubleshooting
+
+Error when running prowler: `[Module: provider]       CRITICAL: ValueError[163]: Invalid endpoint: https://sts..amazonaws.com`
+
+- Probably the OS variable 'AWS_DEFAULT_REGION=' is set with no value, so remove it running command below.
+
+```bash
+env | grep -i aws
+unset AWS_DEFAULT_REGION
+export AWS_REGION=us-east-1
+```
+
+## References
+
+https://github.com/prowler-cloud/prowler
+
+https://docs.prowler.com/projects/prowler-open-source/en/latest/
+
+https://aakibkhan1.medium.com/aws-security-best-practices-assessments-using-prowler-f561aed83828
+
+https://docs.aws.amazon.com/prescriptive-guidance/latest/patterns/create-a-consolidated-report-of-prowler-security-findings-from-multiple-aws-accounts.html#create-a-consolidated-report-of-prowler-security-findings-from-multiple-aws-accounts-prereqs
+
+https://github.com/prowler-cloud/prowler/issues/293
+
+https://docs.prowler.com/projects/prowler-open-source/en/latest/tutorials/aws/s3/
+
+https://hub.docker.com/r/bridgecrew/dockerized-prowler
+
+https://gallery.ecr.aws/prowler-cloud/prowler
