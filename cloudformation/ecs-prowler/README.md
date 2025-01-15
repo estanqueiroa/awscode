@@ -51,7 +51,7 @@ aws cloudformation create-stack \
 ### Option 3: RAIN
 
 ```bash
-rain deploy prowler-ecs.yaml
+rain deploy ecs-prowler.yaml
 ```
 
 ## Important Notes
