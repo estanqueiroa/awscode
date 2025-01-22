@@ -1,0 +1,158 @@
+# Copyright 2024 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License").
+# You may not use this file except in compliance with the License.
+# A copy of the License is located at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# or in the "license" file accompanying this file. This file is distributed
+# on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+# express or implied. See the License for the specific language governing
+# permissions and limitations under the License.
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Create EC2 with web server and internet facing NLB'
+
+Parameters:
+  pVpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: Select a VPC
+
+  pSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Select at least two public subnets for NLB
+
+  pInstanceSubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: Select subnet for EC2 instance
+
+  pKeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Name of an existing EC2 KeyPair
+
+  pInstanceType:
+    Type: String
+    Default: t3.micro
+    Description: EC2 instance type
+
+  pProjeto:
+    Type: String
+    Description: Valor para a TAG Projeto
+    Default: projeto12345
+
+Mappings:
+  RegionMap:
+    us-east-1:
+      AMI: ami-0440d3b780d96b29d
+    us-east-2:
+      AMI: ami-07b36ea9852e986ad
+    us-west-1:
+      AMI: ami-0b3fe1005c9fca129
+    us-west-2:
+      AMI: ami-0c38a2329ed4dae9a
+
+Resources:
+  # Security Group for EC2
+  rWebServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP and SSH access
+      VpcId: !Ref pVpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Projeto
+          Value: !Ref pProjeto
+        - Key: StackName
+          Value: !Ref AWS::StackName
+
+  # EC2 Instance with Web Server
+  rWebServerInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref pInstanceType
+      ImageId: !FindInMap [RegionMap, !Ref 'AWS::Region', AMI]
+      KeyName: !Ref pKeyName
+      SubnetId: !Ref pInstanceSubnetId
+      SecurityGroupIds: 
+        - !Ref rWebServerSecurityGroup
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+          yum install httpd -y
+          systemctl start httpd
+          systemctl enable httpd
+          echo "<h1>Hello from AWS CloudFormation + NLB + EC2!</h1>" > /var/www/html/index.html
+      Tags:
+        - Key: Name
+          Value: WebServer
+        - Key: Projeto
+          Value: !Ref pProjeto
+        - Key: StackName
+          Value: !Ref AWS::StackName
+
+  # Network Load Balancer
+  rNetworkLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: web-server-nlb
+      Scheme: internet-facing
+      Type: network
+      Subnets: !Ref pSubnetIds
+      SecurityGroups: 
+      - !Ref rWebServerSecurityGroup
+      Tags:
+        - Key: Projeto
+          Value: !Ref pProjeto
+        - Key: StackName
+          Value: !Ref AWS::StackName
+
+  # Target Group
+  rTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: web-server-tg
+      Port: 80
+      Protocol: TCP
+      VpcId: !Ref pVpcId
+      TargetType: instance
+      Targets: 
+        - Id: !Ref rWebServerInstance
+      HealthCheckEnabled: true
+      HealthCheckPort: '80'
+      HealthCheckProtocol: TCP
+      HealthCheckIntervalSeconds: 30
+      HealthyThresholdCount: 3
+
+  # Listener
+  rListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref rNetworkLoadBalancer
+      Port: 80
+      Protocol: TCP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref rTargetGroup
+
+Outputs:
+  oWebServerPrivateIP:
+    Description: private IP of EC2 instance
+    Value: !GetAtt rWebServerInstance.PrivateIp
+
+  oLoadBalancerDNS:
+    Description: DNS name of the load balancer
+    Value: !GetAtt rNetworkLoadBalancer.DNSName
+  
+  oTargetGroupArn:
+    Description: ARN of Target Group
+    Value: !Ref rTargetGroup
