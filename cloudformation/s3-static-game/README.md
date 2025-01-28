@@ -22,7 +22,7 @@ This CloudFormation template deploys a static website hosting a Tic-Tac-Toe game
 
 1. S3 Bucket with website hosting configuration
 2. Bucket policy for public read access
-3. Lambda function for content deployment
+3. Lambda function for content deployment and CloudWatch log group for Lambda logs
 4. IAM role with required permissions
 
 ## Cost Estimate (Monthly)
@@ -60,6 +60,11 @@ This CloudFormation template deploys a static website hosting a Tic-Tac-Toe game
 - S3 bucket configured for public access
 - Lambda function has minimal required permissions
 - HTTPS not included (consider CloudFront for HTTPS)
+
+## Cleanup
+
+- Delete CloudFormation stack to delete all resources (S3 bucket, Lambda function, IAM role)
+- Delete CloudWatch log group created for Lambda logs
 
 ## Note
 
