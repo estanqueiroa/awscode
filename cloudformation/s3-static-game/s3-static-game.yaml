@@ -1,0 +1,228 @@
+
+# Monthly Cost Estimate (assuming moderate usage):
+
+# If within Free Tier: $0
+
+# If outside Free Tier (for a simple website with 10,000 visits/month):
+# - S3: Less than $0.01 for storage
+# - S3 Requests: ~$0.004 for GET requests
+# - Lambda: Effectively $0 (well within free tier)
+# Total: Less than $0.02/month
+
+# Note: This is based on AWS pricing as of April 2024. 
+# For the most current pricing, you can use the AWS Pricing Calculator at https://calculator.aws.amazon.com
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation template for S3 static website hosting with embedded HTML'
+
+Resources:
+  WebsiteBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Sub '${AWS::StackName}-website-bucket'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: ObjectWriter
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: error.html
+      Tags:
+          - Key: Project
+            Value: tic-tac-toe-game
+      
+  WebsiteBucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref WebsiteBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: PublicReadForGetBucketObjects
+            Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Join 
+              - ''
+              - - !GetAtt WebsiteBucket.Arn
+                - '/*'
+
+  LambdaExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Policies:
+        - PolicyName: S3Access
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 's3:PutObject'
+                  - 's3:DeleteObject'
+                Resource: !Join 
+                  - ''
+                  - - !GetAtt WebsiteBucket.Arn
+                    - '/*'
+      Tags:
+          - Key: Project
+            Value: tic-tac-toe-game
+
+  UploadWebContent:
+    Type: 'Custom::S3Upload'
+    Properties:
+      ServiceToken: !GetAtt UploadFunction.Arn
+      Bucket: !Ref WebsiteBucket
+      Key: 'index.html'
+      Content: |
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Tic Tac Toe</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    text-align: center;
+                }
+
+                #board {
+                    display: grid;
+                    grid-template-columns: repeat(3, 100px);
+                    grid-template-rows: repeat(3, 100px);
+                    gap: 10px;
+                    margin: 20px auto;
+                }
+
+                .cell {
+                    border: 1px solid #ccc;
+                    font-size: 48px;
+                    line-height: 100px;
+                    cursor: pointer;
+                }
+            </style>
+        </head>
+        <body>
+            <h1>Tic Tac Toe</h1>
+            <div id="board">
+                <div class="cell"></div>
+                <div class="cell"></div>
+                <div class="cell"></div>
+                <div class="cell"></div>
+                <div class="cell"></div>
+                <div class="cell"></div>
+                <div class="cell"></div>
+                <div class="cell"></div>
+                <div class="cell"></div>
+            </div>
+            <div id="message"></div>
+
+            <script>
+                const cells = document.querySelectorAll('.cell');
+                const messageDiv = document.getElementById('message');
+                let currentPlayer = 'X';
+                let gameOver = false;
+                const winningCombinations = [
+                    [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+                    [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
+                    [0, 4, 8], [2, 4, 6] // Diagonals
+                ];
+
+                cells.forEach((cell, index) => {
+                    cell.addEventListener('click', () => {
+                        if (!gameOver && cell.textContent === '') {
+                            cell.textContent = currentPlayer;
+                            checkWin();
+                            switchPlayer();
+                        }
+                    });
+                });
+
+                function checkWin() {
+                    const cellValues = Array.from(cells, cell => cell.textContent);
+
+                    for (const combination of winningCombinations) {
+                        const [a, b, c] = combination;
+                        if (cellValues[a] && cellValues[a] === cellValues[b] && cellValues[a] === cellValues[c]) {
+                            gameOver = true;
+                            messageDiv.textContent = `Player ${currentPlayer} wins!`;
+                            return;
+                        }
+                    }
+
+                    if (!cellValues.includes('')) {
+                        gameOver = true;
+                        messageDiv.textContent = 'It\'s a tie!';
+                    }
+                }
+
+                function switchPlayer() {
+                    currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+                }
+            </script>
+        </body>
+        </html>
+
+  UploadFunction:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Runtime: python3.12
+      Architectures:
+          - arm64 # graviton
+      Handler: index.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 10 # seconds
+      Code:
+        ZipFile: |
+          import boto3
+          import cfnresponse
+          
+          def handler(event, context):
+              try:
+                  s3 = boto3.client('s3')
+                  bucket = event['ResourceProperties']['Bucket']
+                  key = event['ResourceProperties']['Key']
+                  
+                  if event['RequestType'] in ['Create', 'Update']:
+                      content = event['ResourceProperties']['Content']
+                      s3.put_object(
+                          Bucket=bucket,
+                          Key=key,
+                          Body=content,
+                          ContentType='text/html'
+                      )
+                  elif event['RequestType'] == 'Delete':
+                      print(f"Deleting {key} from bucket {bucket}")
+                      s3.delete_object(
+                          Bucket=bucket,
+                          Key=key
+                      )
+                      
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+              except Exception as e:
+                  print(f"Error: {str(e)}")
+                  cfnresponse.send(event, context, cfnresponse.FAILED, {})
+      Tags:
+          - Key: Project
+            Value: tic-tac-toe-game
+
+Outputs:
+  WebsiteURL:
+    Description: URL for website hosted on S3
+    Value: !GetAtt WebsiteBucket.WebsiteURL
+  S3BucketName:
+    Description: Name of S3 bucket to hold website content
+    Value: !Ref WebsiteBucket
