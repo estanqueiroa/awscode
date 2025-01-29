@@ -2,7 +2,7 @@
 
 This demo shows how to generate Python code to create interactive world maps using Amazon SageMaker, Bedrock, API Gateway and Lambda function.
 
-The solution componentes can be created as Infrastructure as Code (IAC) using the provided CloudFormation templates. Deploy each template as a different CloudFormation stack.
+The solution components can be created as Infrastructure as Code (IAC) using the provided CloudFormation templates. Deploy each template as a different CloudFormation stack.
 
 Optional WAF is provided for API gateway protection.
 
