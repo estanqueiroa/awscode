@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html>
+<head>
+    
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+    
+        <script>
+            L_NO_TOUCH = false;
+            L_DISABLE_3D = false;
+        </script>
+    
+    <style>html, body {width: 100%;height: 100%;margin: 0;padding: 0;}</style>
+    <style>#map {position:absolute;top:0;bottom:0;right:0;left:0;}</style>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap-glyphicons.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.2.0/css/all.min.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/python-visualization/folium/folium/templates/leaflet.awesome.rotate.min.css"/>
+    
+            <meta name="viewport" content="width=device-width,
+                initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+            <style>
+                #map_8ac5b31ef44b019f77bc18be7616919c {
+                    position: relative;
+                    width: 100.0%;
+                    height: 100.0%;
+                    left: 0.0%;
+                    top: 0.0%;
+                }
+                .leaflet-container { font-size: 1rem; }
+            </style>
+        
+</head>
+<body>
+    
+    
+<div style="position: fixed; 
+            top: 10px; left: 50px; 
+            width: 300px; 
+            background-color: white; 
+            border-radius: 10px;
+            border: 2px solid grey; 
+            z-index: 9999; 
+            padding: 15px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);">
+    <h3 style="margin: 0; color: #2c3e50; text-align: center;">
+        Top 10 Most Visited Cities (2023)
+    </h3>
+    <p style="margin: 5px 0 0; font-size: 12px; color: #666; text-align: center;">
+        Click on markers to see details
+    </p>
+</div>
+    
+            <div class="folium-map" id="map_8ac5b31ef44b019f77bc18be7616919c" ></div>
+        
+</body>
+<script>
+    
+    
+            var map_8ac5b31ef44b019f77bc18be7616919c = L.map(
+                "map_8ac5b31ef44b019f77bc18be7616919c",
+                {
+                    center: [30.0, 0.0],
+                    crs: L.CRS.EPSG3857,
+                    ...{
+  "zoom": 2,
+  "zoomControl": true,
+  "preferCanvas": false,
+}
+
+                }
+            );
+
+            
+
+        
+    
+            var tile_layer_730538f303b99be7adb6c117f2d29b8c = L.tileLayer(
+                "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+                {
+  "minZoom": 0,
+  "maxZoom": 20,
+  "maxNativeZoom": 20,
+  "noWrap": false,
+  "attribution": "\u0026copy; \u003ca href=\"https://www.openstreetmap.org/copyright\"\u003eOpenStreetMap\u003c/a\u003e contributors \u0026copy; \u003ca href=\"https://carto.com/attributions\"\u003eCARTO\u003c/a\u003e",
+  "subdomains": "abcd",
+  "detectRetina": false,
+  "tms": false,
+  "opacity": 1,
+}
+
+            );
+        
+    
+            tile_layer_730538f303b99be7adb6c117f2d29b8c.addTo(map_8ac5b31ef44b019f77bc18be7616919c);
+        
+    
+            var marker_aa0548852bc0824e9ff3f03795bc4aa2 = L.marker(
+                [51.5074, -0.1278],
+                {
+}
+            ).addTo(map_8ac5b31ef44b019f77bc18be7616919c);
+        
+    
+            var icon_c3aef3541f1d1ab4c91e4586054f625b = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "red",
+  "iconColor": "white",
+  "icon": "info-sign",
+  "prefix": "glyphicon",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_aa0548852bc0824e9ff3f03795bc4aa2.setIcon(icon_c3aef3541f1d1ab4c91e4586054f625b);
+        
+    
+        var popup_9ba23dd5970cf0de6ba14958c61a4ba2 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_d99201409ea02558bb2bbad2a13201a3 = $(`<div id="html_d99201409ea02558bb2bbad2a13201a3" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 10px;">London</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #1</p>             <p style="margin: 5px 0;"><b>👥 Visitors (2023):</b> 30.9 million</p>             <div style="margin-top: 10px; border-top: 1px solid #dee2e6; padding-top: 10px;">                 <p style="margin: 5px 0;"><b>🌡️ Temperature:</b> 29°C</p>                 <p style="margin: 5px 0;"><b>🌤️ Conditions:</b> Scattered clouds</p>                 <p style="margin: 5px 0;"><b>💧 Humidity:</b> 75%</p>             </div>         </div>     </div>     </div>`)[0];
+                popup_9ba23dd5970cf0de6ba14958c61a4ba2.setContent(html_d99201409ea02558bb2bbad2a13201a3);
+            
+        
+
+        marker_aa0548852bc0824e9ff3f03795bc4aa2.bindPopup(popup_9ba23dd5970cf0de6ba14958c61a4ba2)
+        ;
+
+        
+    
+    
+            marker_aa0548852bc0824e9ff3f03795bc4aa2.bindTooltip(
+                `<div>
+                     1. London
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_7a5055200f7d43106977a2028e7ceb6b = L.marker(
+                [48.8566, 2.3522],
+                {
+}
+            ).addTo(map_8ac5b31ef44b019f77bc18be7616919c);
+        
+    
+            var icon_7732b98b6bb2866a909dfb3dcbd39a46 = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "red",
+  "iconColor": "white",
+  "icon": "info-sign",
+  "prefix": "glyphicon",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_7a5055200f7d43106977a2028e7ceb6b.setIcon(icon_7732b98b6bb2866a909dfb3dcbd39a46);
+        
+    
+        var popup_25ddfe136b64c9e167edbdb41ceb6bb8 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_a8477b8fbd57fcc6c4cd82f99faa18cb = $(`<div id="html_a8477b8fbd57fcc6c4cd82f99faa18cb" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 10px;">Paris</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #2</p>             <p style="margin: 5px 0;"><b>👥 Visitors (2023):</b> 27.8 million</p>             <div style="margin-top: 10px; border-top: 1px solid #dee2e6; padding-top: 10px;">                 <p style="margin: 5px 0;"><b>🌡️ Temperature:</b> 25°C</p>                 <p style="margin: 5px 0;"><b>🌤️ Conditions:</b> Moderate rain</p>                 <p style="margin: 5px 0;"><b>💧 Humidity:</b> 47%</p>             </div>         </div>     </div>     </div>`)[0];
+                popup_25ddfe136b64c9e167edbdb41ceb6bb8.setContent(html_a8477b8fbd57fcc6c4cd82f99faa18cb);
+            
+        
+
+        marker_7a5055200f7d43106977a2028e7ceb6b.bindPopup(popup_25ddfe136b64c9e167edbdb41ceb6bb8)
+        ;
+
+        
+    
+    
+            marker_7a5055200f7d43106977a2028e7ceb6b.bindTooltip(
+                `<div>
+                     2. Paris
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_87d1cba3b71adbeee4950f904ecf3200 = L.marker(
+                [25.2048, 55.2708],
+                {
+}
+            ).addTo(map_8ac5b31ef44b019f77bc18be7616919c);
+        
+    
+            var icon_0b58b287bd62538c366417d0be1d732c = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "red",
+  "iconColor": "white",
+  "icon": "info-sign",
+  "prefix": "glyphicon",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_87d1cba3b71adbeee4950f904ecf3200.setIcon(icon_0b58b287bd62538c366417d0be1d732c);
+        
+    
+        var popup_67c35f91af037dd62e4f95ed404318c6 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_bd68dc57c7db924b9884dc202cdddcee = $(`<div id="html_bd68dc57c7db924b9884dc202cdddcee" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 10px;">Dubai</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #3</p>             <p style="margin: 5px 0;"><b>👥 Visitors (2023):</b> 20.2 million</p>             <div style="margin-top: 10px; border-top: 1px solid #dee2e6; padding-top: 10px;">                 <p style="margin: 5px 0;"><b>🌡️ Temperature:</b> 20°C</p>                 <p style="margin: 5px 0;"><b>🌤️ Conditions:</b> Partly cloudy</p>                 <p style="margin: 5px 0;"><b>💧 Humidity:</b> 66%</p>             </div>         </div>     </div>     </div>`)[0];
+                popup_67c35f91af037dd62e4f95ed404318c6.setContent(html_bd68dc57c7db924b9884dc202cdddcee);
+            
+        
+
+        marker_87d1cba3b71adbeee4950f904ecf3200.bindPopup(popup_67c35f91af037dd62e4f95ed404318c6)
+        ;
+
+        
+    
+    
+            marker_87d1cba3b71adbeee4950f904ecf3200.bindTooltip(
+                `<div>
+                     3. Dubai
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_ebaae0b100e040412404f902638d468c = L.marker(
+                [13.7563, 100.5018],
+                {
+}
+            ).addTo(map_8ac5b31ef44b019f77bc18be7616919c);
+        
+    
+            var icon_f06ccf65eab731644be6a57fd3c6edf3 = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "info-sign",
+  "prefix": "glyphicon",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_ebaae0b100e040412404f902638d468c.setIcon(icon_f06ccf65eab731644be6a57fd3c6edf3);
+        
+    
+        var popup_497aec25db824b2e11f6e18728114a42 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_07f578d3a8c1fa882a88f9d3a119e5a7 = $(`<div id="html_07f578d3a8c1fa882a88f9d3a119e5a7" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 10px;">Bangkok</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #4</p>             <p style="margin: 5px 0;"><b>👥 Visitors (2023):</b> 19.8 million</p>             <div style="margin-top: 10px; border-top: 1px solid #dee2e6; padding-top: 10px;">                 <p style="margin: 5px 0;"><b>🌡️ Temperature:</b> 16°C</p>                 <p style="margin: 5px 0;"><b>🌤️ Conditions:</b> Clear sky</p>                 <p style="margin: 5px 0;"><b>💧 Humidity:</b> 82%</p>             </div>         </div>     </div>     </div>`)[0];
+                popup_497aec25db824b2e11f6e18728114a42.setContent(html_07f578d3a8c1fa882a88f9d3a119e5a7);
+            
+        
+
+        marker_ebaae0b100e040412404f902638d468c.bindPopup(popup_497aec25db824b2e11f6e18728114a42)
+        ;
+
+        
+    
+    
+            marker_ebaae0b100e040412404f902638d468c.bindTooltip(
+                `<div>
+                     4. Bangkok
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_03eb243b785f424fcc17a04ad9c1ce62 = L.marker(
+                [1.3521, 103.8198],
+                {
+}
+            ).addTo(map_8ac5b31ef44b019f77bc18be7616919c);
+        
+    
+            var icon_0335037ff014d44b6764f505f015e497 = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "info-sign",
+  "prefix": "glyphicon",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_03eb243b785f424fcc17a04ad9c1ce62.setIcon(icon_0335037ff014d44b6764f505f015e497);
+        
+    
+        var popup_b4cf17daa15cf77ef408618af48f5097 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_22bb79ed124715ce41f82b6da5f26255 = $(`<div id="html_22bb79ed124715ce41f82b6da5f26255" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 10px;">Singapore</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #5</p>             <p style="margin: 5px 0;"><b>👥 Visitors (2023):</b> 19.1 million</p>             <div style="margin-top: 10px; border-top: 1px solid #dee2e6; padding-top: 10px;">                 <p style="margin: 5px 0;"><b>🌡️ Temperature:</b> 21°C</p>                 <p style="margin: 5px 0;"><b>🌤️ Conditions:</b> Cloudy</p>                 <p style="margin: 5px 0;"><b>💧 Humidity:</b> 53%</p>             </div>         </div>     </div>     </div>`)[0];
+                popup_b4cf17daa15cf77ef408618af48f5097.setContent(html_22bb79ed124715ce41f82b6da5f26255);
+            
+        
+
+        marker_03eb243b785f424fcc17a04ad9c1ce62.bindPopup(popup_b4cf17daa15cf77ef408618af48f5097)
+        ;
+
+        
+    
+    
+            marker_03eb243b785f424fcc17a04ad9c1ce62.bindTooltip(
+                `<div>
+                     5. Singapore
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_47275da59b0108d8442c748ca76fd760 = L.marker(
+                [40.7128, -74.006],
+                {
+}
+            ).addTo(map_8ac5b31ef44b019f77bc18be7616919c);
+        
+    
+            var icon_37fc6f736391dae4f350aab353ae40c2 = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "info-sign",
+  "prefix": "glyphicon",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_47275da59b0108d8442c748ca76fd760.setIcon(icon_37fc6f736391dae4f350aab353ae40c2);
+        
+    
+        var popup_6dda9967100fcd4c9d1aa0e3a554d6a9 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_4c19e7936b4afad502d8837a44f7c147 = $(`<div id="html_4c19e7936b4afad502d8837a44f7c147" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 10px;">New York</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #6</p>             <p style="margin: 5px 0;"><b>👥 Visitors (2023):</b> 18.9 million</p>             <div style="margin-top: 10px; border-top: 1px solid #dee2e6; padding-top: 10px;">                 <p style="margin: 5px 0;"><b>🌡️ Temperature:</b> 21°C</p>                 <p style="margin: 5px 0;"><b>🌤️ Conditions:</b> Clear sky</p>                 <p style="margin: 5px 0;"><b>💧 Humidity:</b> 80%</p>             </div>         </div>     </div>     </div>`)[0];
+                popup_6dda9967100fcd4c9d1aa0e3a554d6a9.setContent(html_4c19e7936b4afad502d8837a44f7c147);
+            
+        
+
+        marker_47275da59b0108d8442c748ca76fd760.bindPopup(popup_6dda9967100fcd4c9d1aa0e3a554d6a9)
+        ;
+
+        
+    
+    
+            marker_47275da59b0108d8442c748ca76fd760.bindTooltip(
+                `<div>
+                     6. New York
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_866a415c0f51f95e2f50bc520b4b7d7b = L.marker(
+                [35.6762, 139.6503],
+                {
+}
+            ).addTo(map_8ac5b31ef44b019f77bc18be7616919c);
+        
+    
+            var icon_d01ed1cb151a1803502a4986de333a91 = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "info-sign",
+  "prefix": "glyphicon",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_866a415c0f51f95e2f50bc520b4b7d7b.setIcon(icon_d01ed1cb151a1803502a4986de333a91);
+        
+    
+        var popup_249ec555b15abe5a5f93d45588b3969e = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_c8bb5874ee3970434945bd323cb28f59 = $(`<div id="html_c8bb5874ee3970434945bd323cb28f59" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 10px;">Tokyo</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #7</p>             <p style="margin: 5px 0;"><b>👥 Visitors (2023):</b> 18.4 million</p>             <div style="margin-top: 10px; border-top: 1px solid #dee2e6; padding-top: 10px;">                 <p style="margin: 5px 0;"><b>🌡️ Temperature:</b> 21°C</p>                 <p style="margin: 5px 0;"><b>🌤️ Conditions:</b> Partly cloudy</p>                 <p style="margin: 5px 0;"><b>💧 Humidity:</b> 86%</p>             </div>         </div>     </div>     </div>`)[0];
+                popup_249ec555b15abe5a5f93d45588b3969e.setContent(html_c8bb5874ee3970434945bd323cb28f59);
+            
+        
+
+        marker_866a415c0f51f95e2f50bc520b4b7d7b.bindPopup(popup_249ec555b15abe5a5f93d45588b3969e)
+        ;
+
+        
+    
+    
+            marker_866a415c0f51f95e2f50bc520b4b7d7b.bindTooltip(
+                `<div>
+                     7. Tokyo
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_166a7224c55581390453f40f3375382b = L.marker(
+                [41.0082, 28.9784],
+                {
+}
+            ).addTo(map_8ac5b31ef44b019f77bc18be7616919c);
+        
+    
+            var icon_02e8d07e642a4255b1c30b2507acb723 = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "info-sign",
+  "prefix": "glyphicon",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_166a7224c55581390453f40f3375382b.setIcon(icon_02e8d07e642a4255b1c30b2507acb723);
+        
+    
+        var popup_54f4b99584977d7465389a55c7b666ab = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_11d41929b4454f1a4fde533433bafe25 = $(`<div id="html_11d41929b4454f1a4fde533433bafe25" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 10px;">Istanbul</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #8</p>             <p style="margin: 5px 0;"><b>👥 Visitors (2023):</b> 16.9 million</p>             <div style="margin-top: 10px; border-top: 1px solid #dee2e6; padding-top: 10px;">                 <p style="margin: 5px 0;"><b>🌡️ Temperature:</b> 27°C</p>                 <p style="margin: 5px 0;"><b>🌤️ Conditions:</b> Clear sky</p>                 <p style="margin: 5px 0;"><b>💧 Humidity:</b> 89%</p>             </div>         </div>     </div>     </div>`)[0];
+                popup_54f4b99584977d7465389a55c7b666ab.setContent(html_11d41929b4454f1a4fde533433bafe25);
+            
+        
+
+        marker_166a7224c55581390453f40f3375382b.bindPopup(popup_54f4b99584977d7465389a55c7b666ab)
+        ;
+
+        
+    
+    
+            marker_166a7224c55581390453f40f3375382b.bindTooltip(
+                `<div>
+                     8. Istanbul
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_54f80fbb5ed61bbe1feed14ee95549e8 = L.marker(
+                [37.5665, 126.978],
+                {
+}
+            ).addTo(map_8ac5b31ef44b019f77bc18be7616919c);
+        
+    
+            var icon_13e9e359182ba7a5c683356ea2938063 = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "info-sign",
+  "prefix": "glyphicon",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_54f80fbb5ed61bbe1feed14ee95549e8.setIcon(icon_13e9e359182ba7a5c683356ea2938063);
+        
+    
+        var popup_1b03a094e99d3282deb149757e5610a4 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_2e31dc93814b157a78ef51d7b72a6a38 = $(`<div id="html_2e31dc93814b157a78ef51d7b72a6a38" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 10px;">Seoul</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #9</p>             <p style="margin: 5px 0;"><b>👥 Visitors (2023):</b> 15.8 million</p>             <div style="margin-top: 10px; border-top: 1px solid #dee2e6; padding-top: 10px;">                 <p style="margin: 5px 0;"><b>🌡️ Temperature:</b> 20°C</p>                 <p style="margin: 5px 0;"><b>🌤️ Conditions:</b> Cloudy</p>                 <p style="margin: 5px 0;"><b>💧 Humidity:</b> 69%</p>             </div>         </div>     </div>     </div>`)[0];
+                popup_1b03a094e99d3282deb149757e5610a4.setContent(html_2e31dc93814b157a78ef51d7b72a6a38);
+            
+        
+
+        marker_54f80fbb5ed61bbe1feed14ee95549e8.bindPopup(popup_1b03a094e99d3282deb149757e5610a4)
+        ;
+
+        
+    
+    
+            marker_54f80fbb5ed61bbe1feed14ee95549e8.bindTooltip(
+                `<div>
+                     9. Seoul
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_846d0281fde96a2fc302f3eb49a0bebf = L.marker(
+                [41.3851, 2.1734],
+                {
+}
+            ).addTo(map_8ac5b31ef44b019f77bc18be7616919c);
+        
+    
+            var icon_13c96dbd8454223f9d604bfd4f6535f1 = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "info-sign",
+  "prefix": "glyphicon",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_846d0281fde96a2fc302f3eb49a0bebf.setIcon(icon_13c96dbd8454223f9d604bfd4f6535f1);
+        
+    
+        var popup_bc854c01b1001da2c3b717bd66bf9952 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_3449d712d5f9a3d85d254c9ddac236bf = $(`<div id="html_3449d712d5f9a3d85d254c9ddac236bf" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 10px;">Barcelona</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #10</p>             <p style="margin: 5px 0;"><b>👥 Visitors (2023):</b> 15.2 million</p>             <div style="margin-top: 10px; border-top: 1px solid #dee2e6; padding-top: 10px;">                 <p style="margin: 5px 0;"><b>🌡️ Temperature:</b> 27°C</p>                 <p style="margin: 5px 0;"><b>🌤️ Conditions:</b> Light rain</p>                 <p style="margin: 5px 0;"><b>💧 Humidity:</b> 64%</p>             </div>         </div>     </div>     </div>`)[0];
+                popup_bc854c01b1001da2c3b717bd66bf9952.setContent(html_3449d712d5f9a3d85d254c9ddac236bf);
+            
+        
+
+        marker_846d0281fde96a2fc302f3eb49a0bebf.bindPopup(popup_bc854c01b1001da2c3b717bd66bf9952)
+        ;
+
+        
+    
+    
+            marker_846d0281fde96a2fc302f3eb49a0bebf.bindTooltip(
+                `<div>
+                     10. Barcelona
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+</script>
+</html>

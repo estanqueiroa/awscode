@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html>
+<head>
+    
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+    
+        <script>
+            L_NO_TOUCH = false;
+            L_DISABLE_3D = false;
+        </script>
+    
+    <style>html, body {width: 100%;height: 100%;margin: 0;padding: 0;}</style>
+    <style>#map {position:absolute;top:0;bottom:0;right:0;left:0;}</style>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap-glyphicons.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.2.0/css/all.min.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/python-visualization/folium/folium/templates/leaflet.awesome.rotate.min.css"/>
+    
+            <meta name="viewport" content="width=device-width,
+                initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+            <style>
+                #map_ba8ee196eaddc0a162f997c797f7af99 {
+                    position: relative;
+                    width: 100.0%;
+                    height: 100.0%;
+                    left: 0.0%;
+                    top: 0.0%;
+                }
+                .leaflet-container { font-size: 1rem; }
+            </style>
+        
+    <script src="https://cdn.jsdelivr.net/npm/leaflet-ant-path@1.1.2/dist/leaflet-ant-path.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.1.0/leaflet.markercluster.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.1.0/MarkerCluster.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.1.0/MarkerCluster.Default.css"/>
+</head>
+<body>
+    
+    
+<div style="position: fixed; 
+            top: 10px; left: 50px; 
+            width: 380px; 
+            background-color: white; 
+            border-radius: 10px;
+            border: 2px solid grey; 
+            z-index: 9999; 
+            padding: 15px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);">
+    <h3 style="margin: 0; color: #2c3e50; text-align: center;">
+        Top 10 Busiest Flight Routes in South America
+    </h3>
+    <p style="margin: 5px 0 0; font-size: 12px; color: #666; text-align: center;">
+        Click on markers or routes for detailed information
+    </p>
+</div>
+    
+<div style="position: fixed; 
+            bottom: 50px; right: 50px; 
+            width: 180px;
+            background-color: white;
+            border-radius: 10px;
+            border: 2px solid grey;
+            z-index: 9999;
+            padding: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);">
+    <h4 style="margin: 0 0 5px 0; color: #2c3e50;">Route Categories</h4>
+    <p style="margin: 0; color: #2c3e50;">
+        <span style="color: red;">●</span> Premium Routes (Top 3)<br>
+        <span style="color: blue;">●</span> Major Routes (4-10)
+    </p>
+</div>
+    
+            <div class="folium-map" id="map_ba8ee196eaddc0a162f997c797f7af99" ></div>
+        
+</body>
+<script>
+    
+    
+            var map_ba8ee196eaddc0a162f997c797f7af99 = L.map(
+                "map_ba8ee196eaddc0a162f997c797f7af99",
+                {
+                    center: [-15.0, -60.0],
+                    crs: L.CRS.EPSG3857,
+                    ...{
+  "zoom": 3,
+  "zoomControl": true,
+  "preferCanvas": false,
+}
+
+                }
+            );
+
+            
+
+        
+    
+            var tile_layer_a9ef352fdf25ea2cd5c16fa1e8a12abb = L.tileLayer(
+                "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+                {
+  "minZoom": 0,
+  "maxZoom": 20,
+  "maxNativeZoom": 20,
+  "noWrap": false,
+  "attribution": "\u0026copy; \u003ca href=\"https://www.openstreetmap.org/copyright\"\u003eOpenStreetMap\u003c/a\u003e contributors \u0026copy; \u003ca href=\"https://carto.com/attributions\"\u003eCARTO\u003c/a\u003e",
+  "subdomains": "abcd",
+  "detectRetina": false,
+  "tms": false,
+  "opacity": 1,
+}
+
+            );
+        
+    
+            tile_layer_a9ef352fdf25ea2cd5c16fa1e8a12abb.addTo(map_ba8ee196eaddc0a162f997c797f7af99);
+        
+    
+            ant_path_c9006ca71a76e34bb9c87d422ac3385d = L.polyline.antPath(
+              [[-23.6273, -46.6566], [-22.9068, -43.1729]],
+              {
+  "stroke": true,
+  "color": "red",
+  "weight": 2,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "red",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 1000,
+  "pulseColor": "#FFF",
+}
+        ).addTo(map_ba8ee196eaddc0a162f997c797f7af99);
+        
+    
+        var popup_c1cccfb1b32a4ed958dfc376eabd7e1e = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_314e933e9f884985d88cf3d9c8cb365c = $(`<div id="html_314e933e9f884985d88cf3d9c8cb365c" style="width: 100.0%; height: 100.0%;">Route #1: São Paulo-Rio de Janeiro</div>`)[0];
+                popup_c1cccfb1b32a4ed958dfc376eabd7e1e.setContent(html_314e933e9f884985d88cf3d9c8cb365c);
+            
+        
+
+        ant_path_c9006ca71a76e34bb9c87d422ac3385d.bindPopup(popup_c1cccfb1b32a4ed958dfc376eabd7e1e)
+        ;
+
+        
+    
+    
+            ant_path_e101536788c3faa7597963a3c6651b18 = L.polyline.antPath(
+              [[-23.6273, -46.6566], [-15.8697, -47.9172]],
+              {
+  "stroke": true,
+  "color": "red",
+  "weight": 2,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "red",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 1000,
+  "pulseColor": "#FFF",
+}
+        ).addTo(map_ba8ee196eaddc0a162f997c797f7af99);
+        
+    
+        var popup_2d21d207153bd40a09a4cf085e453603 = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_be2d51583852065ad1c5eefd0c4fb283 = $(`<div id="html_be2d51583852065ad1c5eefd0c4fb283" style="width: 100.0%; height: 100.0%;">Route #2: São Paulo-Brasília</div>`)[0];
+                popup_2d21d207153bd40a09a4cf085e453603.setContent(html_be2d51583852065ad1c5eefd0c4fb283);
+            
+        
+
+        ant_path_e101536788c3faa7597963a3c6651b18.bindPopup(popup_2d21d207153bd40a09a4cf085e453603)
+        ;
+
+        
+    
+    
+            ant_path_14b951eb63ae946b9bbaa01ed712b451 = L.polyline.antPath(
+              [[-34.6037, -58.3816], [-33.4489, -70.6693]],
+              {
+  "stroke": true,
+  "color": "red",
+  "weight": 2,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "red",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 1000,
+  "pulseColor": "#FFF",
+}
+        ).addTo(map_ba8ee196eaddc0a162f997c797f7af99);
+        
+    
+        var popup_acf8f8a7d29f83a859701b7855d0a041 = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_0e7a1d9b0edcca3fe7f97d2b1266adad = $(`<div id="html_0e7a1d9b0edcca3fe7f97d2b1266adad" style="width: 100.0%; height: 100.0%;">Route #3: Buenos Aires-Santiago</div>`)[0];
+                popup_acf8f8a7d29f83a859701b7855d0a041.setContent(html_0e7a1d9b0edcca3fe7f97d2b1266adad);
+            
+        
+
+        ant_path_14b951eb63ae946b9bbaa01ed712b451.bindPopup(popup_acf8f8a7d29f83a859701b7855d0a041)
+        ;
+
+        
+    
+    
+            ant_path_0b5e15e98063785b93dd1ce38ef4be78 = L.polyline.antPath(
+              [[-12.0464, -77.0428], [-13.5319, -71.9675]],
+              {
+  "stroke": true,
+  "color": "blue",
+  "weight": 2,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "blue",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 1000,
+  "pulseColor": "#FFF",
+}
+        ).addTo(map_ba8ee196eaddc0a162f997c797f7af99);
+        
+    
+        var popup_2b226ce98e03ce2899ec72714d262d22 = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_fb02611e649ac8fcfd6db8bdb48448cd = $(`<div id="html_fb02611e649ac8fcfd6db8bdb48448cd" style="width: 100.0%; height: 100.0%;">Route #4: Lima-Cusco</div>`)[0];
+                popup_2b226ce98e03ce2899ec72714d262d22.setContent(html_fb02611e649ac8fcfd6db8bdb48448cd);
+            
+        
+
+        ant_path_0b5e15e98063785b93dd1ce38ef4be78.bindPopup(popup_2b226ce98e03ce2899ec72714d262d22)
+        ;
+
+        
+    
+    
+            ant_path_f68430afcc76f9fb6a7f99f2c6dd2a91 = L.polyline.antPath(
+              [[-23.6273, -46.6566], [-30.0346, -51.2177]],
+              {
+  "stroke": true,
+  "color": "blue",
+  "weight": 2,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "blue",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 1000,
+  "pulseColor": "#FFF",
+}
+        ).addTo(map_ba8ee196eaddc0a162f997c797f7af99);
+        
+    
+        var popup_ec193b78831e64c3cbc9be6845f4aa62 = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_d768cfe69717a3ba6dc24ca71ae18d3f = $(`<div id="html_d768cfe69717a3ba6dc24ca71ae18d3f" style="width: 100.0%; height: 100.0%;">Route #5: São Paulo-Porto Alegre</div>`)[0];
+                popup_ec193b78831e64c3cbc9be6845f4aa62.setContent(html_d768cfe69717a3ba6dc24ca71ae18d3f);
+            
+        
+
+        ant_path_f68430afcc76f9fb6a7f99f2c6dd2a91.bindPopup(popup_ec193b78831e64c3cbc9be6845f4aa62)
+        ;
+
+        
+    
+    
+            ant_path_cdfa0aa13ae47e78a26248cdd434e87a = L.polyline.antPath(
+              [[4.701, -74.1469], [6.1744, -75.4273]],
+              {
+  "stroke": true,
+  "color": "blue",
+  "weight": 2,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "blue",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 1000,
+  "pulseColor": "#FFF",
+}
+        ).addTo(map_ba8ee196eaddc0a162f997c797f7af99);
+        
+    
+        var popup_b26c4e235d6601927d0c68e81e5ba0f8 = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_81772371534e565d0ceb6126ed345987 = $(`<div id="html_81772371534e565d0ceb6126ed345987" style="width: 100.0%; height: 100.0%;">Route #6: Bogotá-Medellín</div>`)[0];
+                popup_b26c4e235d6601927d0c68e81e5ba0f8.setContent(html_81772371534e565d0ceb6126ed345987);
+            
+        
+
+        ant_path_cdfa0aa13ae47e78a26248cdd434e87a.bindPopup(popup_b26c4e235d6601927d0c68e81e5ba0f8)
+        ;
+
+        
+    
+    
+            ant_path_1003f6d58aa19012eb1c8603ebafa09a = L.polyline.antPath(
+              [[-33.4489, -70.6693], [-12.0464, -77.0428]],
+              {
+  "stroke": true,
+  "color": "blue",
+  "weight": 2,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "blue",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 1000,
+  "pulseColor": "#FFF",
+}
+        ).addTo(map_ba8ee196eaddc0a162f997c797f7af99);
+        
+    
+        var popup_88806e93aa4ce3c0414aeaae8a635077 = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_eca1e8dc87aa896b8bc3d02aa022e671 = $(`<div id="html_eca1e8dc87aa896b8bc3d02aa022e671" style="width: 100.0%; height: 100.0%;">Route #7: Santiago-Lima</div>`)[0];
+                popup_88806e93aa4ce3c0414aeaae8a635077.setContent(html_eca1e8dc87aa896b8bc3d02aa022e671);
+            
+        
+
+        ant_path_1003f6d58aa19012eb1c8603ebafa09a.bindPopup(popup_88806e93aa4ce3c0414aeaae8a635077)
+        ;
+
+        
+    
+    
+            ant_path_75bd0bfd0da5f219b74bcacea591c473 = L.polyline.antPath(
+              [[-23.6273, -46.6566], [-12.9714, -38.5014]],
+              {
+  "stroke": true,
+  "color": "blue",
+  "weight": 2,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "blue",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 1000,
+  "pulseColor": "#FFF",
+}
+        ).addTo(map_ba8ee196eaddc0a162f997c797f7af99);
+        
+    
+        var popup_e0930958811b579058f5c3511c6863e2 = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_5606a67a291ec9e2c8cc66aa891959d8 = $(`<div id="html_5606a67a291ec9e2c8cc66aa891959d8" style="width: 100.0%; height: 100.0%;">Route #8: São Paulo-Salvador</div>`)[0];
+                popup_e0930958811b579058f5c3511c6863e2.setContent(html_5606a67a291ec9e2c8cc66aa891959d8);
+            
+        
+
+        ant_path_75bd0bfd0da5f219b74bcacea591c473.bindPopup(popup_e0930958811b579058f5c3511c6863e2)
+        ;
+
+        
+    
+    
+            ant_path_08ed8c35729a9c4f49e01d9c5c2de200 = L.polyline.antPath(
+              [[-34.6037, -58.3816], [-31.4201, -64.1888]],
+              {
+  "stroke": true,
+  "color": "blue",
+  "weight": 2,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "blue",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 1000,
+  "pulseColor": "#FFF",
+}
+        ).addTo(map_ba8ee196eaddc0a162f997c797f7af99);
+        
+    
+        var popup_b244bcccfa2f9dc0453e7b0ad225a309 = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_1aa0fc70f549b34879a869ebed0d0b30 = $(`<div id="html_1aa0fc70f549b34879a869ebed0d0b30" style="width: 100.0%; height: 100.0%;">Route #9: Buenos Aires-Córdoba</div>`)[0];
+                popup_b244bcccfa2f9dc0453e7b0ad225a309.setContent(html_1aa0fc70f549b34879a869ebed0d0b30);
+            
+        
+
+        ant_path_08ed8c35729a9c4f49e01d9c5c2de200.bindPopup(popup_b244bcccfa2f9dc0453e7b0ad225a309)
+        ;
+
+        
+    
+    
+            ant_path_93264fc65a504f55348069777ed11b05 = L.polyline.antPath(
+              [[-22.9068, -43.1729], [-12.9714, -38.5014]],
+              {
+  "stroke": true,
+  "color": "blue",
+  "weight": 2,
+  "opacity": 0.5,
+  "lineCap": "round",
+  "lineJoin": "round",
+  "dashArray": [
+10,
+20,
+],
+  "dashOffset": null,
+  "fill": false,
+  "fillColor": "blue",
+  "fillOpacity": 0.2,
+  "fillRule": "evenodd",
+  "bubblingMouseEvents": true,
+  "smoothFactor": 1.0,
+  "noClip": false,
+  "paused": false,
+  "reverse": false,
+  "hardwareAcceleration": false,
+  "delay": 1000,
+  "pulseColor": "#FFF",
+}
+        ).addTo(map_ba8ee196eaddc0a162f997c797f7af99);
+        
+    
+        var popup_a5872d0fd8e4f39fccd4b61a0d5d0c31 = L.popup({
+  "maxWidth": "100%",
+});
+
+        
+            
+                var html_97931244b37c41c32a4a6f7edd5d9b22 = $(`<div id="html_97931244b37c41c32a4a6f7edd5d9b22" style="width: 100.0%; height: 100.0%;">Route #10: Rio de Janeiro-Salvador</div>`)[0];
+                popup_a5872d0fd8e4f39fccd4b61a0d5d0c31.setContent(html_97931244b37c41c32a4a6f7edd5d9b22);
+            
+        
+
+        ant_path_93264fc65a504f55348069777ed11b05.bindPopup(popup_a5872d0fd8e4f39fccd4b61a0d5d0c31)
+        ;
+
+        
+    
+    
+            var marker_cluster_fe625b1cae5a9461b3a07564d11e7a50 = L.markerClusterGroup(
+                {
+}
+            );
+        
+    
+            var marker_c065225e591e1fa5a2263521fea9db7b = L.marker(
+                [-23.611661477803487, -46.69918198796682],
+                {
+}
+            ).addTo(marker_cluster_fe625b1cae5a9461b3a07564d11e7a50);
+        
+    
+            var icon_63201dc650b7ea10e0aaa7c56856d7da = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "red",
+  "iconColor": "white",
+  "icon": "plane-departure",
+  "prefix": "fa",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_c065225e591e1fa5a2263521fea9db7b.setIcon(icon_63201dc650b7ea10e0aaa7c56856d7da);
+        
+    
+        var popup_778057bc3913c188d7c2b73dcc5e442a = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_a4ffda6e86172912a3fffb4b0ec47b5a = $(`<div id="html_a4ffda6e86172912a3fffb4b0ec47b5a" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 5px;">#1 - São Paulo-Rio de Janeiro</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>✈️ Airlines:</b> LATAM/Gol/Azul</p>             <p style="margin: 5px 0;"><b>👥 Annual Passengers:</b> 3.2 million</p>             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #1</p>             <p style="margin: 5px 0;"><b>🛫 Route Status:</b> Premium Route</p>         </div>     </div>     </div>`)[0];
+                popup_778057bc3913c188d7c2b73dcc5e442a.setContent(html_a4ffda6e86172912a3fffb4b0ec47b5a);
+            
+        
+
+        marker_c065225e591e1fa5a2263521fea9db7b.bindPopup(popup_778057bc3913c188d7c2b73dcc5e442a)
+        ;
+
+        
+    
+    
+            marker_c065225e591e1fa5a2263521fea9db7b.bindTooltip(
+                `<div>
+                     From: São Paulo
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_9031bcd6bfc39770925360c69624953f = L.marker(
+                [-23.576684697699957, -46.55960521500693],
+                {
+}
+            ).addTo(marker_cluster_fe625b1cae5a9461b3a07564d11e7a50);
+        
+    
+            var icon_798d43dc5432163f4dfe67fc122852d1 = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "red",
+  "iconColor": "white",
+  "icon": "plane-departure",
+  "prefix": "fa",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_9031bcd6bfc39770925360c69624953f.setIcon(icon_798d43dc5432163f4dfe67fc122852d1);
+        
+    
+        var popup_1eb43465d9058d4391bf1e3736f36045 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_14d27f3524d3e860f1706929d266d12b = $(`<div id="html_14d27f3524d3e860f1706929d266d12b" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 5px;">#2 - São Paulo-Brasília</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>✈️ Airlines:</b> LATAM/Gol</p>             <p style="margin: 5px 0;"><b>👥 Annual Passengers:</b> 2.8 million</p>             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #2</p>             <p style="margin: 5px 0;"><b>🛫 Route Status:</b> Premium Route</p>         </div>     </div>     </div>`)[0];
+                popup_1eb43465d9058d4391bf1e3736f36045.setContent(html_14d27f3524d3e860f1706929d266d12b);
+            
+        
+
+        marker_9031bcd6bfc39770925360c69624953f.bindPopup(popup_1eb43465d9058d4391bf1e3736f36045)
+        ;
+
+        
+    
+    
+            marker_9031bcd6bfc39770925360c69624953f.bindTooltip(
+                `<div>
+                     From: São Paulo
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_109cfba92789fc0d2fd2f66e5263f29a = L.marker(
+                [-34.677347241167865, -58.383208891508204],
+                {
+}
+            ).addTo(marker_cluster_fe625b1cae5a9461b3a07564d11e7a50);
+        
+    
+            var icon_a67972adb3f51ab6ebab5f2a5742ae8f = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "red",
+  "iconColor": "white",
+  "icon": "plane-departure",
+  "prefix": "fa",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_109cfba92789fc0d2fd2f66e5263f29a.setIcon(icon_a67972adb3f51ab6ebab5f2a5742ae8f);
+        
+    
+        var popup_c48ccb23fb4e18be19d36d7f42b58675 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_ddb215b7e9611882df436afc8f78fa29 = $(`<div id="html_ddb215b7e9611882df436afc8f78fa29" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 5px;">#3 - Buenos Aires-Santiago</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>✈️ Airlines:</b> LATAM/Aerolíneas Argentinas</p>             <p style="margin: 5px 0;"><b>👥 Annual Passengers:</b> 2.5 million</p>             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #3</p>             <p style="margin: 5px 0;"><b>🛫 Route Status:</b> Premium Route</p>         </div>     </div>     </div>`)[0];
+                popup_c48ccb23fb4e18be19d36d7f42b58675.setContent(html_ddb215b7e9611882df436afc8f78fa29);
+            
+        
+
+        marker_109cfba92789fc0d2fd2f66e5263f29a.bindPopup(popup_c48ccb23fb4e18be19d36d7f42b58675)
+        ;
+
+        
+    
+    
+            marker_109cfba92789fc0d2fd2f66e5263f29a.bindTooltip(
+                `<div>
+                     From: Buenos Aires
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_b3e345a6493fba04c4b938c75daefa0b = L.marker(
+                [-12.04614691773455, -77.08130035909691],
+                {
+}
+            ).addTo(marker_cluster_fe625b1cae5a9461b3a07564d11e7a50);
+        
+    
+            var icon_a85d595e1b0ffb7788483c2a008c071c = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "plane-departure",
+  "prefix": "fa",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_b3e345a6493fba04c4b938c75daefa0b.setIcon(icon_a85d595e1b0ffb7788483c2a008c071c);
+        
+    
+        var popup_566aee520e0372ff30e80586103dd7e3 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_a108cf707415bd65038cab50a99f447b = $(`<div id="html_a108cf707415bd65038cab50a99f447b" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 5px;">#4 - Lima-Cusco</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>✈️ Airlines:</b> LATAM Peru/Avianca</p>             <p style="margin: 5px 0;"><b>👥 Annual Passengers:</b> 2.3 million</p>             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #4</p>             <p style="margin: 5px 0;"><b>🛫 Route Status:</b> Major Route</p>         </div>     </div>     </div>`)[0];
+                popup_566aee520e0372ff30e80586103dd7e3.setContent(html_a108cf707415bd65038cab50a99f447b);
+            
+        
+
+        marker_b3e345a6493fba04c4b938c75daefa0b.bindPopup(popup_566aee520e0372ff30e80586103dd7e3)
+        ;
+
+        
+    
+    
+            marker_b3e345a6493fba04c4b938c75daefa0b.bindTooltip(
+                `<div>
+                     From: Lima
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_1e8e684661fd1e21234a35596a83651f = L.marker(
+                [-23.529118068568568, -46.64335354469443],
+                {
+}
+            ).addTo(marker_cluster_fe625b1cae5a9461b3a07564d11e7a50);
+        
+    
+            var icon_77e7e39e29e8e2bbc44a1716d5fdd59d = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "plane-departure",
+  "prefix": "fa",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_1e8e684661fd1e21234a35596a83651f.setIcon(icon_77e7e39e29e8e2bbc44a1716d5fdd59d);
+        
+    
+        var popup_2c389da360e0b723d3f0459205f80483 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_b5a1a63528533e7fb477bcc86c34bb68 = $(`<div id="html_b5a1a63528533e7fb477bcc86c34bb68" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 5px;">#5 - São Paulo-Porto Alegre</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>✈️ Airlines:</b> Gol/LATAM</p>             <p style="margin: 5px 0;"><b>👥 Annual Passengers:</b> 2.1 million</p>             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #5</p>             <p style="margin: 5px 0;"><b>🛫 Route Status:</b> Major Route</p>         </div>     </div>     </div>`)[0];
+                popup_2c389da360e0b723d3f0459205f80483.setContent(html_b5a1a63528533e7fb477bcc86c34bb68);
+            
+        
+
+        marker_1e8e684661fd1e21234a35596a83651f.bindPopup(popup_2c389da360e0b723d3f0459205f80483)
+        ;
+
+        
+    
+    
+            marker_1e8e684661fd1e21234a35596a83651f.bindTooltip(
+                `<div>
+                     From: São Paulo
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_431ac66594fc1e84b5ec0cb67e38c91d = L.marker(
+                [4.64895944290744, -74.07266161471675],
+                {
+}
+            ).addTo(marker_cluster_fe625b1cae5a9461b3a07564d11e7a50);
+        
+    
+            var icon_b3585e679e6ddc8cdaa720c47aefbc1b = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "plane-departure",
+  "prefix": "fa",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_431ac66594fc1e84b5ec0cb67e38c91d.setIcon(icon_b3585e679e6ddc8cdaa720c47aefbc1b);
+        
+    
+        var popup_f20655b6d27b5a9ead7d02d9d4650b29 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_388499312c3ed8191e54cdbfedcc7d9d = $(`<div id="html_388499312c3ed8191e54cdbfedcc7d9d" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 5px;">#6 - Bogotá-Medellín</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>✈️ Airlines:</b> Avianca/LATAM</p>             <p style="margin: 5px 0;"><b>👥 Annual Passengers:</b> 2.0 million</p>             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #6</p>             <p style="margin: 5px 0;"><b>🛫 Route Status:</b> Major Route</p>         </div>     </div>     </div>`)[0];
+                popup_f20655b6d27b5a9ead7d02d9d4650b29.setContent(html_388499312c3ed8191e54cdbfedcc7d9d);
+            
+        
+
+        marker_431ac66594fc1e84b5ec0cb67e38c91d.bindPopup(popup_f20655b6d27b5a9ead7d02d9d4650b29)
+        ;
+
+        
+    
+    
+            marker_431ac66594fc1e84b5ec0cb67e38c91d.bindTooltip(
+                `<div>
+                     From: Bogotá
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_e2c6a1cdb740861233963771852e9e4f = L.marker(
+                [-33.50877442980348, -70.6334028164056],
+                {
+}
+            ).addTo(marker_cluster_fe625b1cae5a9461b3a07564d11e7a50);
+        
+    
+            var icon_aedf88d23bd6be131c8e3a6dd9b1ed6b = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "plane-departure",
+  "prefix": "fa",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_e2c6a1cdb740861233963771852e9e4f.setIcon(icon_aedf88d23bd6be131c8e3a6dd9b1ed6b);
+        
+    
+        var popup_b004493aa015ed246d44d37979b67457 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_859cd29ff3aba52758525e182374f862 = $(`<div id="html_859cd29ff3aba52758525e182374f862" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 5px;">#7 - Santiago-Lima</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>✈️ Airlines:</b> LATAM/Sky/JetSMART</p>             <p style="margin: 5px 0;"><b>👥 Annual Passengers:</b> 1.9 million</p>             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #7</p>             <p style="margin: 5px 0;"><b>🛫 Route Status:</b> Regular Route</p>         </div>     </div>     </div>`)[0];
+                popup_b004493aa015ed246d44d37979b67457.setContent(html_859cd29ff3aba52758525e182374f862);
+            
+        
+
+        marker_e2c6a1cdb740861233963771852e9e4f.bindPopup(popup_b004493aa015ed246d44d37979b67457)
+        ;
+
+        
+    
+    
+            marker_e2c6a1cdb740861233963771852e9e4f.bindTooltip(
+                `<div>
+                     From: Santiago
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_0eb7b4368f414897005dc85eda1407a0 = L.marker(
+                [-23.630181063496938, -46.68074413920796],
+                {
+}
+            ).addTo(marker_cluster_fe625b1cae5a9461b3a07564d11e7a50);
+        
+    
+            var icon_a6bf76a10b0d4faf6e42ad4f742d2462 = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "plane-departure",
+  "prefix": "fa",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_0eb7b4368f414897005dc85eda1407a0.setIcon(icon_a6bf76a10b0d4faf6e42ad4f742d2462);
+        
+    
+        var popup_64b8e20cda46d81d4eadc5d9ef31fca1 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_39f63fe497c0fde49ffecaedfb527d0c = $(`<div id="html_39f63fe497c0fde49ffecaedfb527d0c" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 5px;">#8 - São Paulo-Salvador</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>✈️ Airlines:</b> Gol/LATAM/Azul</p>             <p style="margin: 5px 0;"><b>👥 Annual Passengers:</b> 1.8 million</p>             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #8</p>             <p style="margin: 5px 0;"><b>🛫 Route Status:</b> Regular Route</p>         </div>     </div>     </div>`)[0];
+                popup_64b8e20cda46d81d4eadc5d9ef31fca1.setContent(html_39f63fe497c0fde49ffecaedfb527d0c);
+            
+        
+
+        marker_0eb7b4368f414897005dc85eda1407a0.bindPopup(popup_64b8e20cda46d81d4eadc5d9ef31fca1)
+        ;
+
+        
+    
+    
+            marker_0eb7b4368f414897005dc85eda1407a0.bindTooltip(
+                `<div>
+                     From: São Paulo
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_43a56737b539b28bbacb910d21e3a91b = L.marker(
+                [-34.658283006442645, -58.36760643264811],
+                {
+}
+            ).addTo(marker_cluster_fe625b1cae5a9461b3a07564d11e7a50);
+        
+    
+            var icon_7f04fa5500443982ea6caa15b788e443 = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "plane-departure",
+  "prefix": "fa",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_43a56737b539b28bbacb910d21e3a91b.setIcon(icon_7f04fa5500443982ea6caa15b788e443);
+        
+    
+        var popup_2fb628332d7d1e1c4611cc277feb54fc = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_56996b892aab21837f199f232eb30edb = $(`<div id="html_56996b892aab21837f199f232eb30edb" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 5px;">#9 - Buenos Aires-Córdoba</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>✈️ Airlines:</b> Aerolíneas Argentinas/JetSMART</p>             <p style="margin: 5px 0;"><b>👥 Annual Passengers:</b> 1.7 million</p>             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #9</p>             <p style="margin: 5px 0;"><b>🛫 Route Status:</b> Regular Route</p>         </div>     </div>     </div>`)[0];
+                popup_2fb628332d7d1e1c4611cc277feb54fc.setContent(html_56996b892aab21837f199f232eb30edb);
+            
+        
+
+        marker_43a56737b539b28bbacb910d21e3a91b.bindPopup(popup_2fb628332d7d1e1c4611cc277feb54fc)
+        ;
+
+        
+    
+    
+            marker_43a56737b539b28bbacb910d21e3a91b.bindTooltip(
+                `<div>
+                     From: Buenos Aires
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_c0ba73883336040f6946141a47edfb2c = L.marker(
+                [-22.939663496213967, -43.24884757351889],
+                {
+}
+            ).addTo(marker_cluster_fe625b1cae5a9461b3a07564d11e7a50);
+        
+    
+            var icon_130ae07225f1e4887a9eaeae5e2c8765 = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "plane-departure",
+  "prefix": "fa",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_c0ba73883336040f6946141a47edfb2c.setIcon(icon_130ae07225f1e4887a9eaeae5e2c8765);
+        
+    
+        var popup_ba948fcbfbefcc5bbfb93c33cb710cff = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_6d5b2e1d36adba4b42cccae727436287 = $(`<div id="html_6d5b2e1d36adba4b42cccae727436287" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 5px;">#10 - Rio de Janeiro-Salvador</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>✈️ Airlines:</b> Gol/LATAM/Azul</p>             <p style="margin: 5px 0;"><b>👥 Annual Passengers:</b> 1.6 million</p>             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #10</p>             <p style="margin: 5px 0;"><b>🛫 Route Status:</b> Regular Route</p>         </div>     </div>     </div>`)[0];
+                popup_ba948fcbfbefcc5bbfb93c33cb710cff.setContent(html_6d5b2e1d36adba4b42cccae727436287);
+            
+        
+
+        marker_c0ba73883336040f6946141a47edfb2c.bindPopup(popup_ba948fcbfbefcc5bbfb93c33cb710cff)
+        ;
+
+        
+    
+    
+            marker_c0ba73883336040f6946141a47edfb2c.bindTooltip(
+                `<div>
+                     From: Rio de Janeiro
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            marker_cluster_fe625b1cae5a9461b3a07564d11e7a50.addTo(map_ba8ee196eaddc0a162f997c797f7af99);
+        
+    
+            var marker_cluster_c9166a23932d552576a6f6db8e0e42bb = L.markerClusterGroup(
+                {
+}
+            );
+        
+    
+            var marker_da86fe5289a76d149673ff4b13362b5b = L.marker(
+                [-22.97591635595673, -43.202952096030614],
+                {
+}
+            ).addTo(marker_cluster_c9166a23932d552576a6f6db8e0e42bb);
+        
+    
+            var icon_498e37cbad554400001c01fe7fa33437 = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "red",
+  "iconColor": "white",
+  "icon": "plane-arrival",
+  "prefix": "fa",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_da86fe5289a76d149673ff4b13362b5b.setIcon(icon_498e37cbad554400001c01fe7fa33437);
+        
+    
+        var popup_5f2ae6075a7d69ebe667d4d5c2ef44d3 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_a4a670f8a477f3b9d0ffaed13a9d0b17 = $(`<div id="html_a4a670f8a477f3b9d0ffaed13a9d0b17" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 5px;">#1 - São Paulo-Rio de Janeiro</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>✈️ Airlines:</b> LATAM/Gol/Azul</p>             <p style="margin: 5px 0;"><b>👥 Annual Passengers:</b> 3.2 million</p>             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #1</p>             <p style="margin: 5px 0;"><b>🛫 Route Status:</b> Premium Route</p>         </div>     </div>     </div>`)[0];
+                popup_5f2ae6075a7d69ebe667d4d5c2ef44d3.setContent(html_a4a670f8a477f3b9d0ffaed13a9d0b17);
+            
+        
+
+        marker_da86fe5289a76d149673ff4b13362b5b.bindPopup(popup_5f2ae6075a7d69ebe667d4d5c2ef44d3)
+        ;
+
+        
+    
+    
+            marker_da86fe5289a76d149673ff4b13362b5b.bindTooltip(
+                `<div>
+                     To: Rio de Janeiro
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_5f808a9055f83c00423897863977160d = L.marker(
+                [-15.837919807651748, -47.8393230015562],
+                {
+}
+            ).addTo(marker_cluster_c9166a23932d552576a6f6db8e0e42bb);
+        
+    
+            var icon_5749eef1ec963d2c117fbae227e46ce7 = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "red",
+  "iconColor": "white",
+  "icon": "plane-arrival",
+  "prefix": "fa",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_5f808a9055f83c00423897863977160d.setIcon(icon_5749eef1ec963d2c117fbae227e46ce7);
+        
+    
+        var popup_40a3d0bbc02579c7ea3b2f91f60bda61 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_adb4a57c6dd896fa72f29a53a81c6d26 = $(`<div id="html_adb4a57c6dd896fa72f29a53a81c6d26" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 5px;">#2 - São Paulo-Brasília</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>✈️ Airlines:</b> LATAM/Gol</p>             <p style="margin: 5px 0;"><b>👥 Annual Passengers:</b> 2.8 million</p>             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #2</p>             <p style="margin: 5px 0;"><b>🛫 Route Status:</b> Premium Route</p>         </div>     </div>     </div>`)[0];
+                popup_40a3d0bbc02579c7ea3b2f91f60bda61.setContent(html_adb4a57c6dd896fa72f29a53a81c6d26);
+            
+        
+
+        marker_5f808a9055f83c00423897863977160d.bindPopup(popup_40a3d0bbc02579c7ea3b2f91f60bda61)
+        ;
+
+        
+    
+    
+            marker_5f808a9055f83c00423897863977160d.bindTooltip(
+                `<div>
+                     To: Brasília
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_e1372383ddde0fa5f4a08a7eb306a411 = L.marker(
+                [-33.46983527793065, -70.68291470038638],
+                {
+}
+            ).addTo(marker_cluster_c9166a23932d552576a6f6db8e0e42bb);
+        
+    
+            var icon_ac03b770368921f051820259ef9aab58 = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "red",
+  "iconColor": "white",
+  "icon": "plane-arrival",
+  "prefix": "fa",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_e1372383ddde0fa5f4a08a7eb306a411.setIcon(icon_ac03b770368921f051820259ef9aab58);
+        
+    
+        var popup_3ac2b526c0a8cecd81bebde244bf80a9 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_ae3f404b67b1ef04c8c54750e0981ae6 = $(`<div id="html_ae3f404b67b1ef04c8c54750e0981ae6" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 5px;">#3 - Buenos Aires-Santiago</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>✈️ Airlines:</b> LATAM/Aerolíneas Argentinas</p>             <p style="margin: 5px 0;"><b>👥 Annual Passengers:</b> 2.5 million</p>             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #3</p>             <p style="margin: 5px 0;"><b>🛫 Route Status:</b> Premium Route</p>         </div>     </div>     </div>`)[0];
+                popup_3ac2b526c0a8cecd81bebde244bf80a9.setContent(html_ae3f404b67b1ef04c8c54750e0981ae6);
+            
+        
+
+        marker_e1372383ddde0fa5f4a08a7eb306a411.bindPopup(popup_3ac2b526c0a8cecd81bebde244bf80a9)
+        ;
+
+        
+    
+    
+            marker_e1372383ddde0fa5f4a08a7eb306a411.bindTooltip(
+                `<div>
+                     To: Santiago
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_3776cabfa679b9414af38f177f305322 = L.marker(
+                [-13.504316382416459, -71.96467001916511],
+                {
+}
+            ).addTo(marker_cluster_c9166a23932d552576a6f6db8e0e42bb);
+        
+    
+            var icon_7a5add1d13fc81b7e45d320584297bcf = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "plane-arrival",
+  "prefix": "fa",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_3776cabfa679b9414af38f177f305322.setIcon(icon_7a5add1d13fc81b7e45d320584297bcf);
+        
+    
+        var popup_7a018d7dcc285e3d4c676f73612a62d3 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_c08e98b768c04f182ab339da9bbc63f9 = $(`<div id="html_c08e98b768c04f182ab339da9bbc63f9" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 5px;">#4 - Lima-Cusco</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>✈️ Airlines:</b> LATAM Peru/Avianca</p>             <p style="margin: 5px 0;"><b>👥 Annual Passengers:</b> 2.3 million</p>             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #4</p>             <p style="margin: 5px 0;"><b>🛫 Route Status:</b> Major Route</p>         </div>     </div>     </div>`)[0];
+                popup_7a018d7dcc285e3d4c676f73612a62d3.setContent(html_c08e98b768c04f182ab339da9bbc63f9);
+            
+        
+
+        marker_3776cabfa679b9414af38f177f305322.bindPopup(popup_7a018d7dcc285e3d4c676f73612a62d3)
+        ;
+
+        
+    
+    
+            marker_3776cabfa679b9414af38f177f305322.bindTooltip(
+                `<div>
+                     To: Cusco
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_75e2748c0826aacb16a0ebae3a747bdd = L.marker(
+                [-29.991532170864893, -51.12550193390923],
+                {
+}
+            ).addTo(marker_cluster_c9166a23932d552576a6f6db8e0e42bb);
+        
+    
+            var icon_cfb0e926edfac03077f9b79576a04ff3 = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "plane-arrival",
+  "prefix": "fa",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_75e2748c0826aacb16a0ebae3a747bdd.setIcon(icon_cfb0e926edfac03077f9b79576a04ff3);
+        
+    
+        var popup_208531f6578dbe6e7529fd1553638e8e = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_7749dbfd54683ebbfa8090c08ddbb9b8 = $(`<div id="html_7749dbfd54683ebbfa8090c08ddbb9b8" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 5px;">#5 - São Paulo-Porto Alegre</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>✈️ Airlines:</b> Gol/LATAM</p>             <p style="margin: 5px 0;"><b>👥 Annual Passengers:</b> 2.1 million</p>             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #5</p>             <p style="margin: 5px 0;"><b>🛫 Route Status:</b> Major Route</p>         </div>     </div>     </div>`)[0];
+                popup_208531f6578dbe6e7529fd1553638e8e.setContent(html_7749dbfd54683ebbfa8090c08ddbb9b8);
+            
+        
+
+        marker_75e2748c0826aacb16a0ebae3a747bdd.bindPopup(popup_208531f6578dbe6e7529fd1553638e8e)
+        ;
+
+        
+    
+    
+            marker_75e2748c0826aacb16a0ebae3a747bdd.bindTooltip(
+                `<div>
+                     To: Porto Alegre
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_b35663920f9bbd8e094677faab4e5ab0 = L.marker(
+                [6.101061313300876, -75.5240975190223],
+                {
+}
+            ).addTo(marker_cluster_c9166a23932d552576a6f6db8e0e42bb);
+        
+    
+            var icon_aa867d55024dcd32675bec76062a6837 = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "plane-arrival",
+  "prefix": "fa",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_b35663920f9bbd8e094677faab4e5ab0.setIcon(icon_aa867d55024dcd32675bec76062a6837);
+        
+    
+        var popup_3cb04d6b162edc263ff31bdd5db22850 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_bfe8ea2f13bc04cd4fe14424ae1ce060 = $(`<div id="html_bfe8ea2f13bc04cd4fe14424ae1ce060" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 5px;">#6 - Bogotá-Medellín</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>✈️ Airlines:</b> Avianca/LATAM</p>             <p style="margin: 5px 0;"><b>👥 Annual Passengers:</b> 2.0 million</p>             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #6</p>             <p style="margin: 5px 0;"><b>🛫 Route Status:</b> Major Route</p>         </div>     </div>     </div>`)[0];
+                popup_3cb04d6b162edc263ff31bdd5db22850.setContent(html_bfe8ea2f13bc04cd4fe14424ae1ce060);
+            
+        
+
+        marker_b35663920f9bbd8e094677faab4e5ab0.bindPopup(popup_3cb04d6b162edc263ff31bdd5db22850)
+        ;
+
+        
+    
+    
+            marker_b35663920f9bbd8e094677faab4e5ab0.bindTooltip(
+                `<div>
+                     To: Medellín
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_e0097700fc84ae5e2627c979544fe614 = L.marker(
+                [-11.990059399960078, -77.132670745684],
+                {
+}
+            ).addTo(marker_cluster_c9166a23932d552576a6f6db8e0e42bb);
+        
+    
+            var icon_8c5301acb4df7f72b2638c976f01247d = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "plane-arrival",
+  "prefix": "fa",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_e0097700fc84ae5e2627c979544fe614.setIcon(icon_8c5301acb4df7f72b2638c976f01247d);
+        
+    
+        var popup_499a07d689fe05608c9ae32b61b0a8b6 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_376d6afbe8169b4bf8dd9af70adfc0d7 = $(`<div id="html_376d6afbe8169b4bf8dd9af70adfc0d7" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 5px;">#7 - Santiago-Lima</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>✈️ Airlines:</b> LATAM/Sky/JetSMART</p>             <p style="margin: 5px 0;"><b>👥 Annual Passengers:</b> 1.9 million</p>             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #7</p>             <p style="margin: 5px 0;"><b>🛫 Route Status:</b> Regular Route</p>         </div>     </div>     </div>`)[0];
+                popup_499a07d689fe05608c9ae32b61b0a8b6.setContent(html_376d6afbe8169b4bf8dd9af70adfc0d7);
+            
+        
+
+        marker_e0097700fc84ae5e2627c979544fe614.bindPopup(popup_499a07d689fe05608c9ae32b61b0a8b6)
+        ;
+
+        
+    
+    
+            marker_e0097700fc84ae5e2627c979544fe614.bindTooltip(
+                `<div>
+                     To: Lima
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_a3c51fa698d3448006ad48994f351858 = L.marker(
+                [-13.050781760610183, -38.492892750740076],
+                {
+}
+            ).addTo(marker_cluster_c9166a23932d552576a6f6db8e0e42bb);
+        
+    
+            var icon_615ee53af0c20e2bedf500a573e59466 = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "plane-arrival",
+  "prefix": "fa",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_a3c51fa698d3448006ad48994f351858.setIcon(icon_615ee53af0c20e2bedf500a573e59466);
+        
+    
+        var popup_a38a0b20e3adf7d1fbe4aa02039703b3 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_ba14b2fd6e0ebbc5daf36387f7432fac = $(`<div id="html_ba14b2fd6e0ebbc5daf36387f7432fac" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 5px;">#8 - São Paulo-Salvador</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>✈️ Airlines:</b> Gol/LATAM/Azul</p>             <p style="margin: 5px 0;"><b>👥 Annual Passengers:</b> 1.8 million</p>             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #8</p>             <p style="margin: 5px 0;"><b>🛫 Route Status:</b> Regular Route</p>         </div>     </div>     </div>`)[0];
+                popup_a38a0b20e3adf7d1fbe4aa02039703b3.setContent(html_ba14b2fd6e0ebbc5daf36387f7432fac);
+            
+        
+
+        marker_a3c51fa698d3448006ad48994f351858.bindPopup(popup_a38a0b20e3adf7d1fbe4aa02039703b3)
+        ;
+
+        
+    
+    
+            marker_a3c51fa698d3448006ad48994f351858.bindTooltip(
+                `<div>
+                     To: Salvador
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_3a3131f544190880c7107d335465bb40 = L.marker(
+                [-31.509698012971835, -64.12895930201103],
+                {
+}
+            ).addTo(marker_cluster_c9166a23932d552576a6f6db8e0e42bb);
+        
+    
+            var icon_7aa33b47882887c83ebbd91c7a2f99a8 = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "plane-arrival",
+  "prefix": "fa",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_3a3131f544190880c7107d335465bb40.setIcon(icon_7aa33b47882887c83ebbd91c7a2f99a8);
+        
+    
+        var popup_31a2cdd6961daf0613fe4276bfa475db = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_53a06e30d9e83c2a87d7404ee8baab51 = $(`<div id="html_53a06e30d9e83c2a87d7404ee8baab51" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 5px;">#9 - Buenos Aires-Córdoba</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>✈️ Airlines:</b> Aerolíneas Argentinas/JetSMART</p>             <p style="margin: 5px 0;"><b>👥 Annual Passengers:</b> 1.7 million</p>             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #9</p>             <p style="margin: 5px 0;"><b>🛫 Route Status:</b> Regular Route</p>         </div>     </div>     </div>`)[0];
+                popup_31a2cdd6961daf0613fe4276bfa475db.setContent(html_53a06e30d9e83c2a87d7404ee8baab51);
+            
+        
+
+        marker_3a3131f544190880c7107d335465bb40.bindPopup(popup_31a2cdd6961daf0613fe4276bfa475db)
+        ;
+
+        
+    
+    
+            marker_3a3131f544190880c7107d335465bb40.bindTooltip(
+                `<div>
+                     To: Córdoba
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_3cb8e74908dee6001041258a3d1119b1 = L.marker(
+                [-12.963847753063915, -38.5916207497537],
+                {
+}
+            ).addTo(marker_cluster_c9166a23932d552576a6f6db8e0e42bb);
+        
+    
+            var icon_64cbb39ee5206d943de235496d7fcf6c = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "plane-arrival",
+  "prefix": "fa",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_3cb8e74908dee6001041258a3d1119b1.setIcon(icon_64cbb39ee5206d943de235496d7fcf6c);
+        
+    
+        var popup_358655f9ba0c5175e109becb12ab25a1 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_c388b6a51636c0842e681b8d72393331 = $(`<div id="html_c388b6a51636c0842e681b8d72393331" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 5px;">#10 - Rio de Janeiro-Salvador</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>✈️ Airlines:</b> Gol/LATAM/Azul</p>             <p style="margin: 5px 0;"><b>👥 Annual Passengers:</b> 1.6 million</p>             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #10</p>             <p style="margin: 5px 0;"><b>🛫 Route Status:</b> Regular Route</p>         </div>     </div>     </div>`)[0];
+                popup_358655f9ba0c5175e109becb12ab25a1.setContent(html_c388b6a51636c0842e681b8d72393331);
+            
+        
+
+        marker_3cb8e74908dee6001041258a3d1119b1.bindPopup(popup_358655f9ba0c5175e109becb12ab25a1)
+        ;
+
+        
+    
+    
+            marker_3cb8e74908dee6001041258a3d1119b1.bindTooltip(
+                `<div>
+                     To: Salvador
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            marker_cluster_c9166a23932d552576a6f6db8e0e42bb.addTo(map_ba8ee196eaddc0a162f997c797f7af99);
+        
+    
+            var layer_control_7a664dc3111bfda364ac0e23bed460d8_layers = {
+                base_layers : {
+                    "cartodbpositron" : tile_layer_a9ef352fdf25ea2cd5c16fa1e8a12abb,
+                },
+                overlays :  {
+                    "Departure Airports" : marker_cluster_fe625b1cae5a9461b3a07564d11e7a50,
+                    "Arrival Airports" : marker_cluster_c9166a23932d552576a6f6db8e0e42bb,
+                },
+            };
+            let layer_control_7a664dc3111bfda364ac0e23bed460d8 = L.control.layers(
+                layer_control_7a664dc3111bfda364ac0e23bed460d8_layers.base_layers,
+                layer_control_7a664dc3111bfda364ac0e23bed460d8_layers.overlays,
+                {
+  "position": "topright",
+  "collapsed": true,
+  "autoZIndex": true,
+}
+            ).addTo(map_ba8ee196eaddc0a162f997c797f7af99);
+
+        
+</script>
+</html>

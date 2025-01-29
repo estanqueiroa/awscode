@@ -1,0 +1,258 @@
+# DISCLAIMER: USE AT YOUR OWN RISK
+# The information provided on this website and template, including but not limited to articles, guides, and tutorials, is for general informational purposes only. 
+# The content is not intended to be a substitute for professional advice or guidance.
+# While we make every effort to ensure the accuracy and timeliness of the information presented, we make no representations or warranties of any kind,
+# express or implied, about the completeness, accuracy, or reliability of the content. Any reliance you place on such information is strictly at your own risk.
+#
+# We strongly recommend that you consult with a qualified professional for advice tailored to your specific situation. 
+# We disclaim all liability for any actions you take or fail to take based on any content provided on this website and template.
+#
+# This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+#
+# These services creation in AWS may have associated COSTS, please check costs before deployment.
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation template to create a SageMaker notebook instance with South America flight routes map code'
+
+Resources:
+  SageMakerNotebookInstanceLifecycleConfig:
+    Type: AWS::SageMaker::NotebookInstanceLifecycleConfig
+    Properties:
+      OnStart:
+        - Content:
+            Fn::Base64: |
+              #!/bin/bash
+              set -e
+              
+              # Install required packages
+              sudo -u ec2-user -i <<'EOF'
+              source activate python3
+              pip install folium pandas
+              EOF
+              
+              # Create a new notebook with the flight routes map code
+              sudo -u ec2-user -i <<'EOF'
+              source activate python3
+              cat << EOT > /home/ec2-user/SageMaker/flight_routes_map.ipynb
+              {
+               "cells": [
+                {
+                 "cell_type": "code",
+                 "execution_count": null,
+                 "metadata": {},
+                 "outputs": [],
+                 "source": [
+                  "import folium\n",
+                  "from folium import plugins\n",
+                  "import pandas as pd\n",
+                  "import random\n",
+                  "\n",
+                  "# Data for top 10 busiest flight routes in South America (2023-2024 approximate data)\n",
+                  "routes_data = {\n",
+                  "    'rank': range(1, 11),\n",
+                  "    'route': [\n",
+                  "        'São Paulo-Rio de Janeiro',\n",
+                  "        'São Paulo-Brasília',\n",
+                  "        'Buenos Aires-Santiago',\n",
+                  "        'Lima-Cusco',\n",
+                  "        'São Paulo-Porto Alegre',\n",
+                  "        'Bogotá-Medellín',\n",
+                  "        'Santiago-Lima',\n",
+                  "        'São Paulo-Salvador',\n",
+                  "        'Buenos Aires-Córdoba',\n",
+                  "        'Rio de Janeiro-Salvador'\n",
+                  "    ],\n",
+                  "    'airline': [\n",
+                  "        'LATAM/Gol/Azul',\n",
+                  "        'LATAM/Gol',\n",
+                  "        'LATAM/Aerolíneas Argentinas',\n",
+                  "        'LATAM Peru/Avianca',\n",
+                  "        'Gol/LATAM',\n",
+                  "        'Avianca/LATAM',\n",
+                  "        'LATAM/Sky/JetSMART',\n",
+                  "        'Gol/LATAM/Azul',\n",
+                  "        'Aerolíneas Argentinas/JetSMART',\n",
+                  "        'Gol/LATAM/Azul'\n",
+                  "    ],\n",
+                  "    'passengers_millions': [\n",
+                  "        3.2, 2.8, 2.5, 2.3, 2.1, 2.0, 1.9, 1.8, 1.7, 1.6\n",
+                  "    ],\n",
+                  "    'from_lat': [-23.6273, -23.6273, -34.6037, -12.0464, -23.6273, 4.7010, -33.4489, -23.6273, -34.6037, -22.9068],\n",
+                  "    'from_lon': [-46.6566, -46.6566, -58.3816, -77.0428, -46.6566, -74.1469, -70.6693, -46.6566, -58.3816, -43.1729],\n",
+                  "    'to_lat': [-22.9068, -15.8697, -33.4489, -13.5319, -30.0346, 6.1744, -12.0464, -12.9714, -31.4201, -12.9714],\n",
+                  "    'to_lon': [-43.1729, -47.9172, -70.6693, -71.9675, -51.2177, -75.4273, -77.0428, -38.5014, -64.1888, -38.5014]\n",
+                  "}\n",
+                  "\n",
+                  "df = pd.DataFrame(routes_data)\n",
+                  "\n",
+                  "# Create a map centered on South America\n",
+                  "m = folium.Map(location=[-15, -60], zoom_start=3, tiles='CartoDB positron')\n",
+                  "\n",
+                  "# Create MarkerClusters for departure and arrival\n",
+                  "departure_cluster = plugins.MarkerCluster(name=\"Departure Airports\")\n",
+                  "arrival_cluster = plugins.MarkerCluster(name=\"Arrival Airports\")\n",
+                  "\n",
+                  "# Function to slightly adjust coordinates for overlapping markers\n",
+                  "def jitter_coordinates(lat, lon):\n",
+                  "    return lat + random.uniform(-0.1, 0.1), lon + random.uniform(-0.1, 0.1)\n",
+                  "\n",
+                  "# Add flight routes and markers\n",
+                  "for idx, row in df.iterrows():\n",
+                  "    # Create coordinates list for the route line\n",
+                  "    coordinates = [[row['from_lat'], row['from_lon']], \n",
+                  "                  [row['to_lat'], row['to_lon']]]\n",
+                  "    \n",
+                  "    # Add route line with arrow\n",
+                  "    plugins.AntPath(\n",
+                  "        locations=coordinates,\n",
+                  "        weight=2,\n",
+                  "        color='red' if row['rank'] <= 3 else 'blue',\n",
+                  "        popup=f\"Route #{row['rank']}: {row['route']}\",\n",
+                  "        delay=1000,\n",
+                  "        dash_array=[10, 20],\n",
+                  "        pulse_color='#FFF'\n",
+                  "    ).add_to(m)\n",
+                  "    \n",
+                  "    # Create popup content\n",
+                  "    popup_content = f\"\"\"\n",
+                  "    <div style=\"font-family: Arial; padding: 5px;\">\n",
+                  "        <h3 style=\"color: #2c3e50; margin-bottom: 5px;\">#{row['rank']} - {row['route']}</h3>\n",
+                  "        <div style=\"background-color: #f8f9fa; padding: 10px; border-radius: 5px;\">\n",
+                  "            <p style=\"margin: 5px 0;\"><b>✈️ Airlines:</b> {row['airline']}</p>\n",
+                  "            <p style=\"margin: 5px 0;\"><b>👥 Annual Passengers:</b> {row['passengers_millions']} million</p>\n",
+                  "            <p style=\"margin: 5px 0;\"><b>🏆 Rank:</b> #{row['rank']}</p>\n",
+                  "            <p style=\"margin: 5px 0;\"><b>🛫 Route Status:</b> {\n",
+                  "                \"Premium Route\" if row['rank'] <= 3 \n",
+                  "                else \"Major Route\" if row['rank'] <= 6 \n",
+                  "                else \"Regular Route\"\n",
+                  "            }</p>\n",
+                  "        </div>\n",
+                  "    </div>\n",
+                  "    \"\"\"\n",
+                  "    \n",
+                  "    # Add markers for departure airports with jittered coordinates\n",
+                  "    jittered_from_lat, jittered_from_lon = jitter_coordinates(row['from_lat'], row['from_lon'])\n",
+                  "    folium.Marker(\n",
+                  "        location=[jittered_from_lat, jittered_from_lon],\n",
+                  "        icon=folium.Icon(color='red' if row['rank'] <= 3 else 'blue', icon='plane-departure', prefix='fa'),\n",
+                  "        popup=folium.Popup(popup_content, max_width=300),\n",
+                  "        tooltip=f\"From: {row['route'].split('-')[0]}\"\n",
+                  "    ).add_to(departure_cluster)\n",
+                  "    \n",
+                  "    # Add markers for arrival airports with jittered coordinates\n",
+                  "    jittered_to_lat, jittered_to_lon = jitter_coordinates(row['to_lat'], row['to_lon'])\n",
+                  "    folium.Marker(\n",
+                  "        location=[jittered_to_lat, jittered_to_lon],\n",
+                  "        icon=folium.Icon(color='red' if row['rank'] <= 3 else 'blue', icon='plane-arrival', prefix='fa'),\n",
+                  "        popup=folium.Popup(popup_content, max_width=300),\n",
+                  "        tooltip=f\"To: {row['route'].split('-')[1]}\"\n",
+                  "    ).add_to(arrival_cluster)\n",
+                  "\n",
+                  "# Add clusters to map\n",
+                  "departure_cluster.add_to(m)\n",
+                  "arrival_cluster.add_to(m)\n",
+                  "\n",
+                  "# Add layer control\n",
+                  "folium.LayerControl().add_to(m)\n",
+                  "\n",
+                  "# Add title\n",
+                  "title_html = '''\n",
+                  "<div style=\"position: fixed; \n",
+                  "            top: 10px; left: 50px; \n",
+                  "            width: 380px; \n",
+                  "            background-color: white; \n",
+                  "            border-radius: 10px;\n",
+                  "            border: 2px solid grey; \n",
+                  "            z-index: 9999; \n",
+                  "            padding: 15px;\n",
+                  "            box-shadow: 0 0 10px rgba(0,0,0,0.2);\">\n",
+                  "    <h3 style=\"margin: 0; color: #2c3e50; text-align: center;\">\n",
+                  "        Top 10 Busiest Flight Routes in South America\n",
+                  "    </h3>\n",
+                  "    <p style=\"margin: 5px 0 0; font-size: 12px; color: #666; text-align: center;\">\n",
+                  "        Click on markers or routes for detailed information\n",
+                  "    </p>\n",
+                  "</div>\n",
+                  "'''\n",
+                  "m.get_root().html.add_child(folium.Element(title_html))\n",
+                  "\n",
+                  "# Add legend\n",
+                  "legend_html = '''\n",
+                  "<div style=\"position: fixed; \n",
+                  "            bottom: 50px; right: 50px; \n",
+                  "            width: 180px;\n",
+                  "            background-color: white;\n",
+                  "            border-radius: 10px;\n",
+                  "            border: 2px solid grey;\n",
+                  "            z-index: 9999;\n",
+                  "            padding: 10px;\n",
+                  "            box-shadow: 0 0 10px rgba(0,0,0,0.2);\">\n",
+                  "    <h4 style=\"margin: 0 0 5px 0; color: #2c3e50;\">Route Categories</h4>\n",
+                  "    <p style=\"margin: 0; color: #2c3e50;\">\n",
+                  "        <span style=\"color: red;\">●</span> Premium Routes (Top 3)<br>\n",
+                  "        <span style=\"color: blue;\">●</span> Major Routes (4-10)\n",
+                  "    </p>\n",
+                  "</div>\n",
+                  "'''\n",
+                  "m.get_root().html.add_child(folium.Element(legend_html))\n",
+                  "\n",
+                  "# Save the map\n",
+                  "m.save('top_south_america_flight_routes.html')\n",
+                  "\n",
+                  "print(\"Map has been created as 'top_south_america_flight_routes.html'\")"
+                 ]
+                }
+               ],
+               "metadata": {
+                "kernelspec": {
+                 "display_name": "Python 3",
+                 "language": "python",
+                 "name": "python3"
+                },
+                "language_info": {
+                 "codemirror_mode": {
+                  "name": "ipython",
+                  "version": 3
+                 },
+                 "file_extension": ".py",
+                 "mimetype": "text/x-python",
+                 "name": "python",
+                 "nbconvert_exporter": "python",
+                 "pygments_lexer": "ipython3",
+                 "version": "3.7.10"
+                }
+               },
+               "nbformat": 4,
+               "nbformat_minor": 4
+              }
+              EOT
+              EOF
+
+  SageMakerNotebookInstance:
+    Type: AWS::SageMaker::NotebookInstance
+    Properties:
+      InstanceType: ml.t3.medium
+      RoleArn: !GetAtt SageMakerIAMRole.Arn
+      LifecycleConfigName: !GetAtt SageMakerNotebookInstanceLifecycleConfig.NotebookInstanceLifecycleConfigName
+
+  SageMakerIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - sagemaker.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
+
+Outputs:
+  NotebookInstanceName:
+    Description: Name of the SageMaker Notebook Instance
+    Value: !Ref SageMakerNotebookInstance

@@ -1,0 +1,300 @@
+# DISCLAIMER: USE AT YOUR OWN RISK
+# The information provided on this website and template, including but not limited to articles, guides, and tutorials, is for general informational purposes only. 
+# The content is not intended to be a substitute for professional advice or guidance.
+# While we make every effort to ensure the accuracy and timeliness of the information presented, we make no representations or warranties of any kind,
+# express or implied, about the completeness, accuracy, or reliability of the content. Any reliance you place on such information is strictly at your own risk.
+#
+# We strongly recommend that you consult with a qualified professional for advice tailored to your specific situation. 
+# We disclaim all liability for any actions you take or fail to take based on any content provided on this website and template.
+#
+# This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+#
+# These services creation in AWS may have associated COSTS, please check costs before deployment.
+
+############################
+# Important notes:
+
+# Make sure you're in a supported region (e.g., us-east-1)
+# Verify model access is enabled in AWS BedRock console
+# Check IAM permissions are correct
+# Use correct model IDs (e.g., 'anthropic.claude-v2')
+# Make sure your AWS credentials have necessary permissions
+
+# After deployment, you can use the API endpoint to get the generated code for creating the population map.
+#
+############################
+# Costs Estimation
+############################
+# Total Monthly Estimate:
+    
+# Low usage (1000 requests/month):
+# - Lambda: $0 (free tier)
+# - API Gateway: $0 (free tier)
+# - Bedrock: $25.60
+# - Waf: $ 6.00 (Optional)
+# Total: ~$32/month
+############################
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation template to create resources for invoking Bedrock with population map prompt'
+
+Parameters:
+  pREADME:
+    Type: String
+    Description: After deployment, you can use the API endpoint to get the generated code for creating the population map.
+    Default: 'curl -X POST https://{api-id}.execute-api.{region}.amazonaws.com/prod/generate'
+
+  pEnableWAF:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: 'Enable WAF protection (~$6/month)'
+  
+Conditions:
+  CreateWAF: !Equals [!Ref pEnableWAF, 'true']
+
+Resources:
+
+  # Add CloudWatch Budget - Cost Monitoring
+  rCostBudget:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetLimit:
+          Amount: 50
+          Unit: USD
+        TimeUnit: MONTHLY
+        BudgetType: COST
+
+
+  # Optional WAF Resources
+  rWebACL:
+    Type: AWS::WAFv2::WebACL
+    Condition: CreateWAF
+    Properties:
+      Name: !Sub ${AWS::StackName}-WebACL
+      Scope: REGIONAL
+      DefaultAction:
+        Allow: {}
+      VisibilityConfig:
+        SampledRequestsEnabled: true
+        CloudWatchMetricsEnabled: true
+        MetricName: !Sub ${AWS::StackName}-WebACL-Metric
+      Rules:
+        - Name: RateLimit
+          Priority: 1
+          Action:
+            Block: {}
+          Statement:
+            RateBasedStatement:
+              Limit: 100
+              AggregateKeyType: IP
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: !Sub ${AWS::StackName}-RateLimit-Metric
+      Tags:
+        - Key: Solution-CloudFormation-Stack
+          Value: !Sub ${AWS::StackName}
+
+  rWebACLAssociation:
+    Type: AWS::WAFv2::WebACLAssociation
+    Condition: CreateWAF
+    Properties:
+      ResourceArn: !Sub arn:aws:apigateway:${AWS::Region}::/restapis/${rApiGateway}/stages/prod
+      WebACLArn: !GetAtt rWebACL.Arn
+
+  rBedrockRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Policies:
+        - PolicyName: BedrockAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'bedrock:ListFoundationModels'
+                  - 'bedrock:InvokeModel'
+                  - 'bedrock:GetFoundationModel'
+                Resource: 'arn:aws:bedrock:*:*:foundation-model/anthropic.claude-v2'
+      Tags:
+        - Key: Solution-CloudFormation-Stack
+          Value: !Sub ${AWS::StackName}
+
+  rLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Role: !GetAtt rBedrockRole.Arn
+      Code:
+        ZipFile: |
+          import boto3
+          import json
+
+          PROMPT = """Create a Python code that generates an interactive world map showing the top 10 most populated cities.
+
+          Requirements:
+          1. Use folium library
+          2. Include these city details:
+             - Name
+             - Population (2024 data)
+             - Country
+             - Global rank
+          3. Add interactive markers
+          4. Color-code by population
+          5. Include popups with city information
+          6. Add legend and title
+
+          Example structure:
+          ```python
+          import folium
+          import pandas as pd
+
+          # Top 10 most populated cities data
+          data = {
+              'city': ['Tokyo', 'Delhi', ...],
+              'country': ['Japan', 'India', ...],
+              'population': [37.4, 32.9, ...],
+              'latitude': [35.6762, 28.7041, ...],
+              'longitude': [139.6503, 77.1025, ...]
+          }
+
+          # Create map
+          m = folium.Map(...)
+
+          # Add markers
+          for idx, row in df.iterrows():
+              folium.Marker(...)
+
+          # Add legend and title
+          ...
+
+          # Save map
+          m.save('world_population_map.html')
+          ```
+
+          Please provide complete, working code with current data and proper styling."""
+
+          enclosed_prompt = "Human: " + PROMPT + "\n\nAssistant:"
+
+          def handler(event, context):
+              client = boto3.client('bedrock-runtime')
+              
+              body = {
+                  "prompt": enclosed_prompt,
+                  "max_tokens_to_sample": 2000,
+                  "temperature": 0.7,
+                  "top_p": 0.8,
+                  "stop_sequences": ["\n\nHuman:"],
+              }
+              
+              try:
+                  response = client.invoke_model(
+                      # modelId='anthropic.claude-3-5-sonnet-20241022-v2:0',
+                      modelId='anthropic.claude-v2', # Verify model access is enabled in AWS Bedrock console
+                      body=json.dumps(body)
+                  )
+                  
+                  response_body = json.loads(response['body'].read())
+                  
+                  return {
+                      'statusCode': 200,
+                      'body': response_body['completion']
+                  }
+                  
+              except Exception as e:
+                  return {
+                      'statusCode': 500,
+                      'body': str(e)
+                  }
+
+      Runtime: python3.12
+      Architectures:
+        - arm64 # graviton
+      Timeout: 60
+      MemorySize: 128
+      Environment:
+        Variables:
+          PYTHONPATH: /var/task
+      Tags:
+        - Key: Solution-CloudFormation-Stack
+          Value: !Sub ${AWS::StackName}
+
+  rLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !Ref rLambdaFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${rApiGateway}/*/POST/generate
+
+  rApiGateway:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: BedrockPromptAPI
+      Description: API Gateway for Bedrock prompt
+      Tags:
+        - Key: Solution-CloudFormation-Stack
+          Value: !Sub ${AWS::StackName}
+
+  rApiGatewayResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt rApiGateway.RootResourceId
+      PathPart: 'generate'
+      RestApiId: !Ref rApiGateway
+
+  rApiGatewayMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId: !Ref rApiGatewayResource
+      RestApiId: !Ref rApiGateway
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 
+          - arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations
+          - LambdaArn: !GetAtt rLambdaFunction.Arn
+
+  rApiGatewayDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn: rApiGatewayMethod
+    Properties:
+      RestApiId: !Ref rApiGateway
+
+  rApiGatewayStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      DeploymentId: !Ref rApiGatewayDeployment
+      RestApiId: !Ref rApiGateway
+      StageName: 'prod'
+
+Outputs:
+
+  oApiEndpoint:
+    Description: 'API Gateway endpoint URL'
+    Value: !Sub 'https://${rApiGateway}.execute-api.${AWS::Region}.amazonaws.com/prod/generate'
+  
+  oLambdaFunctionArn:
+    Description: 'Lambda function ARN'
+    Value: !GetAtt rLambdaFunction.Arn
+
+  oCurlCommand:
+    Description: 'Curl command to test the API'
+    Value: !Sub 'curl -X POST https://${rApiGateway}.execute-api.${AWS::Region}.amazonaws.com/prod/generate'

@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html>
+<head>
+    
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+    
+        <script>
+            L_NO_TOUCH = false;
+            L_DISABLE_3D = false;
+        </script>
+    
+    <style>html, body {width: 100%;height: 100%;margin: 0;padding: 0;}</style>
+    <style>#map {position:absolute;top:0;bottom:0;right:0;left:0;}</style>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap-glyphicons.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.2.0/css/all.min.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/python-visualization/folium/folium/templates/leaflet.awesome.rotate.min.css"/>
+    
+            <meta name="viewport" content="width=device-width,
+                initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+            <style>
+                #map_b09bc19fa15c65276955f01a3493e73f {
+                    position: relative;
+                    width: 100.0%;
+                    height: 100.0%;
+                    left: 0.0%;
+                    top: 0.0%;
+                }
+                .leaflet-container { font-size: 1rem; }
+            </style>
+        
+</head>
+<body>
+    
+    
+<div style="position: fixed; 
+            top: 10px; left: 50px; 
+            width: 320px; 
+            background-color: white; 
+            border-radius: 10px;
+            border: 2px solid grey; 
+            z-index: 9999; 
+            padding: 15px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);">
+    <h3 style="margin: 0; color: #2c3e50; text-align: center;">
+        Top 10 Most Visited Cities in Latin America
+    </h3>
+    <p style="margin: 5px 0 0; font-size: 12px; color: #666; text-align: center;">
+        Click on markers to see details
+    </p>
+</div>
+    
+            <div class="folium-map" id="map_b09bc19fa15c65276955f01a3493e73f" ></div>
+        
+</body>
+<script>
+    
+    
+            var map_b09bc19fa15c65276955f01a3493e73f = L.map(
+                "map_b09bc19fa15c65276955f01a3493e73f",
+                {
+                    center: [0.0, -70.0],
+                    crs: L.CRS.EPSG3857,
+                    ...{
+  "zoom": 3,
+  "zoomControl": true,
+  "preferCanvas": false,
+}
+
+                }
+            );
+
+            
+
+        
+    
+            var tile_layer_4d52e7f7b04fa90ace2a017c6b98acbb = L.tileLayer(
+                "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+                {
+  "minZoom": 0,
+  "maxZoom": 20,
+  "maxNativeZoom": 20,
+  "noWrap": false,
+  "attribution": "\u0026copy; \u003ca href=\"https://www.openstreetmap.org/copyright\"\u003eOpenStreetMap\u003c/a\u003e contributors \u0026copy; \u003ca href=\"https://carto.com/attributions\"\u003eCARTO\u003c/a\u003e",
+  "subdomains": "abcd",
+  "detectRetina": false,
+  "tms": false,
+  "opacity": 1,
+}
+
+            );
+        
+    
+            tile_layer_4d52e7f7b04fa90ace2a017c6b98acbb.addTo(map_b09bc19fa15c65276955f01a3493e73f);
+        
+    
+            var marker_371906790801fafa86083ffa849077f8 = L.marker(
+                [19.4326, -99.1332],
+                {
+}
+            ).addTo(map_b09bc19fa15c65276955f01a3493e73f);
+        
+    
+            var icon_fef4431858fafd48d07154c82285c4e1 = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "red",
+  "iconColor": "white",
+  "icon": "info-sign",
+  "prefix": "glyphicon",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_371906790801fafa86083ffa849077f8.setIcon(icon_fef4431858fafd48d07154c82285c4e1);
+        
+    
+        var popup_5d440c36bdd43143be345e70f4dd5775 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_8454297d15b167cff41866b0293374f0 = $(`<div id="html_8454297d15b167cff41866b0293374f0" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 5px;">Mexico City, Mexico</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #1</p>             <p style="margin: 5px 0;"><b>👥 Visitors:</b> 11.9 million</p>             <div style="margin-top: 10px; border-top: 1px solid #dee2e6; padding-top: 10px;">                 <p style="margin: 5px 0;"><b>🌡️ Temperature:</b> 33°C</p>                 <p style="margin: 5px 0;"><b>🌤️ Conditions:</b> Partly cloudy</p>                 <p style="margin: 5px 0;"><b>💧 Humidity:</b> 73%</p>             </div>         </div>     </div>     </div>`)[0];
+                popup_5d440c36bdd43143be345e70f4dd5775.setContent(html_8454297d15b167cff41866b0293374f0);
+            
+        
+
+        marker_371906790801fafa86083ffa849077f8.bindPopup(popup_5d440c36bdd43143be345e70f4dd5775)
+        ;
+
+        
+    
+    
+            marker_371906790801fafa86083ffa849077f8.bindTooltip(
+                `<div>
+                     1. Mexico City, Mexico
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_f4533e87cf7520700bb7b109d7bc5ec0 = L.marker(
+                [-34.6037, -58.3816],
+                {
+}
+            ).addTo(map_b09bc19fa15c65276955f01a3493e73f);
+        
+    
+            var icon_877faa29f93bef3367ec4acd3397f814 = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "red",
+  "iconColor": "white",
+  "icon": "info-sign",
+  "prefix": "glyphicon",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_f4533e87cf7520700bb7b109d7bc5ec0.setIcon(icon_877faa29f93bef3367ec4acd3397f814);
+        
+    
+        var popup_e425f93dbdce42da8d1be543c47bb676 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_39a11f46b47cd7023384a5fb591a12db = $(`<div id="html_39a11f46b47cd7023384a5fb591a12db" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 5px;">Buenos Aires, Argentina</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #2</p>             <p style="margin: 5px 0;"><b>👥 Visitors:</b> 6.8 million</p>             <div style="margin-top: 10px; border-top: 1px solid #dee2e6; padding-top: 10px;">                 <p style="margin: 5px 0;"><b>🌡️ Temperature:</b> 23°C</p>                 <p style="margin: 5px 0;"><b>🌤️ Conditions:</b> Moderate rain</p>                 <p style="margin: 5px 0;"><b>💧 Humidity:</b> 62%</p>             </div>         </div>     </div>     </div>`)[0];
+                popup_e425f93dbdce42da8d1be543c47bb676.setContent(html_39a11f46b47cd7023384a5fb591a12db);
+            
+        
+
+        marker_f4533e87cf7520700bb7b109d7bc5ec0.bindPopup(popup_e425f93dbdce42da8d1be543c47bb676)
+        ;
+
+        
+    
+    
+            marker_f4533e87cf7520700bb7b109d7bc5ec0.bindTooltip(
+                `<div>
+                     2. Buenos Aires, Argentina
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_b5c464a00fb9100ca0919dd5c449c080 = L.marker(
+                [-22.9068, -43.1729],
+                {
+}
+            ).addTo(map_b09bc19fa15c65276955f01a3493e73f);
+        
+    
+            var icon_f07246954e603d34e8242c4022a0cb48 = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "red",
+  "iconColor": "white",
+  "icon": "info-sign",
+  "prefix": "glyphicon",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_b5c464a00fb9100ca0919dd5c449c080.setIcon(icon_f07246954e603d34e8242c4022a0cb48);
+        
+    
+        var popup_1ab8788554865ac10210eb3b2dea025f = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_86624c99d8f40f5b91d932cb6929327e = $(`<div id="html_86624c99d8f40f5b91d932cb6929327e" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 5px;">Rio de Janeiro, Brazil</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #3</p>             <p style="margin: 5px 0;"><b>👥 Visitors:</b> 6.3 million</p>             <div style="margin-top: 10px; border-top: 1px solid #dee2e6; padding-top: 10px;">                 <p style="margin: 5px 0;"><b>🌡️ Temperature:</b> 21°C</p>                 <p style="margin: 5px 0;"><b>🌤️ Conditions:</b> Sunny</p>                 <p style="margin: 5px 0;"><b>💧 Humidity:</b> 50%</p>             </div>         </div>     </div>     </div>`)[0];
+                popup_1ab8788554865ac10210eb3b2dea025f.setContent(html_86624c99d8f40f5b91d932cb6929327e);
+            
+        
+
+        marker_b5c464a00fb9100ca0919dd5c449c080.bindPopup(popup_1ab8788554865ac10210eb3b2dea025f)
+        ;
+
+        
+    
+    
+            marker_b5c464a00fb9100ca0919dd5c449c080.bindTooltip(
+                `<div>
+                     3. Rio de Janeiro, Brazil
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_0c457cdea16a74bb476004e1d73dd77d = L.marker(
+                [-12.0464, -77.0428],
+                {
+}
+            ).addTo(map_b09bc19fa15c65276955f01a3493e73f);
+        
+    
+            var icon_35879bc225faf4db65c869d47219649e = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "info-sign",
+  "prefix": "glyphicon",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_0c457cdea16a74bb476004e1d73dd77d.setIcon(icon_35879bc225faf4db65c869d47219649e);
+        
+    
+        var popup_296f549971cdee789900019412c6af4d = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_26b1460eac9c19a975e6b49c520d9999 = $(`<div id="html_26b1460eac9c19a975e6b49c520d9999" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 5px;">Lima, Peru</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #4</p>             <p style="margin: 5px 0;"><b>👥 Visitors:</b> 5.4 million</p>             <div style="margin-top: 10px; border-top: 1px solid #dee2e6; padding-top: 10px;">                 <p style="margin: 5px 0;"><b>🌡️ Temperature:</b> 29°C</p>                 <p style="margin: 5px 0;"><b>🌤️ Conditions:</b> Moderate rain</p>                 <p style="margin: 5px 0;"><b>💧 Humidity:</b> 61%</p>             </div>         </div>     </div>     </div>`)[0];
+                popup_296f549971cdee789900019412c6af4d.setContent(html_26b1460eac9c19a975e6b49c520d9999);
+            
+        
+
+        marker_0c457cdea16a74bb476004e1d73dd77d.bindPopup(popup_296f549971cdee789900019412c6af4d)
+        ;
+
+        
+    
+    
+            marker_0c457cdea16a74bb476004e1d73dd77d.bindTooltip(
+                `<div>
+                     4. Lima, Peru
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_c2ba46579eb02d2d9ace8649a22a6912 = L.marker(
+                [-23.5505, -46.6333],
+                {
+}
+            ).addTo(map_b09bc19fa15c65276955f01a3493e73f);
+        
+    
+            var icon_0867f23a64a9bb12e5cf36e7f4b9f7e4 = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "info-sign",
+  "prefix": "glyphicon",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_c2ba46579eb02d2d9ace8649a22a6912.setIcon(icon_0867f23a64a9bb12e5cf36e7f4b9f7e4);
+        
+    
+        var popup_98d610b2aa0fc941ee579d2a2c96a120 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_d82b0f65eac338f22a9be7a522ce068a = $(`<div id="html_d82b0f65eac338f22a9be7a522ce068a" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 5px;">São Paulo, Brazil</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #5</p>             <p style="margin: 5px 0;"><b>👥 Visitors:</b> 4.8 million</p>             <div style="margin-top: 10px; border-top: 1px solid #dee2e6; padding-top: 10px;">                 <p style="margin: 5px 0;"><b>🌡️ Temperature:</b> 28°C</p>                 <p style="margin: 5px 0;"><b>🌤️ Conditions:</b> Scattered clouds</p>                 <p style="margin: 5px 0;"><b>💧 Humidity:</b> 80%</p>             </div>         </div>     </div>     </div>`)[0];
+                popup_98d610b2aa0fc941ee579d2a2c96a120.setContent(html_d82b0f65eac338f22a9be7a522ce068a);
+            
+        
+
+        marker_c2ba46579eb02d2d9ace8649a22a6912.bindPopup(popup_98d610b2aa0fc941ee579d2a2c96a120)
+        ;
+
+        
+    
+    
+            marker_c2ba46579eb02d2d9ace8649a22a6912.bindTooltip(
+                `<div>
+                     5. São Paulo, Brazil
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_632530e966928f21fec443b51dc5e6ed = L.marker(
+                [18.5821, -68.4039],
+                {
+}
+            ).addTo(map_b09bc19fa15c65276955f01a3493e73f);
+        
+    
+            var icon_468c8b9df9508c3a17c948af0356b327 = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "info-sign",
+  "prefix": "glyphicon",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_632530e966928f21fec443b51dc5e6ed.setIcon(icon_468c8b9df9508c3a17c948af0356b327);
+        
+    
+        var popup_cccf3a637d97ebb6aa6a33f2a79731f3 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_65035a863f882c817709dd1180d79aed = $(`<div id="html_65035a863f882c817709dd1180d79aed" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 5px;">Punta Cana, Dominican Republic</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #6</p>             <p style="margin: 5px 0;"><b>👥 Visitors:</b> 4.5 million</p>             <div style="margin-top: 10px; border-top: 1px solid #dee2e6; padding-top: 10px;">                 <p style="margin: 5px 0;"><b>🌡️ Temperature:</b> 28°C</p>                 <p style="margin: 5px 0;"><b>🌤️ Conditions:</b> Moderate rain</p>                 <p style="margin: 5px 0;"><b>💧 Humidity:</b> 72%</p>             </div>         </div>     </div>     </div>`)[0];
+                popup_cccf3a637d97ebb6aa6a33f2a79731f3.setContent(html_65035a863f882c817709dd1180d79aed);
+            
+        
+
+        marker_632530e966928f21fec443b51dc5e6ed.bindPopup(popup_cccf3a637d97ebb6aa6a33f2a79731f3)
+        ;
+
+        
+    
+    
+            marker_632530e966928f21fec443b51dc5e6ed.bindTooltip(
+                `<div>
+                     6. Punta Cana, Dominican Republic
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_8c0aef4f81e73d11aa17b3bff3920fd0 = L.marker(
+                [21.1619, -86.8515],
+                {
+}
+            ).addTo(map_b09bc19fa15c65276955f01a3493e73f);
+        
+    
+            var icon_5e9f27ca569198790de4e46eb9cceb5f = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "info-sign",
+  "prefix": "glyphicon",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_8c0aef4f81e73d11aa17b3bff3920fd0.setIcon(icon_5e9f27ca569198790de4e46eb9cceb5f);
+        
+    
+        var popup_15e0bc59688079d23dde404006cd110c = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_6de3fdbbef0b98929f00dd0109381fa0 = $(`<div id="html_6de3fdbbef0b98929f00dd0109381fa0" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 5px;">Cancun, Mexico</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #7</p>             <p style="margin: 5px 0;"><b>👥 Visitors:</b> 4.3 million</p>             <div style="margin-top: 10px; border-top: 1px solid #dee2e6; padding-top: 10px;">                 <p style="margin: 5px 0;"><b>🌡️ Temperature:</b> 20°C</p>                 <p style="margin: 5px 0;"><b>🌤️ Conditions:</b> Moderate rain</p>                 <p style="margin: 5px 0;"><b>💧 Humidity:</b> 90%</p>             </div>         </div>     </div>     </div>`)[0];
+                popup_15e0bc59688079d23dde404006cd110c.setContent(html_6de3fdbbef0b98929f00dd0109381fa0);
+            
+        
+
+        marker_8c0aef4f81e73d11aa17b3bff3920fd0.bindPopup(popup_15e0bc59688079d23dde404006cd110c)
+        ;
+
+        
+    
+    
+            marker_8c0aef4f81e73d11aa17b3bff3920fd0.bindTooltip(
+                `<div>
+                     7. Cancun, Mexico
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_06b0d1a4faa50888f74408357a516805 = L.marker(
+                [4.711, -74.0721],
+                {
+}
+            ).addTo(map_b09bc19fa15c65276955f01a3493e73f);
+        
+    
+            var icon_00177bd13597f4a7dc0ca0565db3c0cc = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "info-sign",
+  "prefix": "glyphicon",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_06b0d1a4faa50888f74408357a516805.setIcon(icon_00177bd13597f4a7dc0ca0565db3c0cc);
+        
+    
+        var popup_d67ffe28b0eccd5cb118534843af4fd0 = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_9e6c6bde3fbf8ad56350b4991f6b72d6 = $(`<div id="html_9e6c6bde3fbf8ad56350b4991f6b72d6" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 5px;">Bogotá, Colombia</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #8</p>             <p style="margin: 5px 0;"><b>👥 Visitors:</b> 3.9 million</p>             <div style="margin-top: 10px; border-top: 1px solid #dee2e6; padding-top: 10px;">                 <p style="margin: 5px 0;"><b>🌡️ Temperature:</b> 30°C</p>                 <p style="margin: 5px 0;"><b>🌤️ Conditions:</b> Light rain</p>                 <p style="margin: 5px 0;"><b>💧 Humidity:</b> 80%</p>             </div>         </div>     </div>     </div>`)[0];
+                popup_d67ffe28b0eccd5cb118534843af4fd0.setContent(html_9e6c6bde3fbf8ad56350b4991f6b72d6);
+            
+        
+
+        marker_06b0d1a4faa50888f74408357a516805.bindPopup(popup_d67ffe28b0eccd5cb118534843af4fd0)
+        ;
+
+        
+    
+    
+            marker_06b0d1a4faa50888f74408357a516805.bindTooltip(
+                `<div>
+                     8. Bogotá, Colombia
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_bdbd6665437640eeb054478c7530f264 = L.marker(
+                [-33.4489, -70.6693],
+                {
+}
+            ).addTo(map_b09bc19fa15c65276955f01a3493e73f);
+        
+    
+            var icon_65de537abd1e9b7c0141339475d47117 = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "info-sign",
+  "prefix": "glyphicon",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_bdbd6665437640eeb054478c7530f264.setIcon(icon_65de537abd1e9b7c0141339475d47117);
+        
+    
+        var popup_aef4903dc8802ef36e4bc57f4f2ceecc = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_b0af80367764ea98dda23b5d1e981f44 = $(`<div id="html_b0af80367764ea98dda23b5d1e981f44" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 5px;">Santiago, Chile</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #9</p>             <p style="margin: 5px 0;"><b>👥 Visitors:</b> 3.7 million</p>             <div style="margin-top: 10px; border-top: 1px solid #dee2e6; padding-top: 10px;">                 <p style="margin: 5px 0;"><b>🌡️ Temperature:</b> 33°C</p>                 <p style="margin: 5px 0;"><b>🌤️ Conditions:</b> Light rain</p>                 <p style="margin: 5px 0;"><b>💧 Humidity:</b> 75%</p>             </div>         </div>     </div>     </div>`)[0];
+                popup_aef4903dc8802ef36e4bc57f4f2ceecc.setContent(html_b0af80367764ea98dda23b5d1e981f44);
+            
+        
+
+        marker_bdbd6665437640eeb054478c7530f264.bindPopup(popup_aef4903dc8802ef36e4bc57f4f2ceecc)
+        ;
+
+        
+    
+    
+            marker_bdbd6665437640eeb054478c7530f264.bindTooltip(
+                `<div>
+                     9. Santiago, Chile
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var marker_022d178e30072e295c4a615a08beb123 = L.marker(
+                [-13.5319, -71.9675],
+                {
+}
+            ).addTo(map_b09bc19fa15c65276955f01a3493e73f);
+        
+    
+            var icon_814eaece558de70f1997509b77b73fe9 = L.AwesomeMarkers.icon(
+                {
+  "markerColor": "blue",
+  "iconColor": "white",
+  "icon": "info-sign",
+  "prefix": "glyphicon",
+  "extraClasses": "fa-rotate-0",
+}
+            );
+            marker_022d178e30072e295c4a615a08beb123.setIcon(icon_814eaece558de70f1997509b77b73fe9);
+        
+    
+        var popup_16653d5e49c3609df4bf18c072b5b17a = L.popup({
+  "maxWidth": 300,
+});
+
+        
+            
+                var html_02ec2763fdee6e346aca5d3d44862096 = $(`<div id="html_02ec2763fdee6e346aca5d3d44862096" style="width: 100.0%; height: 100.0%;">     <div style="font-family: Arial; padding: 5px;">         <h3 style="color: #2c3e50; margin-bottom: 5px;">Cusco, Peru</h3>         <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">             <p style="margin: 5px 0;"><b>🏆 Rank:</b> #10</p>             <p style="margin: 5px 0;"><b>👥 Visitors:</b> 3.5 million</p>             <div style="margin-top: 10px; border-top: 1px solid #dee2e6; padding-top: 10px;">                 <p style="margin: 5px 0;"><b>🌡️ Temperature:</b> 26°C</p>                 <p style="margin: 5px 0;"><b>🌤️ Conditions:</b> Light rain</p>                 <p style="margin: 5px 0;"><b>💧 Humidity:</b> 52%</p>             </div>         </div>     </div>     </div>`)[0];
+                popup_16653d5e49c3609df4bf18c072b5b17a.setContent(html_02ec2763fdee6e346aca5d3d44862096);
+            
+        
+
+        marker_022d178e30072e295c4a615a08beb123.bindPopup(popup_16653d5e49c3609df4bf18c072b5b17a)
+        ;
+
+        
+    
+    
+            marker_022d178e30072e295c4a615a08beb123.bindTooltip(
+                `<div>
+                     10. Cusco, Peru
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+</script>
+</html>
