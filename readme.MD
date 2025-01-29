@@ -1,6 +1,21 @@
-# Disclaimer - Personal Repository
+# Disclaimer for Personal Repository Usage
 
 ⚠️ This is not expected to be an excellent repository, but rather a simple personal repository with a few examples for your guidance. Enjoy 😀
+
+This repository is my personal collection of AWS CloudFormation templates and code samples. While I strive to maintain quality and accuracy, please note:
+
+* This code is provided "AS IS" without any warranties
+* Use at your own risk and responsibility
+* This is not official or production-ready code
+* Always review code and test before deploying
+* AWS services deployed may incur costs
+* Always check AWS pricing before deployment
+* No liability for any damages or issues
+* Recommended for learning/testing purposes only
+
+Please review AWS documentation and consult professionals for production deployments.
+
+Feel free to use and modify, but understand the risks involved.
 
 ###############################
 ## IAC
