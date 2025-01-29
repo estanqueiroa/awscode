@@ -16,10 +16,10 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: 'CloudFormation template for S3 static website hosting with embedded HTML'
 
 Resources:
-  WebsiteBucket:
+  rWebsiteBucket:
     Type: 'AWS::S3::Bucket'
     Properties:
-      BucketName: !Sub '${AWS::StackName}-website-bucket'
+      #BucketName: !Sub '${AWS::StackName}-website-bucket'
       PublicAccessBlockConfiguration:
         BlockPublicAcls: false
         BlockPublicPolicy: false
@@ -35,10 +35,10 @@ Resources:
           - Key: Project
             Value: tic-tac-toe-game
       
-  WebsiteBucketPolicy:
+  rWebsiteBucketPolicy:
     Type: 'AWS::S3::BucketPolicy'
     Properties:
-      Bucket: !Ref WebsiteBucket
+      Bucket: !Ref rWebsiteBucket
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -48,10 +48,10 @@ Resources:
             Action: 's3:GetObject'
             Resource: !Join 
               - ''
-              - - !GetAtt WebsiteBucket.Arn
+              - - !GetAtt rWebsiteBucket.Arn
                 - '/*'
 
-  LambdaExecutionRole:
+  rLambdaExecutionRole:
     Type: 'AWS::IAM::Role'
     Properties:
       AssumeRolePolicyDocument:
@@ -74,17 +74,18 @@ Resources:
                   - 's3:DeleteObject'
                 Resource: !Join 
                   - ''
-                  - - !GetAtt WebsiteBucket.Arn
+                  - - !GetAtt rWebsiteBucket.Arn
                     - '/*'
       Tags:
           - Key: Project
             Value: tic-tac-toe-game
 
-  UploadWebContent:
+  rUploadWebContentIndex:
     Type: 'Custom::S3Upload'
     Properties:
-      ServiceToken: !GetAtt UploadFunction.Arn
-      Bucket: !Ref WebsiteBucket
+      ServiceToken: !GetAtt rUploadFunctionIndex.Arn
+      ServiceTimeout: 600 # seconds
+      Bucket: !Ref rWebsiteBucket
       Key: 'index.html'
       Content: |
         <!DOCTYPE html>
@@ -176,14 +177,83 @@ Resources:
         </body>
         </html>
 
-  UploadFunction:
+  rUploadWebContentError:
+    Type: 'Custom::S3Upload'
+    Properties:
+      ServiceToken: !GetAtt rUploadFunctionError.Arn
+      ServiceTimeout: 600 # seconds
+      Bucket: !Ref rWebsiteBucket
+      Key: 'error.html'
+      Content: |
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <title>Error 404</title>
+            <style>
+                body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+                h1 { font-size: 36px; }
+                p { font-size: 18px; }
+            </style>
+        </head>
+        <body>
+            <h1>Error 404</h1>
+            <p>Page not found.</p>
+            <p><a href="/">Go to homepage</a></p>
+        </body>
+        </html>
+
+  rUploadFunctionIndex:
     Type: 'AWS::Lambda::Function'
     Properties:
       Runtime: python3.12
       Architectures:
           - arm64 # graviton
       Handler: index.handler
-      Role: !GetAtt LambdaExecutionRole.Arn
+      Role: !GetAtt rLambdaExecutionRole.Arn
+      Timeout: 10 # seconds
+      Code:
+        ZipFile: |
+          import boto3
+          import cfnresponse
+          
+          def handler(event, context):
+              try:
+                  s3 = boto3.client('s3')
+                  bucket = event['ResourceProperties']['Bucket']
+                  key = event['ResourceProperties']['Key']
+                  
+                  if event['RequestType'] in ['Create', 'Update']:
+                      content = event['ResourceProperties']['Content']
+                      s3.put_object(
+                          Bucket=bucket,
+                          Key=key,
+                          Body=content,
+                          ContentType='text/html'
+                      )
+                  elif event['RequestType'] == 'Delete':
+                      print(f"Deleting {key} from bucket {bucket}")
+                      s3.delete_object(
+                          Bucket=bucket,
+                          Key=key
+                      )
+                      
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+              except Exception as e:
+                  print(f"Error: {str(e)}")
+                  cfnresponse.send(event, context, cfnresponse.FAILED, {})
+      Tags:
+          - Key: Project
+            Value: tic-tac-toe-game
+
+  rUploadFunctionError:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Runtime: python3.12
+      Architectures:
+          - arm64 # graviton
+      Handler: index.handler
+      Role: !GetAtt rLambdaExecutionRole.Arn
       Timeout: 10 # seconds
       Code:
         ZipFile: |
@@ -220,9 +290,10 @@ Resources:
             Value: tic-tac-toe-game
 
 Outputs:
-  WebsiteURL:
+
+  oWebsiteURL:
     Description: URL for website hosted on S3
-    Value: !GetAtt WebsiteBucket.WebsiteURL
-  S3BucketName:
+    Value: !GetAtt rWebsiteBucket.WebsiteURL
+  oS3BucketName:
     Description: Name of S3 bucket to hold website content
-    Value: !Ref WebsiteBucket
+    Value: !Ref rWebsiteBucket
