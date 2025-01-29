@@ -1,4 +1,4 @@
-# Amazon GenAI solutions using SageMaker and Bedrock
+# Amazon GenAI Demos using SageMaker and Bedrock
 
 This demo shows how to generate Python code to create interactive world maps using Amazon SageMaker, Bedrock, API Gateway and Lambda function.
 
