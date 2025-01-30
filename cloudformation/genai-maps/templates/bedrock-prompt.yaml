@@ -51,6 +51,11 @@ Parameters:
     Default: 'false'
     AllowedValues: ['true', 'false']
     Description: 'Enable WAF protection (~$6/month)'
+
+  pBedrockPromptText:
+    Type: String
+    Description: 'The prompt text to be used with Bedrock'
+    Default: 'Create a Python code that generates an interactive world map showing the top 10 most populated cities'
   
 Conditions:
   CreateWAF: !Equals [!Ref pEnableWAF, 'true']
@@ -144,50 +149,53 @@ Resources:
         ZipFile: |
           import boto3
           import json
+          import os
 
-          PROMPT = """Create a Python code that generates an interactive world map showing the top 10 most populated cities.
+          # PROMPT = """Create a Python code that generates an interactive world map showing the top 10 most populated cities.
 
-          Requirements:
-          1. Use folium library
-          2. Include these city details:
-             - Name
-             - Population (2024 data)
-             - Country
-             - Global rank
-          3. Add interactive markers
-          4. Color-code by population
-          5. Include popups with city information
-          6. Add legend and title
+          # Requirements:
+          # 1. Use folium library
+          # 2. Include these city details:
+          #    - Name
+          #    - Population (2024 data)
+          #    - Country
+          #    - Global rank
+          # 3. Add interactive markers
+          # 4. Color-code by population
+          # 5. Include popups with city information
+          # 6. Add legend and title
 
-          Example structure:
-          ```python
-          import folium
-          import pandas as pd
+          # Example structure:
+          # ```python
+          # import folium
+          # import pandas as pd
 
-          # Top 10 most populated cities data
-          data = {
-              'city': ['Tokyo', 'Delhi', ...],
-              'country': ['Japan', 'India', ...],
-              'population': [37.4, 32.9, ...],
-              'latitude': [35.6762, 28.7041, ...],
-              'longitude': [139.6503, 77.1025, ...]
-          }
+          # # Top 10 most populated cities data
+          # data = {
+          #     'city': ['Tokyo', 'Delhi', ...],
+          #     'country': ['Japan', 'India', ...],
+          #     'population': [37.4, 32.9, ...],
+          #     'latitude': [35.6762, 28.7041, ...],
+          #     'longitude': [139.6503, 77.1025, ...]
+          # }
 
-          # Create map
-          m = folium.Map(...)
+          # # Create map
+          # m = folium.Map(...)
 
-          # Add markers
-          for idx, row in df.iterrows():
-              folium.Marker(...)
+          # # Add markers
+          # for idx, row in df.iterrows():
+          #     folium.Marker(...)
 
-          # Add legend and title
-          ...
+          # # Add legend and title
+          # ...
 
-          # Save map
-          m.save('world_population_map.html')
-          ```
+          # # Save map
+          # m.save('world_population_map.html')
+          # ```
 
-          Please provide complete, working code with current data and proper styling."""
+          # Please provide complete, working code with current data and proper styling."""
+
+          PROMPT = os.environ['BEDROCK_PROMPT']
 
           enclosed_prompt = "Human: " + PROMPT + "\n\nAssistant:"
 
@@ -230,6 +238,7 @@ Resources:
       Environment:
         Variables:
           PYTHONPATH: /var/task
+          BEDROCK_PROMPT: !Ref pBedrockPromptText
       Tags:
         - Key: Solution-CloudFormation-Stack
           Value: !Sub ${AWS::StackName}

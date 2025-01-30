@@ -17,7 +17,7 @@ and show city ranking, number of visitors and current weather when I click the c
 
 * code to show map of top 10 flights around the world in number of passengers last year, click on map to show flight number, company and passengers number
 
-## This updated version includes:
+## This demo version includes:
 
 * Sample weather data instead of real API calls
 * Better styling for popups and title
@@ -41,14 +41,6 @@ When you run this code, it will:
 * Realistic sample data
 * Better visual design
 * More user-friendly interface
-
-To run this code, you only need:
-
-    
-`pip install folium pandas`
-
-    
-The output will be an HTML file that you can open in any web browser, showing an interactive map with all the specified features.
 
 ## Note
 
@@ -91,7 +83,7 @@ The map shows:
 
 **Note:** The passenger numbers are approximate and based on recent data. For the most current statistics, you'd need to consult the latest aviation data sources.
 
-## Amazon SageMaker
+## Amazon SageMaker Deploy
 
 To run this code on Amazon SageMaker's JupyterLab, follow these steps:
 
@@ -111,7 +103,7 @@ In the first cell of your notebook, run:
  
 `!pip install folium pandas`
 
-* Copy the code from notebook file
+* Copy the code from notebook Python files (/notebooks folder)
 
 Copy the entire code I provided in the previous response
 Paste it into a new cell in your JupyterLab notebook
@@ -167,3 +159,27 @@ This CloudFormation template creates an AWS infrastructure for generating a worl
 * Outputs for easy access to the created resources
 
 The template sets up a serverless architecture that allows users to request AI-generated Python code for creating an interactive world map of the most populated cities.
+
+## Amazon Bedrock Deploy
+
+Make sure you have access to Amazon Bedrock in your AWS account and the appropriate model (Claude v2 in this example) is enabled.
+
+To enable Anthropic Claude model v2 in AWS Bedrock Console:
+
+https://us-east-1.console.aws.amazon.com/bedrock/home?region=us-east-1#/model-catalog/serverless/anthropic.claude-v2
+
+"modelId": "anthropic.claude-v2"
+
+## Cleanup
+
+* delete the created CloudFormation stack(s)
+* delete any SageMaker notebooks you have created manually to paste Python codes
+* delete CloudWatch log group created for Lambda function
+
+## Known Limitations
+
+* Amazon Bedrock - Anthropic newer models below are not supported, needs to update Lambda code to support Inference calls.
+
+- Anthropic Claude 3.5 Sonnet
+- Anthropic Claude version 2.1
+- Anthropic Claude 3 model, such as Anthropic Claude 3 Opus
