@@ -7,15 +7,17 @@
 * An S3 bucket to monitor
 * An SNS topic for email notifications
 * An email subscription for the SNS topic
+
 * A Lambda function that:
 - Lists all objects in the bucket
 - Calculates total size and file count
 - Identifies all folders
 - Sends a formatted report via SNS
+
 * Required IAM roles and permissions
 * An EventBridge rule to trigger the Lambda function weekly
-* Step function state machine to process all buckets in parallel
-* DynamoDB table to store temporary all buckets information
+* Step function state machine to process all buckets using Lambda and send SNS
+
 
 ## To use this template:
 
