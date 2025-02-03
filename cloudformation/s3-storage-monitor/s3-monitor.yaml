@@ -69,7 +69,7 @@ Resources:
                 Resource: !Ref pTopicArn
       Tags:
         - Key: Solution-IAC
-          Value: !Sub '${AWS::StackName}-${pBucketName}'          
+          Value: !Sub '${AWS::StackName}-${pBucketName}-${pDeploymentChoice}'          
 
   # Lambda Function
   rBucketMonitorLambda:
@@ -180,7 +180,7 @@ Resources:
           TOPIC_ARN: !Ref pTopicArn
       Tags:
         - Key: Solution-IAC
-          Value: !Sub '${AWS::StackName}-${pBucketName}'  
+          Value: !Sub '${AWS::StackName}-${pBucketName}-${pDeploymentChoice}'  
 
   # EventBridge Rule for weekly trigger
   rWeeklyTriggerRule:
@@ -368,7 +368,7 @@ Resources:
         - 'arn:aws:lambda:us-east-1:770693421928:layer:Klayers-p312-arm64-tabulate:1'
       Tags:
         - Key: Solution-IAC
-          Value: !Sub '${AWS::StackName}-${pBucketName}' 
+          Value: !Sub '${AWS::StackName}-${pBucketName}-${pDeploymentChoice}' 
 
   # Lambda function to send report via SNS
   SendSNSReportFunction:
@@ -412,7 +412,7 @@ Resources:
         - arm64
       Tags:
         - Key: Solution-IAC
-          Value: !Sub '${AWS::StackName}-${pBucketName}' 
+          Value: !Sub '${AWS::StackName}-${pBucketName}-${pDeploymentChoice}' 
 
   # IAM Role for Lambda Functions
   rLambdaExecutionRoleStates:
@@ -446,7 +446,7 @@ Resources:
 
       Tags:
         - Key: Solution-IAC
-          Value: !Sub '${AWS::StackName}-${pBucketName}' 
+          Value: !Sub '${AWS::StackName}-${pBucketName}-${pDeploymentChoice}' 
 
   # Step Function Definition
   rBucketProcessingStateMachine:
@@ -479,7 +479,7 @@ Resources:
       RoleArn: !GetAtt rStepFunctionExecutionRole.Arn
       Tags:
         - Key: Solution-IAC
-          Value: !Sub '${AWS::StackName}-${pBucketName}' 
+          Value: !Sub '${AWS::StackName}-${pBucketName}-${pDeploymentChoice}' 
 
   # IAM Role for Step Functions Execution
   rStepFunctionExecutionRole:
@@ -506,7 +506,7 @@ Resources:
                   - !GetAtt SendSNSReportFunction.Arn 
       Tags:
         - Key: Solution-IAC
-          Value: !Sub '${AWS::StackName}-${pBucketName}' 
+          Value: !Sub '${AWS::StackName}-${pBucketName}-${pDeploymentChoice}' 
 
   # EventBridge Rule
   rWeeklyTriggerRuleStates:
@@ -543,7 +543,7 @@ Resources:
                 Resource: !Ref rBucketProcessingStateMachine
       Tags:
         - Key: Solution-IAC
-          Value: !Sub '${AWS::StackName}-${pBucketName}'   
+          Value: !Sub '${AWS::StackName}-${pBucketName}-${pDeploymentChoice}'   
 
 Outputs:
 
