@@ -1,0 +1,558 @@
+###############################################################
+# WARNING: This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+###############################################################
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation template for S3 bucket storage monitoring and weekly email notifications. 
+The report will run weekly and send an email with comprehensive information about all your S3 buckets.'
+
+Parameters:
+  
+  pBucketName:
+    Type: String
+    Description: S3 Bucket name to be monitored
+
+  pTopicArn:
+    Type: String
+    Description: SNS topic ARN to be notifications - do not forget to subscribe your email to the topic
+
+  pDeploymentChoice:
+    Type: String
+    AllowedValues:
+      - 'single-bucket'
+      - 'all-buckets'
+      - 'both'
+    Default: 'single-bucket'
+    Description: 'Choose which lambda(s) to deploy: single-bucket, all-buckets, or both'
+
+
+Conditions:
+
+  DeploySingleBucketLambda: !Or 
+    - !Equals [!Ref pDeploymentChoice, 'single-bucket']
+    - !Equals [!Ref pDeploymentChoice, 'both']
+
+  DeployAllBucketsLambda: !Or 
+    - !Equals [!Ref pDeploymentChoice, 'all-buckets']
+    - !Equals [!Ref pDeploymentChoice, 'both']  
+
+Resources:
+
+  # IAM Role for Lambda
+  rLambdaExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Condition: DeploySingleBucketLambda
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Policies:
+        - PolicyName: S3AndSNSAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 's3:ListBucket'
+                  - 's3:GetBucketLocation'
+                Resource: !Sub 'arn:aws:s3:::${pBucketName}'
+              - Effect: Allow
+                Action: 'sns:Publish'
+                Resource: !Ref pTopicArn
+      Tags:
+        - Key: Solution-IAC
+          Value: !Sub '${AWS::StackName}-${pBucketName}'          
+
+  # Lambda Function
+  rBucketMonitorLambda:
+    Type: 'AWS::Lambda::Function'
+    Condition: DeploySingleBucketLambda
+    Properties:
+      Handler: 'index.lambda_handler'
+      Role: !GetAtt rLambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import boto3
+          import os
+          from datetime import datetime
+
+          def get_bucket_info(bucket_name):
+              s3 = boto3.client('s3')
+              
+              # List all objects in the bucket
+              paginator = s3.get_paginator('list_objects_v2')
+              folders = set()
+              total_size = 0
+              file_count = 0
+              
+              try:
+                  for page in paginator.paginate(Bucket=bucket_name):
+                      if 'Contents' in page:
+                          for obj in page['Contents']:
+                              file_count += 1
+                              # Convert size to bytes
+                              total_size += int(obj['Size'])
+                              
+                              # Extract folder paths
+                              key = obj['Key']
+                              if '/' in key:
+                                  folder = key.rsplit('/', 1)[0]
+                                  folders.add(folder)
+              
+                  # Convert bytes to different units for better readability
+                  size_bytes = float(total_size)
+                  size_kb = size_bytes / 1024
+                  size_mb = size_kb / 1024
+                  size_gb = size_mb / 1024
+
+                  # Format size string based on the most appropriate unit
+                  if size_gb > 1:
+                      size_str = f"{round(size_gb, 2)} GB"
+                  elif size_mb > 1:
+                      size_str = f"{round(size_mb, 2)} MB"
+                  elif size_kb > 1:
+                      size_str = f"{round(size_kb, 2)} KB"
+                  else:
+                      size_str = f"{size_bytes} bytes"
+                  
+                  return {
+                      'folders': list(folders),
+                      'total_size': size_str,
+                      'file_count': file_count
+                  }
+              except Exception as e:
+                  print(f"Error processing bucket: {str(e)}")
+                  return {
+                      'folders': [],
+                      'total_size': '0 bytes',
+                      'file_count': 0
+                  }
+
+          def lambda_handler(event, context):
+              bucket_name = os.environ['BUCKET_NAME']
+              topic_arn = os.environ['TOPIC_ARN']
+              
+              # Get bucket information
+              bucket_info = get_bucket_info(bucket_name)
+              
+              # Prepare email message
+              message = f"""
+              Weekly S3 Bucket Report - {datetime.now().strftime('%Y-%m-%d')}
+              
+              Bucket: {bucket_name}
+              Total Files: {bucket_info['file_count']}
+              Total Size: {bucket_info['total_size']}
+              
+              Folders:
+              {chr(10).join(['- ' + folder for folder in sorted(bucket_info['folders'])])}
+              """
+              
+              # Send SNS notification
+              sns = boto3.client('sns')
+              sns.publish(
+                  TopicArn=topic_arn,
+                  Subject=f"Weekly S3 Single Bucket Report - {bucket_name}",
+                  Message=message
+              )
+              
+              return {
+                  'statusCode': 200,
+                  'body': 'Report sent successfully'
+              }
+
+
+      Runtime: 'python3.12'
+      Timeout: 300
+      MemorySize: 128
+      Architectures:
+        - arm64
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref pBucketName
+          TOPIC_ARN: !Ref pTopicArn
+      Tags:
+        - Key: Solution-IAC
+          Value: !Sub '${AWS::StackName}-${pBucketName}'  
+
+  # EventBridge Rule for weekly trigger
+  rWeeklyTriggerRule:
+    Type: 'AWS::Events::Rule'
+    Condition: DeploySingleBucketLambda
+    Properties:
+      Description: 'Trigger Lambda function weekly'
+      ScheduleExpression: 'rate(7 days)'
+      State: 'ENABLED'
+      Targets:
+        - Arn: !GetAtt rBucketMonitorLambda.Arn
+          Id: 'WeeklyBucketMonitoringTarget'
+
+  # Permission for EventBridge to invoke Lambda
+  rLambdaInvokePermission:
+    Type: 'AWS::Lambda::Permission'
+    Condition: DeploySingleBucketLambda
+    Properties:
+      FunctionName: !Ref rBucketMonitorLambda
+      Action: 'lambda:InvokeFunction'
+      Principal: 'events.amazonaws.com'
+      SourceArn: !GetAtt rWeeklyTriggerRule.Arn
+
+###############################
+# All Buckets monitor Lambda
+###############################
+
+
+####################
+# Step functions
+####################
+
+
+  # Lambda function to list All S3 buckets
+  rListS3BucketsFunction:
+    Type: AWS::Lambda::Function
+    Condition: DeployAllBucketsLambda
+    Properties:
+      Handler: index.lambda_handler
+      Role: !GetAtt rLambdaExecutionRoleStates.Arn
+      #FunctionName: ListS3Buckets
+      Code:
+        ZipFile: |
+          import boto3
+          import json
+          from datetime import datetime, timedelta
+          from botocore.exceptions import ClientError
+          from tabulate import tabulate
+
+          def lambda_handler(event, context):
+              try:
+                  # Initialize CloudWatch client
+                  cloudwatch = boto3.client('cloudwatch')
+                  s3 = boto3.client('s3')
+
+                  # Get list of all buckets
+                  buckets = s3.list_buckets()['Buckets']
+                  bucket_metrics = []
+                  
+                  # Set time range for metrics (last 24 hours)
+                  end_time = datetime.utcnow()
+                  start_time = end_time - timedelta(hours=24)
+
+                  total_size_bytes = 0
+                  total_objects = 0
+
+                  for bucket in buckets:
+                      bucket_name = bucket['Name']
+                      print(f"Processing bucket {bucket_name}")
+                      try:
+                          # Get BucketSizeBytes metric
+                          size_response = cloudwatch.get_metric_statistics(
+                              Namespace='AWS/S3',
+                              MetricName='BucketSizeBytes',
+                              Dimensions=[
+                                  {'Name': 'BucketName', 'Value': bucket_name},
+                                  {'Name': 'StorageType', 'Value': 'StandardStorage'}
+                              ],
+                              StartTime=start_time,
+                              EndTime=end_time,
+                              Period=86400,
+                              Statistics=['Average']
+                          )
+
+                          # Get NumberOfObjects metric
+                          objects_response = cloudwatch.get_metric_statistics(
+                              Namespace='AWS/S3',
+                              MetricName='NumberOfObjects',
+                              Dimensions=[
+                                  {'Name': 'BucketName', 'Value': bucket_name},
+                                  {'Name': 'StorageType', 'Value': 'AllStorageTypes'}
+                              ],
+                              StartTime=start_time,
+                              EndTime=end_time,
+                              Period=86400,
+                              Statistics=['Average']
+                          )
+
+                          # Extract the latest values
+                          bucket_size = 0
+                          if size_response['Datapoints']:
+                              bucket_size = size_response['Datapoints'][-1]['Average']
+                          
+                          object_count = 0
+                          if objects_response['Datapoints']:
+                              object_count = int(objects_response['Datapoints'][-1]['Average'])
+
+                          # Add to totals
+                          total_size_bytes += bucket_size
+                          total_objects += object_count
+
+                          # Get bucket location
+                          location = s3.get_bucket_location(Bucket=bucket_name)
+                          region = location['LocationConstraint'] or 'us-east-1'
+
+                          bucket_metrics.append([
+                              bucket_name,
+                              region,
+                              format_size(bucket_size),
+                              f"{object_count:,}"
+                          ])
+
+                      except ClientError as e:
+                          print(f"Error getting metrics for bucket {bucket_name}: {str(e)}")
+                          bucket_metrics.append([
+                              bucket_name,
+                              'ERROR',
+                              '0.00 bytes',
+                              '0'
+                          ])
+
+                  # Sort buckets by size
+                  bucket_metrics.sort(key=lambda x: float(x[2].split()[0]), reverse=True)
+
+                  # Create summary
+                  summary = [
+                      "S3 Bucket Metrics Report",
+                      "=" * 80,
+                      f"Report Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                      f"Metric Period: {start_time.strftime('%Y-%m-%d %H:%M:%S')} to {end_time.strftime('%Y-%m-%d %H:%M:%S')}",
+                      f"Total Buckets: {len(buckets)}",
+                      f"Total Size: {format_size(total_size_bytes)}",
+                      f"Total Objects: {total_objects:,}",
+                      "\nBucket Details:",
+                  ]
+
+                  # Create table
+                  headers = ["Bucket Name", "Region", "Size", "Objects"]
+                  table = tabulate(bucket_metrics, headers=headers, tablefmt="grid")
+
+                  # Combine summary and table
+                  formatted_output = "\n".join(summary) + "\n" + table
+
+                  return {
+                      'statusCode': 200,
+                      'body': formatted_output,
+                      'headers': {
+                          'Content-Type': 'text/plain'
+                      }
+                  }
+
+              except Exception as e:
+                  print(f"Error: {str(e)}")
+                  return {
+                      'statusCode': 500,
+                      'body': f"Error generating report: {str(e)}"
+                  }
+
+          def format_size(size_bytes):
+              """Convert bytes to human readable format"""
+              try:
+                  for unit in ['bytes', 'KB', 'MB', 'GB', 'TB', 'PB']:
+                      if size_bytes < 1024.0:
+                          return f"{size_bytes:.2f} {unit}"
+                      size_bytes /= 1024.0
+                  return f"{size_bytes:.2f} PB"
+              except Exception:
+                  return "0.00 bytes"
+
+      Runtime: python3.12
+      Timeout: 300  # Adjust as necessary
+      Architectures:
+        - arm64
+      Layers:
+        - 'arn:aws:lambda:us-east-1:770693421928:layer:Klayers-p312-arm64-tabulate:1'
+      Tags:
+        - Key: Solution-IAC
+          Value: !Sub '${AWS::StackName}-${pBucketName}' 
+
+  # Lambda function to send report via SNS
+  SendSNSReportFunction:
+    Type: AWS::Lambda::Function
+    Condition: DeployAllBucketsLambda
+    Properties:
+      Handler: index.lambda_handler
+      Role: !GetAtt rLambdaExecutionRoleStates.Arn
+      #FunctionName: SendSNSReport
+      Code:
+        ZipFile: |
+
+          import boto3
+          import json
+
+          def lambda_handler(event, context):
+              sns = boto3.client('sns')
+              topic_arn = event['topic_arn']
+              report_data = event['buckets_info']
+
+              # message = f"Here is the report of S3 Buckets:\n{json.dumps(report)}"
+              message = f"Here is the report of S3 Buckets:\n{report_data}"
+
+              sns.publish(
+                  TopicArn=topic_arn,
+                  Message=message,
+                  Subject="S3 All Buckets Report Data"
+              )
+
+              return {
+                  'statusCode': 200,
+                  'body': 'Report sent successfully.'
+              }
+
+      Runtime: python3.12
+      Timeout: 30  # Adjust as necessary
+      # Environment:
+      #   Variables:
+      #     SNS_TOPIC_ARN: !Ref pTopicArn
+      Architectures:
+        - arm64
+      Tags:
+        - Key: Solution-IAC
+          Value: !Sub '${AWS::StackName}-${pBucketName}' 
+
+  # IAM Role for Lambda Functions
+  rLambdaExecutionRoleStates:
+    Type: AWS::IAM::Role
+    Condition: DeployAllBucketsLambda
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Policies:
+        - PolicyName: LambdaS3AndSNSAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:ListAllMyBuckets
+                  - s3:GetBucketLocation
+                  - s3:ListBucket
+                  - cloudwatch:GetMetricStatistics
+                Resource: "*"
+              - Effect: Allow
+                Action: 'sns:Publish'
+                Resource: !Ref pTopicArn
+
+      Tags:
+        - Key: Solution-IAC
+          Value: !Sub '${AWS::StackName}-${pBucketName}' 
+
+  # Step Function Definition
+  rBucketProcessingStateMachine:
+    Type: AWS::StepFunctions::StateMachine
+    Condition: DeployAllBucketsLambda
+    Properties:
+      DefinitionString:
+        !Sub |
+          {
+            "Comment": "State machine to list S3 buckets and send report",
+            "StartAt": "ListS3Buckets",
+            "States": {
+              "ListS3Buckets": {
+                "Type": "Task",
+                "Resource": "${rListS3BucketsFunction.Arn}",
+                "Next": "SendSNSReport",
+                "ResultPath": "$.buckets_info"
+              },
+              "SendSNSReport": {
+                "Type": "Task",
+                "Resource": "${SendSNSReportFunction.Arn}",
+                "End": true,
+                "Parameters": {
+                  "topic_arn": "${pTopicArn}",
+                  "buckets_info.$": "$.buckets_info"
+                }
+              }
+            }
+          }
+      RoleArn: !GetAtt rStepFunctionExecutionRole.Arn
+      Tags:
+        - Key: Solution-IAC
+          Value: !Sub '${AWS::StackName}-${pBucketName}' 
+
+  # IAM Role for Step Functions Execution
+  rStepFunctionExecutionRole:
+    Type: AWS::IAM::Role
+    Condition: DeployAllBucketsLambda
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: states.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: StepFunctionsExecutionPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource:
+                  - !GetAtt rListS3BucketsFunction.Arn
+                  - !GetAtt SendSNSReportFunction.Arn 
+      Tags:
+        - Key: Solution-IAC
+          Value: !Sub '${AWS::StackName}-${pBucketName}' 
+
+  # EventBridge Rule
+  rWeeklyTriggerRuleStates:
+    Type: 'AWS::Events::Rule'
+    Condition: DeployAllBucketsLambda
+    Properties:
+      Description: 'Trigger Step Functions state machine weekly'
+      ScheduleExpression: 'rate(7 days)'
+      State: 'ENABLED'
+      Targets:
+        - Arn: !Ref rBucketProcessingStateMachine
+          Id: 'WeeklyBucketProcessing'
+          RoleArn: !GetAtt rEventsRole.Arn
+
+  # IAM Role for EventBridge
+  rEventsRole:
+    Type: 'AWS::IAM::Role'
+    Condition: DeployAllBucketsLambda
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: StepFunctionsInvokePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: 'states:StartExecution'
+                Resource: !Ref rBucketProcessingStateMachine
+      Tags:
+        - Key: Solution-IAC
+          Value: !Sub '${AWS::StackName}-${pBucketName}'   
+
+Outputs:
+
+  oLambdaFunctionArn:
+    Condition: DeploySingleBucketLambda
+    Description: 'ARN of the Lambda function'
+    Value: !GetAtt rBucketMonitorLambda.Arn
+
+  oStateMachineArn:
+    Condition: DeployAllBucketsLambda
+    Description: 'ARN of the Step Functions state machine'
+    Value: !Ref rBucketProcessingStateMachine  
