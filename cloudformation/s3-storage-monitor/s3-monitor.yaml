@@ -88,6 +88,7 @@ Resources:
     Properties:
       Handler: 'index.lambda_handler'
       Role: !GetAtt rLambdaExecutionRole.Arn
+      Description: Monitoring single S3 bucket
       Code:
         ZipFile: |
           import boto3
@@ -231,6 +232,7 @@ Resources:
     Properties:
       Handler: index.lambda_handler
       Role: !GetAtt rLambdaExecutionRoleStates.Arn
+      Description: Monitoring all S3 buckets in account
       #FunctionName: ListS3Buckets
       Code:
         ZipFile: |
@@ -238,7 +240,10 @@ Resources:
           import json
           from datetime import datetime, timedelta
           from botocore.exceptions import ClientError
-          from tabulate import tabulate
+          #from tabulate import tabulate
+          import csv
+          import os
+          #from io import StringIO
 
           def lambda_handler(event, context):
               try:
@@ -250,12 +255,20 @@ Resources:
                   buckets = s3.list_buckets()['Buckets']
                   bucket_metrics = []
                   
-                  # Set time range for metrics (last 24 hours)
+                  # Set time range for metrics (last 24 hours / 30 days)
                   end_time = datetime.utcnow()
-                  start_time = end_time - timedelta(hours=24)
+                  start_time = end_time - timedelta(hours=24*30)
 
                   total_size_bytes = 0
                   total_objects = 0
+
+                  # add header to CSV file
+                  bucket_metrics.append([
+                    "Bucket Name",
+                    "Region",
+                    "Size",
+                    "Objects"
+                  ])
 
                   for bucket in buckets:
                       bucket_name = bucket['Name']
@@ -322,8 +335,8 @@ Resources:
                               '0'
                           ])
 
-                  # Sort buckets by size
-                  bucket_metrics.sort(key=lambda x: float(x[2].split()[0]), reverse=True)
+                  # # Sort buckets by size
+                  # bucket_metrics.sort(key=lambda x: float(x[2].split()[0]), reverse=True)
 
                   # Create summary
                   summary = [
@@ -337,12 +350,19 @@ Resources:
                       "\nBucket Details:",
                   ]
 
-                  # Create table
-                  headers = ["Bucket Name", "Region", "Size", "Objects"]
-                  table = tabulate(bucket_metrics, headers=headers, tablefmt="grid")
+                  # # Create table
+                  # headers = ["Bucket Name", "Region", "Size", "Objects"]
+                  # table = tabulate(bucket_metrics, headers=headers, tablefmt="grid")
+
+                  # convert to CSV
+                  csv_output = convert_csv(bucket_metrics)
 
                   # Combine summary and table
-                  formatted_output = "\n".join(summary) + "\n" + table
+                  #formatted_output = "\n".join(summary) + "\n" + table
+                  #formatted_output = table
+                  #formatted_output = "\n".join(summary) + "\n" + "Download complete report from S3 bucket here: " + f"{csv_output}"
+
+                  formatted_output = f"{summary}" + "\n" + "Download complete report from S3 bucket here: " + f"{csv_output}"
 
                   return {
                       'statusCode': 200,
@@ -370,12 +390,54 @@ Resources:
               except Exception:
                   return "0.00 bytes"
 
+          def convert_csv(data_input):
+
+              try:
+
+                  # Write data to a CSV file
+                  with open('/tmp/output.csv', 'w', newline='') as file:
+                      writer = csv.writer(file)
+                      writer.writerows(data_input)
+
+                  print("CSV file '/tmp/output.csv' has been created.")
+
+                  # Generate filename with timestamp
+                  timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                  file_key = f"csv-files/report_{timestamp}.csv"
+                  bucket_name = os.environ.get('BUCKET_NAME')
+
+                  # Copy CSV file to S3
+                  s3_client = boto3.client('s3')
+                  s3_client.upload_file('/tmp/output.csv', bucket_name, file_key)
+
+                  
+                  # # Read and display the contents of the CSV file
+                  # print("\nContents of the CSV file:")
+                  # with open('/tmp/output.csv', 'r') as file:
+                  #     csv_reader = csv.reader(file)
+                  #     for row in csv_reader:
+                  #         print(', '.join(row))
+
+
+                  return f"s3://{bucket_name}/{file_key}"
+
+              except Exception as e:
+                  return {
+                      'statusCode': 500,
+                      'body': f"Error generating CSV: {str(e)}"
+                  }
+
+
+
       Runtime: python3.12
       Timeout: 300  # Adjust as necessary
       Architectures:
         - arm64
-      Layers:
-        - !FindInMap [RegionMap, !Ref "AWS::Region", LambdaLayer]
+      # Layers:
+      #   - !FindInMap [RegionMap, !Ref "AWS::Region", LambdaLayer]
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref rBucketOutput
       Tags:
         - Key: Solution-IAC
           Value: !Sub '${AWS::StackName}-${pBucketName}-${pDeploymentChoice}' 
@@ -387,6 +449,7 @@ Resources:
     Properties:
       Handler: index.lambda_handler
       Role: !GetAtt rLambdaExecutionRoleStates.Arn
+      Description: Send report for all S3 buckets in account
       #FunctionName: SendSNSReport
       Code:
         ZipFile: |
@@ -405,7 +468,7 @@ Resources:
               sns.publish(
                   TopicArn=topic_arn,
                   Message=message,
-                  Subject="S3 All Buckets Report Data"
+                  Subject="S3 All Buckets Report Data - 30 days metrics"
               )
 
               return {
@@ -453,6 +516,10 @@ Resources:
               - Effect: Allow
                 Action: 'sns:Publish'
                 Resource: !Ref pTopicArn
+              - Effect: Allow
+                Action: s3:PutObject
+                Resource: !Sub '${rBucketOutput.Arn}/*'
+
 
       Tags:
         - Key: Solution-IAC
@@ -555,6 +622,52 @@ Resources:
         - Key: Solution-IAC
           Value: !Sub '${AWS::StackName}-${pBucketName}-${pDeploymentChoice}'   
 
+# create S3 bucket to store CSV output
+
+  rBucketOutput:
+    Type: 'AWS::S3::Bucket'
+    DeletionPolicy: Retain
+    Properties:
+      #BucketName: !Ref BucketName
+      # Enable versioning
+      VersioningConfiguration:
+        Status: Enabled
+      # Enable encryption
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      # Lifecycle rules
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteAfter90Days
+            Status: Enabled
+            ExpirationInDays: 90
+            # Also delete old versions
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 90
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+
+  # Bucket policy
+  S3BucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref rBucketOutput
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: ForceSSLOnly
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource: 
+              - !Sub '${rBucketOutput.Arn}/*'
+              - !GetAtt rBucketOutput.Arn
+            Condition:
+              Bool:
+                'aws:SecureTransport': false
+
 Outputs:
 
   oLambdaFunctionArn:
@@ -566,3 +679,11 @@ Outputs:
     Condition: DeployAllBucketsLambda
     Description: 'ARN of the Step Functions state machine'
     Value: !Ref rBucketProcessingStateMachine  
+
+  oBucketName:
+    Description: Name of the created bucket
+    Value: !Ref rBucketOutput
+    
+  oBucketARN:
+    Description: ARN of the created bucket
+    Value: !GetAtt rBucketOutput.Arn
