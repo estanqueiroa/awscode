@@ -344,7 +344,7 @@ Resources:
                   # Create summary
                   summary = [
                       "=" * 80,
-                      f"S3 Bucket Metrics Report (30 days) - AWS Account id {account_id}",
+                      f"S3 Bucket Metrics Report (30 days) - AWS Account id: {account_id}",
                       "=" * 80,
                       f"Report Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
                       f"Metric Period: {start_time.strftime('%Y-%m-%d %H:%M:%S')} to {end_time.strftime('%Y-%m-%d %H:%M:%S')}",
@@ -368,12 +368,7 @@ Resources:
                   # convert to CSV
                   csv_output = convert_csv(bucket_metrics)
 
-                  # Combine summary and table
-                  #formatted_output = "\n".join(summary) + "\n" + table
-                  #formatted_output = table
-                  #formatted_output = "\n".join(summary) + "\n" + "Download complete report from S3 bucket here: " + f"{csv_output}"
-
-                  formatted_output = f"{summary_text}" + "\n" + "Download complete report from S3 bucket here: " + f"{csv_output}"
+                  formatted_output = f"{summary_text}" + "\n" + "Download complete CSV report from here (internal private - use AWS CLI): " + f"{csv_output}"
 
                   return formatted_output
 
