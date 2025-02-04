@@ -43,5 +43,5 @@ The state machine flow is:
 
 * Single Bucket: large buckets may not be processed successfully due to Lambda timeout settings (max. 15 minutes)
 * Lambda layer configured for us-east-1 region, you can find another layers regions [here](https://github.com/keithrozario/Klayers/tree/master/deployments/python3.12-arm64). Mapping included for some regions.
-* Needs better formating for email message (json dump)
+* Needs better formating for email message (json dump) (DONE)
 

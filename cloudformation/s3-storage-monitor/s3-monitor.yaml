@@ -340,15 +340,23 @@ Resources:
 
                   # Create summary
                   summary = [
-                      "S3 Bucket Metrics Report",
+                      "=" * 80,
+                      "S3 Bucket Metrics Report (30 days)",
                       "=" * 80,
                       f"Report Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
                       f"Metric Period: {start_time.strftime('%Y-%m-%d %H:%M:%S')} to {end_time.strftime('%Y-%m-%d %H:%M:%S')}",
+                      "",  # Empty line for spacing
                       f"Total Buckets: {len(buckets)}",
+                      "",  # Empty line for spacing
                       f"Total Size: {format_size(total_size_bytes)}",
+                      "",  # Empty line for spacing
                       f"Total Objects: {total_objects:,}",
-                      "\nBucket Details:",
+                      "",  # Empty line for spacing
+                      "Bucket Details:"
                   ]
+
+                  # Join with newlines when needed
+                  summary_text = '\n'.join(summary)
 
                   # # Create table
                   # headers = ["Bucket Name", "Region", "Size", "Objects"]
@@ -362,15 +370,17 @@ Resources:
                   #formatted_output = table
                   #formatted_output = "\n".join(summary) + "\n" + "Download complete report from S3 bucket here: " + f"{csv_output}"
 
-                  formatted_output = f"{summary}" + "\n" + "Download complete report from S3 bucket here: " + f"{csv_output}"
+                  formatted_output = f"{summary_text}" + "\n" + "Download complete report from S3 bucket here: " + f"{csv_output}"
 
-                  return {
-                      'statusCode': 200,
-                      'body': formatted_output,
-                      'headers': {
-                          'Content-Type': 'text/plain'
-                      }
-                  }
+                  return formatted_output
+
+                  # return {
+                  #     'statusCode': 200,
+                  #     'body': formatted_output,
+                  #     'headers': {
+                  #         'Content-Type': 'text/plain'
+                  #     }
+                  # }
 
               except Exception as e:
                   print(f"Error: {str(e)}")
@@ -410,6 +420,7 @@ Resources:
                   s3_client = boto3.client('s3')
                   s3_client.upload_file('/tmp/output.csv', bucket_name, file_key)
 
+                  print(f"File {file_key}.csv copied to S3 bucket {bucket_name}")
                   
                   # # Read and display the contents of the CSV file
                   # print("\nContents of the CSV file:")
