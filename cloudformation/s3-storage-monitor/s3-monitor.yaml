@@ -338,10 +338,13 @@ Resources:
                   # # Sort buckets by size
                   # bucket_metrics.sort(key=lambda x: float(x[2].split()[0]), reverse=True)
 
+                  # Get account ID from context
+                  account_id = context.invoked_function_arn.split(":")[4]
+
                   # Create summary
                   summary = [
                       "=" * 80,
-                      "S3 Bucket Metrics Report (30 days)",
+                      f"S3 Bucket Metrics Report (30 days) - AWS Account id {account_id}",
                       "=" * 80,
                       f"Report Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
                       f"Metric Period: {start_time.strftime('%Y-%m-%d %H:%M:%S')} to {end_time.strftime('%Y-%m-%d %H:%M:%S')}",
@@ -420,7 +423,7 @@ Resources:
                   s3_client = boto3.client('s3')
                   s3_client.upload_file('/tmp/output.csv', bucket_name, file_key)
 
-                  print(f"File {file_key}.csv copied to S3 bucket {bucket_name}")
+                  print(f"File {file_key} copied to S3 bucket {bucket_name}")
                   
                   # # Read and display the contents of the CSV file
                   # print("\nContents of the CSV file:")
