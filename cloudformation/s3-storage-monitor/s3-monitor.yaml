@@ -27,6 +27,16 @@ Parameters:
     Default: 'single-bucket'
     Description: 'Choose which lambda(s) to deploy: single-bucket, all-buckets, or both'
 
+  pLambdaSchedule:
+    Type: String
+    AllowedValues:
+      - 'daily'
+      - 'weekly'
+      - 'bi-weekly'
+      - 'monthly'
+    Default: 'weekly'
+    Description: 'Choose the Lambda schedule to send reports'
+
 Mappings:
   RegionMap:
     us-east-1:
@@ -37,6 +47,15 @@ Mappings:
       LambdaLayer: arn:aws:lambda:eu-west-1:770693421928:layer:Klayers-p312-arm64-tabulate:1
     sa-east-1:
       LambdaLayer: arn:aws:lambda:sa-east-1:770693421928:layer:Klayers-p312-arm64-tabulate:1
+  RuleSchedule:
+    daily:
+      Schedule: 'rate(1 day)'
+    weekly:
+      Schedule: 'rate(7 days)'
+    bi-weekly:
+      Schedule: 'rate(14 days)'
+    monthly:
+      Schedule: 'rate(30 days)'
 
 Conditions:
 
@@ -194,12 +213,12 @@ Resources:
           Value: !Sub '${AWS::StackName}-${pBucketName}-${pDeploymentChoice}'  
 
   # EventBridge Rule for weekly trigger
-  rWeeklyTriggerRule:
+  rTriggerRuleLambda:
     Type: 'AWS::Events::Rule'
     Condition: DeploySingleBucketLambda
     Properties:
       Description: 'Trigger Lambda function weekly'
-      ScheduleExpression: 'rate(7 days)'
+      ScheduleExpression: !FindInMap [RuleSchedule, !Ref pLambdaSchedule, Schedule]
       State: 'ENABLED'
       Targets:
         - Arn: !GetAtt rBucketMonitorLambda.Arn
@@ -213,7 +232,7 @@ Resources:
       FunctionName: !Ref rBucketMonitorLambda
       Action: 'lambda:InvokeFunction'
       Principal: 'events.amazonaws.com'
-      SourceArn: !GetAtt rWeeklyTriggerRule.Arn
+      SourceArn: !GetAtt rTriggerRuleLambda.Arn
 
 ###############################
 # All Buckets monitor Lambda
@@ -246,6 +265,7 @@ Resources:
           #from io import StringIO
 
           def lambda_handler(event, context):
+
               try:
                   # Initialize CloudWatch client
                   cloudwatch = boto3.client('cloudwatch')
@@ -355,7 +375,7 @@ Resources:
                       "",  # Empty line for spacing
                       f"Total Objects: {total_objects:,}",
                       "",  # Empty line for spacing
-                      "Bucket Details:"
+                      "All Buckets Details:"
                   ]
 
                   # Join with newlines when needed
@@ -368,7 +388,7 @@ Resources:
                   # convert to CSV
                   csv_output = convert_csv(bucket_metrics)
 
-                  formatted_output = f"{summary_text}" + "\n" + "Download complete CSV report from here (internal private - use AWS CLI): " + f"{csv_output}"
+                  formatted_output = f"{summary_text}" + "\n" + "Download complete CSV report from here (internal private - use AWS CLI): " + "\n" + "aws s3 cp " + f"{csv_output}" + " localfile_name.ext"
 
                   return formatted_output
 
@@ -413,7 +433,7 @@ Resources:
                   timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
                   file_key = f"csv-files/report_{timestamp}.csv"
                   bucket_name = os.environ.get('BUCKET_NAME')
-
+                  
                   # Copy CSV file to S3
                   s3_client = boto3.client('s3')
                   s3_client.upload_file('/tmp/output.csv', bucket_name, file_key)
@@ -595,12 +615,12 @@ Resources:
           Value: !Sub '${AWS::StackName}-${pBucketName}-${pDeploymentChoice}' 
 
   # EventBridge Rule
-  rWeeklyTriggerRuleStates:
+  rTriggerRuleStates:
     Type: 'AWS::Events::Rule'
     Condition: DeployAllBucketsLambda
     Properties:
       Description: 'Trigger Step Functions state machine weekly'
-      ScheduleExpression: 'rate(7 days)'
+      ScheduleExpression: !FindInMap [RuleSchedule, !Ref pLambdaSchedule, Schedule]
       State: 'ENABLED'
       Targets:
         - Arn: !Ref rBucketProcessingStateMachine
