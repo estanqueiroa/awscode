@@ -31,13 +31,16 @@ aws cloudformation create-stack \
 
 ### 2. Testing
 
-# Get public IP from CloudFormation stack Outputs or using AWS CLI:
+* Get public IP from CloudFormation stack Outputs or using AWS CLI:
+
+```bash
 aws cloudformation describe-stacks \
     --stack-name lifetimer-stack \
     --query 'Stacks[0].Outputs[?OutputKey==`PublicIP`].OutputValue' \
     --output text
+```
 
-Then open in browser: http://<public-ip>
+* Then open in browser: http://<public-ip>
 
 
 ## Cleanup
