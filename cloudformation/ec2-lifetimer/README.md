@@ -3,6 +3,8 @@
 ## Overview
 This CloudFormation template deploys a simple web application that calculates life statistics based on birth dates. The application runs in a Docker container on an EC2 instance with automated setup and configuration.
 
+![Alt text](screenshot.jpg?raw=true "Diagram Image")
+
 ## Architecture
 
 - One EC2 Instance (t2.micro by default)
