@@ -1,0 +1,88 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation template for Lifetimer Docker application'
+
+Parameters:
+
+  README:
+    Description: README - Make sure you have DEFAULT VPC created
+    Type: String
+    Default: README - Make sure you have DEFAULT VPC created
+
+  pKeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+
+  pInstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+      - t2.small
+      - t2.medium
+    ConstraintDescription: must be a valid EC2 instance type.
+
+Mappings:
+  RegionMap:
+    us-east-1:
+      AMI: ami-0cff7528ff583bf9a
+    us-east-2:
+      AMI: ami-02f3416038bdb17fb
+    us-west-1:
+      AMI: ami-0d50e5e845c552481
+    us-west-2:
+      AMI: ami-0735c191cf914754d
+    eu-west-1:
+      AMI: ami-0fe0b2cf0e1f25c8a
+
+Resources:
+  rLifetimerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable HTTP and SSH access
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+
+  rLifetimerInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref pInstanceType
+      SecurityGroups:
+        - !Ref rLifetimerSecurityGroup
+      KeyName: !Ref pKeyName
+      ImageId: !FindInMap 
+        - RegionMap
+        - !Ref 'AWS::Region'
+        - AMI
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash
+          yum update -y
+          yum install -y docker
+          service docker start
+          systemctl enable docker
+          docker run -d -p 80:80 estanqueiroa/lifetimer:latest
+      Tags:
+        - Key: Name
+          Value: docker-lifetimer
+
+Outputs:
+  oPublicIP:
+    Description: Public IP address of the instance
+    Value: !GetAtt rLifetimerInstance.PublicIp
+
+  oPublicDNS:
+    Description: Public DNS name of the instance
+    Value: !GetAtt rLifetimerInstance.PublicDnsName
+
+  oWebsiteURL:
+    Description: URL for the website
+    Value: !Sub http://${rLifetimerInstance.PublicDnsName}

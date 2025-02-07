@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Life in Days Calculator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #ddd;
+            border-radius: 10px;
+            margin-top: 10px;
+        }
+        .progress {
+            height: 100%;
+            background-color: #4CAF50;
+            border-radius: 10px;
+            transition: width 0.5s ease-in-out;
+        }
+        .milestone {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #e7f3fe;
+            border-left: 4px solid #2196F3;
+        }
+    </style>
+</head>
+<body>
+    <h1>Life in Days Calculator</h1>
+    <p>Enter your birthday to see how many days you've lived out of 30,000 (average lifetime):</p>
+    
+    <input type="date" id="birthDate">
+    <button onclick="calculateDays()">Calculate</button>
+
+    <div id="result" class="result" style="display: none;">
+        <p id="daysLived"></p>
+        <p id="daysRemaining"></p>
+        <p id="percentageComplete"></p>
+        <div class="progress-bar">
+            <div id="progressBar" class="progress"></div>
+        </div>
+        <div class="milestone" id="targetDate"></div>
+    </div>
+
+    <script>
+        function calculateDays() {
+            const birthDate = new Date(document.getElementById('birthDate').value);
+            const today = new Date();
+            const totalDays = 30000;
+
+            // Calculate days lived
+            const timeDiff = today - birthDate;
+            const daysLived = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+            
+            // Calculate remaining days
+            const daysRemaining = totalDays - daysLived;
+            
+            // Calculate percentage
+            const percentage = (daysLived / totalDays * 100).toFixed(2);
+
+            // Calculate target date (30,000 days from birth)
+            const targetDate = new Date(birthDate);
+            targetDate.setDate(targetDate.getDate() + totalDays);
+
+            // Format target date
+            const options = { 
+                weekday: 'long',
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric'
+            };
+            const formattedTargetDate = targetDate.toLocaleDateString('en-US', options);
+
+            // Display results
+            document.getElementById('result').style.display = 'block';
+            document.getElementById('daysLived').textContent = 
+                `Days lived: ${daysLived.toLocaleString()} days`;
+            document.getElementById('daysRemaining').textContent = 
+                `Days remaining: ${daysRemaining.toLocaleString()} days`;
+            document.getElementById('percentageComplete').textContent = 
+                `You have lived ${percentage}% of 30,000 days`;
+            document.getElementById('targetDate').innerHTML = 
+                `<strong>Your 30,000th day will be:</strong><br>${formattedTargetDate}`;
+
+            // Calculate years and days for additional context
+            const yearsLived = Math.floor(daysLived / 365.25);
+            const yearsRemaining = Math.floor(daysRemaining / 365.25);
+            
+            // Add age context
+            document.getElementById('targetDate').innerHTML += 
+                `<br><br>Current age: ${yearsLived} years` +
+                `<br>Age at 30,000 days: ${Math.floor(totalDays/365.25)} years` +
+                `<br>Years remaining: ${yearsRemaining} years`;
+            
+            // Update progress bar
+            document.getElementById('progressBar').style.width = `${percentage}%`;
+        }
+    </script>
+</body>
+</html>
