@@ -15,6 +15,7 @@ This CloudFormation template deploys a simple web application that calculates li
 
 ## Prerequisites
 - AWS Account
+- Default VPC
 - AWS CLI installed and configured
 - Existing EC2 Key Pair
 - IAM permissions for CloudFormation and EC2
