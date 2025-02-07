@@ -37,8 +37,7 @@ aws cloudformation describe-stacks \
     --query 'Stacks[0].Outputs[?OutputKey==`PublicIP`].OutputValue' \
     --output text
 
-# Then open in browser:
-# http://<public-ip>
+Then open in browser: http://<public-ip>
 
 
 ## Cleanup
