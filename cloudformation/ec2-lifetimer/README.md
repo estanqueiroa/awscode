@@ -40,7 +40,7 @@ aws cloudformation describe-stacks \
     --output text
 ```
 
-* Then open in browser: http://<public-ip>
+* Then open in browser: http://ec2-instance-public-ip-address
 
 
 ## Cleanup
