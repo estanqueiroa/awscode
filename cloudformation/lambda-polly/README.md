@@ -99,3 +99,9 @@ Neural Voices:
 
 * 100,000 characters using standard voice = $0.40
 * 100,000 characters using neural voice = $1.60
+
+## References
+
+[Resolving circular dependency in provisioning of Amazon S3 buckets with AWS Lambda event notifications](https://aws.amazon.com/blogs/mt/resolving-circular-dependency-in-provisioning-of-amazon-s3-buckets-with-aws-lambda-event-notifications/)
+
+[Amazon Polly examples using SDK for Python (Boto3)](https://docs.aws.amazon.com/code-library/latest/ug/python_3_polly_code_examples.html)
