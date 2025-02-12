@@ -3,10 +3,10 @@ Description: 'CloudFormation template for Lifetimer Docker application'
 
 Parameters:
 
-  README:
-    Description: README - Make sure you have DEFAULT VPC created
-    Type: String
-    Default: README - Make sure you have DEFAULT VPC created
+  # README:
+  #   Description: README - Make sure you have DEFAULT VPC created
+  #   Type: String
+  #   Default: README - Make sure you have DEFAULT VPC created
 
   pKeyName:
     Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
@@ -23,6 +23,18 @@ Parameters:
       - t2.medium
     ConstraintDescription: must be a valid EC2 instance type.
 
+  pVpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: Select a VPC
+
+  pPrivateSubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: Select private subnet for EC2 (must have NAT gateway for Internet connectivity)
+
+  pPublicSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Select public subnets for ALB (minimum 2)
+
 Mappings:
   RegionMap:
     us-east-1:
@@ -37,27 +49,45 @@ Mappings:
       AMI: ami-0fe0b2cf0e1f25c8a
 
 Resources:
-  rLifetimerSecurityGroup:
+
+  # Security Group for EC2
+  rEC2SecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Enable HTTP and SSH access
+      GroupDescription: Allow HTTP from ALB
+      VpcId: !Ref pVpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref rALBSecurityGroup
+      Tags:
+        - Key: Name
+          Value: docker-lifetimer
+
+  # Security Group for ALB
+  rALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP from Internet
+      VpcId: !Ref pVpcId
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
           CidrIp: 0.0.0.0/0 # configure your IP address for better security  https://checkip.amazonaws.com/
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-          CidrIp: 0.0.0.0/0 # configure your IP address for better security  https://checkip.amazonaws.com/
+      Tags:
+        - Key: Name
+          Value: docker-lifetimer
 
-  rLifetimerInstance:
+  rEc2LifetimerInstance:
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: !Ref pInstanceType
-      SecurityGroups:
-        - !Ref rLifetimerSecurityGroup
+      SecurityGroupIds:
+        - !Ref rEC2SecurityGroup
       KeyName: !Ref pKeyName
+      SubnetId: !Ref pPrivateSubnetId
       ImageId: !FindInMap 
         - RegionMap
         - !Ref 'AWS::Region'
@@ -74,15 +104,70 @@ Resources:
         - Key: Name
           Value: docker-lifetimer
 
+###################
+# ALB
+###################
+
+  # Application Load Balancer
+  rApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Subnets: !Ref pPublicSubnetIds
+      SecurityGroups:
+        - !Ref rALBSecurityGroup
+      Tags:
+        - Key: Name
+          Value: docker-lifetimer
+
+  # Target Group
+  rALBTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      Port: 80
+      Protocol: HTTP
+      UnhealthyThresholdCount: 5
+      VpcId: !Ref pVpcId
+      Targets:
+        - Id: !Ref rEc2LifetimerInstance
+          Port: 80
+      Tags:
+        - Key: Name
+          Value: docker-lifetimer
+
+  # Listener
+  rALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref rALBTargetGroup
+      LoadBalancerArn: !Ref rApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+
 Outputs:
-  oPublicIP:
-    Description: Public IP address of the instance
-    Value: !GetAtt rLifetimerInstance.PublicIp
 
-  oPublicDNS:
-    Description: Public DNS name of the instance
-    Value: !GetAtt rLifetimerInstance.PublicDnsName
+  oPrivateIP:
+    Description: Private IP address of the EC2 instance
+    Value: !GetAtt rEc2LifetimerInstance.PrivateIp
 
-  oWebsiteURL:
-    Description: URL for the website
-    Value: !Sub http://${rLifetimerInstance.PublicDnsName}
+  oInstanceId:
+    Description: EC2 instance ID
+    Value: !GetAtt rEc2LifetimerInstance.InstanceId
+
+  # oPublicDNS:
+  #   Description: Public DNS name of the instance
+  #   Value: !GetAtt rLifetimerInstance.PublicDnsName
+
+  # oWebsiteURL:
+  #   Description: URL for the website
+  #   Value: !Sub http://${rLifetimerInstance.PublicDnsName}
+
+  oALBDNSName:
+    Description: DNS name of the ALB
+    Value: !GetAtt rApplicationLoadBalancer.DNSName
