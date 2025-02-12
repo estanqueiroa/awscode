@@ -33,7 +33,7 @@ aws cloudformation create-stack \
 
 ## Testing
 
-* Upload a .txt file to S3 bucket and verify the corresponding .mp3 audio file is generated sucessfully in the output bucket.
+* Upload a .txt file to S3 bucket and verify the corresponding .mp3 audio file is generated successfully in the output bucket.
 
 ## Cleanup
 
@@ -51,3 +51,51 @@ aws polly synthesize-speech \
     --output-format mp3 \
     output.mp3
 ```
+
+## Costs Estimation
+
+* Lambda (2 functions)
+
+1000 invocations, 1 sec duration, 128MB ARM64
+Cost: ~$0.0057
+
+* S3
+
+Storage (6GB): $0.138
+PUT requests (2000): $0.01
+GET requests (2000): $0.0008
+Total S3: ~$0.15
+
+* Polly
+
+100,000 characters
+Standard voice
+Cost: $0.40
+
+**Total Monthly: ~$0.56**
+
+Free Tier Benefits:
+
+* Lambda: 1M free requests/month
+* S3: 5GB storage, 20,000 GET requests
+* Polly: 1M characters first 12 months
+
+**Note:** Prices based on us-east-1 region, actual costs may vary by region and usage patterns.
+
+
+* Amazon Polly pricing has two main tiers:
+
+Standard Voices:
+
+* First 1 million characters per month: FREE
+* After that: $4.00 per 1 million characters
+
+Neural Voices:
+
+* $16.00 per 1 million characters
+* No free tier
+
+**Example Cost:**
+
+* 100,000 characters using standard voice = $0.40
+* 100,000 characters using neural voice = $1.60
