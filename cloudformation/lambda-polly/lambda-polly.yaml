@@ -1,0 +1,247 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Lambda function to convert S3 text file to audio using Polly'
+
+Parameters:
+
+  pInputBucket:
+    Type: String
+    Description: Name of the S3 bucket containing input text files
+
+  pOutputBucket:
+    Type: String
+    Description: Name of the S3 bucket to store output audio files
+
+Resources:
+
+  rLambdaTextRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: S3AndPollyAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: 
+                  - !Sub 'arn:aws:s3:::${pInputBucket}/*'
+                  - !Sub 'arn:aws:s3:::${pOutputBucket}/*'
+              - Effect: Allow
+                Action:
+                  - polly:SynthesizeSpeech
+                Resource: '*'
+      Tags:
+        - Key: Project-CFN
+          Value: !Sub '${AWS::StackName}-CFN-stack'
+
+  rTextToSpeechLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.lambda_handler
+      Role: !GetAtt rLambdaTextRole.Arn
+      Code:
+        ZipFile: |
+          import boto3
+          import os
+
+          s3 = boto3.client('s3')
+          polly = boto3.client('polly')
+
+          def lambda_handler(event, context):
+              # Get the source bucket and key
+              source_bucket = event['Records'][0]['s3']['bucket']['name']
+              source_key = event['Records'][0]['s3']['object']['key']
+              
+              # Read the text file from S3
+              response = s3.get_object(Bucket=source_bucket, Key=source_key)
+              text = response['Body'].read().decode('utf-8')
+              
+              # Convert text to speech using Polly
+              polly_response = polly.synthesize_speech(
+                  Text=text,
+                  OutputFormat='mp3',
+                  VoiceId='Joanna'
+              )
+              
+              # Save the audio file to the output bucket
+              output_bucket = os.environ['OUTPUT_BUCKET']
+              output_key = f"{os.path.splitext(source_key)[0]}.mp3"
+              s3.put_object(
+                  Bucket=output_bucket,
+                  Key=output_key,
+                  Body=polly_response['AudioStream'].read()
+              )
+              
+              return {
+                  'statusCode': 200,
+                  'body': f'Audio file created: {output_key}'
+              }
+      Runtime: python3.12
+      Timeout: 300
+      MemorySize: 128
+      Architectures:
+        - arm64 # graviton
+      Environment:
+        Variables:
+          OUTPUT_BUCKET: !Ref pOutputBucket
+      Tags:
+        - Key: Project-CFN
+          Value: !Sub '${AWS::StackName}-CFN-stack'
+
+  rS3TriggerLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref rTextToSpeechLambda
+      Action: lambda:InvokeFunction
+      Principal: s3.amazonaws.com
+      SourceAccount: !Ref 'AWS::AccountId'
+      SourceArn: !Sub 'arn:aws:s3:::${pInputBucket}'
+
+# 'Setup S3 Event Notifications using Custom Resource
+
+# https://aws.amazon.com/blogs/mt/resolving-circular-dependency-in-provisioning-of-amazon-s3-buckets-with-aws-lambda-event-notifications/
+
+
+  rApplyNotificationFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Path: /
+      Policies:
+        - PolicyName: S3BucketNotificationPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: AllowBucketNotification
+                Effect: Allow
+                Action: s3:PutBucketNotification
+                Resource:
+                  - !Sub 'arn:aws:s3:::${pInputBucket}'
+                  - !Sub 'arn:aws:s3:::${pInputBucket}/*'
+      Tags:
+        - Key: Project-CFN
+          Value: !Sub '${AWS::StackName}-CFN-stack'
+
+  rApplyBucketNotificationFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Apply S3 Bucket Notification (Avoid Circular Dependency)
+      Handler: index.handler
+      Runtime: python3.12
+      Role: !GetAtt 'rApplyNotificationFunctionRole.Arn'
+      Timeout: 240
+      Architectures:
+        - arm64 # graviton
+      Code:
+        ZipFile: |
+          import boto3
+          import logging
+          import json
+          import cfnresponse
+
+          s3Client = boto3.client('s3')
+          logger = logging.getLogger()
+          logger.setLevel(logging.DEBUG)
+
+          def addBucketNotification(bucketName, notificationId, functionArn):
+              notificationResponse = s3Client.put_bucket_notification_configuration(
+                  Bucket=bucketName,
+                  NotificationConfiguration={
+                      'LambdaFunctionConfigurations': [
+                          {
+                              'Id': notificationId,
+                              'LambdaFunctionArn': functionArn,
+                              'Events': [
+                                  's3:ObjectCreated:*'
+                              ],
+                              'Filter': {
+                                  'Key': {
+                                      'FilterRules': [
+                                          {
+                                              'Name': 'suffix',
+                                              'Value': '.txt'
+                                          }
+                                      ]
+                                  }
+                              }        
+                          },
+                      ]
+                  }
+              )
+              return notificationResponse
+
+          def create_or_update(properties, physical_id):
+              bucketName = properties['S3Bucket']
+              notificationId = properties['NotificationId']
+              functionArn = properties['FunctionARN']
+              response = addBucketNotification(bucketName, notificationId, functionArn)
+              logger.info('AddBucketNotification response: %s' % json.dumps(response))
+              return cfnresponse.SUCCESS, physical_id
+
+          def delete(properties, physical_id):
+              # Optionally clear notifications on delete
+              # bucketName = properties['S3Bucket']
+              # s3Client.put_bucket_notification_configuration(
+              #     Bucket=bucketName,
+              #     NotificationConfiguration={}
+              # )
+              return cfnresponse.SUCCESS, None
+
+          def handler(event, context):
+              logger.info('Received event: %s' % json.dumps(event))
+
+              status = cfnresponse.FAILED
+              new_physical_id = None
+
+              try:
+                  properties = event.get('ResourceProperties')
+                  physical_id = event.get('PhysicalResourceId')
+
+                  status, new_physical_id = {
+                      'Create': create_or_update,
+                      'Update': create_or_update,
+                      'Delete': delete
+                  }.get(event['RequestType'], lambda x, y: (cfnresponse.FAILED, None))(properties, physical_id)
+              except Exception as e:
+                  logger.error('Exception: %s' % e)
+                  status = cfnresponse.FAILED
+              finally:
+                  cfnresponse.send(event, context, status, {}, new_physical_id)
+      Tags:
+        - Key: Project-CFN
+          Value: !Sub '${AWS::StackName}-CFN-stack'
+
+  rApplyNotification:
+    Type: Custom::ApplyNotification
+    Properties:
+      ServiceToken: !GetAtt 'rApplyBucketNotificationFunction.Arn'
+      S3Bucket: !Ref 'pInputBucket'
+      FunctionARN: !GetAtt 'rTextToSpeechLambda.Arn'
+      NotificationId: S3ObjectCreatedEvent
+
+Outputs:
+
+  oLambdaFunctionName:
+    Description: Name of the created Lambda function
+    Value: !Ref rTextToSpeechLambda
+
+
