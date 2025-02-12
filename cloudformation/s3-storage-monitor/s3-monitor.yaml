@@ -12,7 +12,7 @@ Parameters:
   
   pBucketName:
     Type: String
-    Description: S3 Bucket name to be monitored
+    Description: Single S3 Bucket name to be monitored (does NOT support bucket with millions of objects due to Lambda processing timeout max. 15 minutes)
 
   pTopicArn:
     Type: String

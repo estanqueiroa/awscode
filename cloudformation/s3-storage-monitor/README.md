@@ -39,9 +39,10 @@ The state machine flow is:
 * List all buckets and create report putput
 * Process output and send SNS topic notifications
 
-# Limitations
+# Known Limitations
 
 * (FIXED using CW metrics) Single Bucket: large buckets may not be processed successfully due to Lambda timeout settings (max. 15 minutes)
 * (REMOVED Tabulate from Lambda code) Lambda layer configured for us-east-1 region, you can find another layers regions [here](https://github.com/keithrozario/Klayers/tree/master/deployments/python3.12-arm64). Mapping included for some regions.
 * (DONE) Needs better formating for email message (json dump)
+* Single S3 Bucket name to be monitored does NOT support bucket with millions of objects due to Lambda processing timeout (max. 15 minutes)
 
