@@ -95,6 +95,18 @@ Resources:
       Environment:
         Variables:
           OUTPUT_BUCKET: !Ref pOutputBucket
+      LoggingConfig:
+        LogGroup: !Ref rLogGroup
+      Tags:
+        - Key: Project-CFN
+          Value: !Sub '${AWS::StackName}-CFN-stack'
+
+  rLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}/NiceJob"
+      LogGroupClass: INFREQUENT_ACCESS # https://aws.amazon.com/blogs/aws/new-amazon-cloudwatch-log-class-for-infrequent-access-logs-at-a-reduced-price/
+      RetentionInDays: 90
       Tags:
         - Key: Project-CFN
           Value: !Sub '${AWS::StackName}-CFN-stack'
@@ -229,6 +241,7 @@ Resources:
       Tags:
         - Key: Project-CFN
           Value: !Sub '${AWS::StackName}-CFN-stack'
+
 
   rApplyNotification:
     Type: Custom::ApplyNotification

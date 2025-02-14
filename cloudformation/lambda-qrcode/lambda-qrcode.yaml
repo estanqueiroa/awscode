@@ -172,9 +172,22 @@ Resources:
         Variables:
           BUCKET_NAME: !Ref rQRCodeBucket
           TABLE_NAME: !Ref rQRCodeMetadataTable
+      LoggingConfig:
+        LogGroup: !Ref rLogGroup
       Tags:
         - Key: Project-CFN
           Value: !Sub '${AWS::StackName}-stack'
+
+  rLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}/NiceJob"
+      LogGroupClass: INFREQUENT_ACCESS # https://aws.amazon.com/blogs/aws/new-amazon-cloudwatch-log-class-for-infrequent-access-logs-at-a-reduced-price/
+      RetentionInDays: 90
+      Tags:
+        - Key: Project-CFN
+          Value: !Sub '${AWS::StackName}-CFN-stack'
+
 
   # API Gateway
   rQRCodeAPI:
