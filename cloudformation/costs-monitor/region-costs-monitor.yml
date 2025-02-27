@@ -1,0 +1,238 @@
+####################################################################################
+# WARNING: This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+#
+#
+# Based on this blog post https://towardsaws.com/automating-aws-cost-reporting-with-lambda-and-sns-95222e353b58
+#
+####################################################################################
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Automating AWS Cost Reporting with Lambda and SNS
+
+Parameters:
+
+  pEmail:
+    Description: Email address to notify with the AWS service costs
+    Type: String
+    Default: your_email@example.com
+
+  pScheduleEvent: 
+    Description: The schedule for Lambda function trigger (default run weekly at Sunday 4AM GMT)
+    Type: String
+    Default: "cron(0 4 ? * SUN *)"
+
+Resources:
+
+# create SNS topic for notifications
+
+  rSNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${AWS::StackName}-costs-notification'
+      Subscription:
+        - Protocol: email
+          Endpoint: !Ref pEmail
+      Tags:
+        - Key: CFN-Stack
+          Value: !Sub '${AWS::StackName}-CFN-IAC'
+
+
+# create role for Lambda function
+
+  rRegionCostLambdaExecutionRole:
+    Type: AWS::IAM::Role
+    # checkov:skip=CKV_AWS_107:IAM policies does not allow credentials exposure
+    # checkov:skip=CKV_AWS_108:IAM policies does not allow data exfiltration
+    # checkov:skip=CKV_AWS_111:IAM policies does not allow write access without constraints
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W11
+            reason: "Resource * acceptable for this policy - reporting only."
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSCostAndUsageReportAutomationPolicy
+      Policies:
+        - PolicyName: AWSCostExplorerReadOnlyAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'ce:GetCostAndUsage'
+                  - 'ce:GetCostForecast'
+                  - 'ce:GetDimensionValues'
+                  - 'ce:GetUsageForecast'
+                Resource: '*'
+        - PolicyName: AmazonSNSPublishAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'sns:Publish'
+                Resource: !Ref rSNSTopic
+      Tags:
+        - Key: CFN-Stack
+          Value: !Sub '${AWS::StackName}-CFN-IAC'
+
+# create Lambda function for costs reporting
+
+  rRegionCostLambdaFunction:
+    Type: AWS::Lambda::Function
+    # checkov:skip=CKV_AWS_116:Dead Letter Queue(DLQ) for Lambda not required
+    # checkov:skip=CKV_AWS_173:No encryption required for Lambda environment variables
+    # checkov:skip=CKV_AWS_115:function-level concurrent execution limit not required
+    # checkov:skip=CKV_AWS_117:This lambda functions doesnt require a VPC
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W89
+            reason: "Lambda function needed to automatically associate VPC SPoke to DNS"
+          - id: W92
+            reason: "There is no provision for using this function simultaneously"
+    Properties:
+      #FunctionName: top-5-aws-service-costs
+      Runtime: python3.12
+      Architectures:
+          - arm64 # graviton
+      Timeout: 120 # seconds
+      Handler: index.lambda_handler
+      Code:
+        ZipFile: |
+          import boto3
+          from datetime import date
+          import os
+          from botocore.exceptions import ClientError
+
+          # Constants
+          SNS_TOPIC_ARN = os.environ['SNS_TOPIC_ARN']
+          
+          def get_cost_data(cost_explorer, start_date, end_date, region=None):
+              """Helper function to get cost data from AWS Cost Explorer"""
+              params = {
+                  'TimePeriod': {
+                      'Start': start_date.strftime('%Y-%m-%d'),
+                      'End': end_date.strftime('%Y-%m-%d')
+                  },
+                  'Granularity': 'MONTHLY',
+                  'Metrics': ['UnblendedCost'],
+                  'GroupBy': [{
+                      'Type': 'DIMENSION',
+                      'Key': 'SERVICE'
+                  }]
+              }
+              
+              if region:
+                  params['Filter'] = {
+                      'Dimensions': {
+                          'Key': 'REGION',
+                          'Values': [region]
+                      }
+                  }
+              
+              return cost_explorer.get_cost_and_usage(**params)
+
+          def format_cost_report(response, region_label):
+              """Helper function to format cost report"""
+              total_cost = 0
+              details = f"Cost Breakdown for {region_label} for the Current Month:\n\n"
+              
+              for result in response['ResultsByTime']:
+                  for group in result['Groups']:
+                      service_name = group['Keys'][0]
+                      cost_amount = float(group['Metrics']['UnblendedCost']['Amount'])
+                      total_cost += cost_amount
+                      details += f"{service_name}: ${cost_amount:.2f}\n"
+              
+              details += f"\nTotal Cost for {region_label}: ${total_cost:.2f}\n\n"
+              return details, total_cost
+
+          def lambda_handler(event, context):
+              try:
+                  # Get AWS region and initialize clients
+                  REGION_FILTER = context.invoked_function_arn.split(':')[3]
+                  cost_explorer = boto3.client('ce')
+                  sns = boto3.client('sns', region_name=REGION_FILTER)
+
+                  # Get date range
+                  today = date.today()
+                  start_date = today.replace(day=1)
+
+                  # Get costs for aws_region
+                  aws_region_response = get_cost_data(cost_explorer, start_date, today, REGION_FILTER)
+                  aws_region_details, aws_region_total = format_cost_report(aws_region_response, REGION_FILTER)
+
+                  # Get costs for all regions
+                  all_regions_response = get_cost_data(cost_explorer, start_date, today)
+                  all_regions_details, all_regions_total = format_cost_report(all_regions_response, "All Regions")
+
+                  # Combine reports and publish to SNS
+                  full_report = aws_region_details + all_regions_details
+                  sns.publish(
+                      TopicArn=SNS_TOPIC_ARN,
+                      Subject='AWS Cost Breakdown Report',
+                      Message=full_report
+                  )
+
+                  return {
+                      'statusCode': 200,
+                      'body': f'Cost report for {REGION_FILTER} and all regions sent successfully via SNS!'
+                  }
+
+              except ClientError as e:
+                  print(f"Error: {e}")
+                  return {
+                      'statusCode': 500,
+                      'body': f"Failed to send cost report: {e}"
+                  }
+
+
+      Role: !GetAtt rRegionCostLambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          SNS_TOPIC_ARN: !Ref rSNSTopic
+      Tags:
+        - Key: CFN-Stack
+          Value: !Sub '${AWS::StackName}-CFN-IAC'
+
+# create EventBridge rule to schedule task
+
+  rNotificationEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: !Ref pScheduleEvent
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt rRegionCostLambdaFunction.Arn
+          Id: costsmonitor2
+
+# grant EventBridge persmission to trigger Lambda
+
+  rPermissionForEventsToInvokeLambda: 
+      Type: AWS::Lambda::Permission
+      Properties: 
+          FunctionName: !Ref rRegionCostLambdaFunction
+          Action: "lambda:InvokeFunction"
+          Principal: "events.amazonaws.com"
+          SourceArn: 
+              Fn::GetAtt: 
+                  - "rNotificationEventRule"
+                  - "Arn"
+
+
+
+Outputs:
+  oTopCostLambdaFunctionArn:
+    Description: ARN of the Top 5 AWS Service Costs Lambda function
+    Value: !GetAtt rRegionCostLambdaFunction.Arn
