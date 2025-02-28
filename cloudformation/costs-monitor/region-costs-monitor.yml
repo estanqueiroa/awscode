@@ -14,7 +14,7 @@ Description: Automating AWS Cost Reporting with Lambda and SNS
 Parameters:
 
   pEmail:
-    Description: Email address to notify with the AWS service costs
+    Description: Email address to notify with the AWS service costs - You need to ACCEPT the email notification for topic subscription
     Type: String
     Default: your_email@example.com
 
@@ -22,6 +22,11 @@ Parameters:
     Description: The schedule for Lambda function trigger (default run weekly at Sunday 4AM GMT)
     Type: String
     Default: "cron(0 4 ? * SUN *)"
+
+  pCodeRepo:
+    Description: Tag Value for Code repo
+    Type: String
+    Default: github.com/estanqueiroa/awscode/cloudformation/costs-monitor
 
 Resources:
 
@@ -35,8 +40,8 @@ Resources:
         - Protocol: email
           Endpoint: !Ref pEmail
       Tags:
-        - Key: CFN-Stack
-          Value: !Sub '${AWS::StackName}-CFN-IAC'
+        - Key: IAC-CodeRepo
+          Value: !Ref pCodeRepo
 
 
 # create role for Lambda function
@@ -83,8 +88,8 @@ Resources:
                   - 'sns:Publish'
                 Resource: !Ref rSNSTopic
       Tags:
-        - Key: CFN-Stack
-          Value: !Sub '${AWS::StackName}-CFN-IAC'
+        - Key: IAC-CodeRepo
+          Value: !Ref pCodeRepo
 
 # create Lambda function for costs reporting
 
@@ -98,7 +103,7 @@ Resources:
       cfn_nag:
         rules_to_suppress:
           - id: W89
-            reason: "Lambda function needed to automatically associate VPC SPoke to DNS"
+            reason: "Lambda function needed to generate costs report"
           - id: W92
             reason: "There is no provision for using this function simultaneously"
     Properties:
@@ -162,6 +167,10 @@ Resources:
               try:
                   # Get AWS region and initialize clients
                   REGION_FILTER = context.invoked_function_arn.split(':')[3]
+
+                  # Get the current AWS account ID from the Lambda context
+                  account_id = context.invoked_function_arn.split(':')[4]
+
                   cost_explorer = boto3.client('ce')
                   sns = boto3.client('sns', region_name=REGION_FILTER)
 
@@ -181,7 +190,7 @@ Resources:
                   full_report = aws_region_details + all_regions_details
                   sns.publish(
                       TopicArn=SNS_TOPIC_ARN,
-                      Subject='AWS Cost Breakdown Report',
+                      Subject='AWS Cost Breakdown Report - AWS Account id: ' + account_id,
                       Message=full_report
                   )
 
@@ -203,8 +212,8 @@ Resources:
         Variables:
           SNS_TOPIC_ARN: !Ref rSNSTopic
       Tags:
-        - Key: CFN-Stack
-          Value: !Sub '${AWS::StackName}-CFN-IAC'
+        - Key: IAC-CodeRepo
+          Value: !Ref pCodeRepo
 
 # create EventBridge rule to schedule task
 
@@ -234,5 +243,5 @@ Resources:
 
 Outputs:
   oTopCostLambdaFunctionArn:
-    Description: ARN of the Top 5 AWS Service Costs Lambda function
+    Description: ARN of the AWS Region Costs Lambda function
     Value: !GetAtt rRegionCostLambdaFunction.Arn
