@@ -1,0 +1,332 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'ALB with multiple domains pointing to different EC2 instances'
+
+Parameters:
+
+  pVpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: Select a VPC
+  
+  pPublicSubnet1:
+    Type: AWS::EC2::Subnet::Id
+    Description: Select first public subnet
+  
+  pPublicSubnet2:
+    Type: AWS::EC2::Subnet::Id
+    Description: Select second public subnet
+  
+  pInstanceType:
+    Type: String
+    Default: t3.micro
+    Description: EC2 instance type
+
+  pIpAddress:
+    Type: String
+    Description: 'Your Internet Ip address (check here https://checkip.amazonaws.com/) in format x.x.x.x/32'
+
+  pAmiId:
+    Type: String
+    Default: ami-0aa7d40eeae50c9a9  # Amazon Linux 2 AMI ID (us-east-1)
+    Description: EC2 AMI image ID
+  
+  pKeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Name of SSH keypair
+
+  pDomain1:
+    Type: String
+    Description: First domain name
+    Default: www.domain1.com
+  
+  pDomain2:
+    Type: String
+    Description: Second domain name
+    Default: www.domain2.com
+  
+  pDomain3:
+    Type: String
+    Description: Third domain name
+    Default: www.domain3.com
+
+  TagValue:
+    Type: String
+    Description: Tag to identify Solution
+    Default: '3domains-alb'
+
+
+Resources:
+  # Security Groups
+  rALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for ALB
+      VpcId: !Ref pVpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: !Ref pIpAddress
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: !Ref pIpAddress
+      Tags:
+        - Key: Solution-StackName
+          Value: !Sub '${TagValue}-${AWS::StackName}'
+
+  rEC2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for EC2 instances
+      VpcId: !Ref pVpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref rALBSecurityGroup
+      Tags:
+        - Key: Solution-StackName
+          Value: !Sub '${TagValue}-${AWS::StackName}'
+
+  # EC2 Instances
+  rEC2Instance01:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref pInstanceType
+      KeyName: !Ref pKeyName
+      SecurityGroupIds: 
+        - !Ref rEC2SecurityGroup
+      SubnetId: !Ref pPublicSubnet1
+      ImageId: !Ref pAmiId
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+          yum install -y httpd
+          systemctl start httpd
+          systemctl enable httpd
+          TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+          INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -v http://169.254.169.254/latest/meta-data/instance-id)
+          echo "<h1>Server 1 - ${pDomain1} - Instance id: $INSTANCE_ID</h1>" > /var/www/html/index.html
+      Tags:
+        - Key: Name
+          Value: WebServer1
+        - Key: Solution-StackName
+          Value: !Sub '${TagValue}-${AWS::StackName}'
+
+  rEC2Instance02:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref pInstanceType
+      KeyName: !Ref pKeyName
+      SecurityGroupIds: 
+        - !Ref rEC2SecurityGroup
+      SubnetId: !Ref pPublicSubnet1
+      ImageId: !Ref pAmiId
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+          yum install -y httpd
+          systemctl start httpd
+          systemctl enable httpd
+          TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+          INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -v http://169.254.169.254/latest/meta-data/instance-id)
+          echo "<h1>Server 2 - ${pDomain2} - Instance id: $INSTANCE_ID</h1>" > /var/www/html/index.html
+      Tags:
+        - Key: Name
+          Value: WebServer2
+        - Key: Solution-StackName
+          Value: !Sub '${TagValue}-${AWS::StackName}'
+
+  rEC2Instance03:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref pInstanceType
+      KeyName: !Ref pKeyName
+      SecurityGroupIds: 
+        - !Ref rEC2SecurityGroup
+      SubnetId: !Ref pPublicSubnet1
+      ImageId: !Ref pAmiId
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+          yum install -y httpd
+          systemctl start httpd
+          systemctl enable httpd
+          TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+          INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -v http://169.254.169.254/latest/meta-data/instance-id)
+          echo "<h1>Server 3 - ${pDomain3} - Instance id: $INSTANCE_ID</h1>" > /var/www/html/index.html
+      Tags:
+        - Key: Name
+          Value: WebServer3
+        - Key: Solution-StackName
+          Value: !Sub '${TagValue}-${AWS::StackName}'
+
+  rEC2Instance04:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref pInstanceType
+      KeyName: !Ref pKeyName
+      SecurityGroupIds: 
+        - !Ref rEC2SecurityGroup
+      SubnetId: !Ref pPublicSubnet1
+      ImageId: !Ref pAmiId
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+          yum install -y httpd
+          systemctl start httpd
+          systemctl enable httpd
+          TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+          INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -v http://169.254.169.254/latest/meta-data/instance-id)
+          echo "<h1>Domain Host Header not detected (Default Rule) - Instance id: $INSTANCE_ID</h1>" > /var/www/html/index.html
+      Tags:
+        - Key: Name
+          Value: WebServer4
+        - Key: Solution-StackName
+          Value: !Sub '${TagValue}-${AWS::StackName}'
+
+  # Application Load Balancer
+  rApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Subnets:
+        - !Ref pPublicSubnet1
+        - !Ref pPublicSubnet2
+      SecurityGroups:
+        - !Ref rALBSecurityGroup
+      Tags:
+        - Key: Solution-StackName
+          Value: !Sub '${TagValue}-${AWS::StackName}'
+
+  # Listener
+  rALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref rApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref rTargetGroup4
+
+  # Target Groups
+  rTargetGroup1:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+      Port: 80
+      Protocol: HTTP
+      VpcId: !Ref pVpcId
+      Targets:
+        - Id: !Ref rEC2Instance01
+          Port: 80
+      Tags:
+        - Key: Solution-StackName
+          Value: !Sub '${TagValue}-${AWS::StackName}'
+
+  rTargetGroup2:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+      Port: 80
+      Protocol: HTTP
+      VpcId: !Ref pVpcId
+      Targets:
+        - Id: !Ref rEC2Instance02
+          Port: 80
+      Tags:
+        - Key: Solution-StackName
+          Value: !Sub '${TagValue}-${AWS::StackName}'
+
+  rTargetGroup3:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+      Port: 80
+      Protocol: HTTP
+      VpcId: !Ref pVpcId
+      Targets:
+        - Id: !Ref rEC2Instance03
+          Port: 80
+      Tags:
+        - Key: Solution-StackName
+          Value: !Sub '${TagValue}-${AWS::StackName}'
+
+  rTargetGroup4:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+      Port: 80
+      Protocol: HTTP
+      VpcId: !Ref pVpcId
+      Targets:
+        - Id: !Ref rEC2Instance04
+          Port: 80
+      Tags:
+        - Key: Solution-StackName
+          Value: !Sub '${TagValue}-${AWS::StackName}'
+
+  # Listener Rules
+  rListenerRule1:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      ListenerArn: !Ref rALBListener
+      Priority: 1
+      Conditions:
+        - Field: host-header
+          Values:
+            - !Ref pDomain1
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref rTargetGroup1
+
+  rListenerRule2:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      ListenerArn: !Ref rALBListener
+      Priority: 2
+      Conditions:
+        - Field: host-header
+          Values:
+            - !Ref pDomain2
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref rTargetGroup2
+
+  rListenerRule3:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      ListenerArn: !Ref rALBListener
+      Priority: 3
+      Conditions:
+        - Field: host-header
+          Values:
+            - !Ref pDomain3
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref rTargetGroup3
+
+Outputs:
+  oLoadBalancerDNS:
+    Description: DNS name of the load balancer
+    Value: !GetAtt rApplicationLoadBalancer.DNSName
+
+  oEC2InstanceIds:
+    Description: IDs of all EC2 instances
+    Value: !Sub "${rEC2Instance01}, ${rEC2Instance02}, ${rEC2Instance03}, ${rEC2Instance04}"
+
+  oDomainInstanceMapping:
+    Description: Mapping of domains to instance IDs
+    Value: !Sub |
+      ${pDomain1} -> ${rEC2Instance01}
+      ${pDomain2} -> ${rEC2Instance02}
+      ${pDomain3} -> ${rEC2Instance03}
+      Default Rule (no domain) -> ${rEC2Instance04}
