@@ -36,12 +36,17 @@ After the stack is created:
 * Using curl command
     
 # Test each domain using the Host header
+
+```bash
 curl -H "Host: domain1.com" http://<ALB-DNS-NAME>
 curl -H "Host: domain2.com" http://<ALB-DNS-NAME>
 curl -H "Host: domain3.com" http://<ALB-DNS-NAME>
+```
 
 * Using wget
-    
+
+```bash    
 wget --header="Host: domain1.com" http://<ALB-DNS-NAME>
 wget --header="Host: domain2.com" http://<ALB-DNS-NAME>
 wget --header="Host: domain3.com" http://<ALB-DNS-NAME>
+```
