@@ -16,7 +16,9 @@ To use this template make sure you have:
 * A key pair for EC2 instances
 * Your domain names ready
 
-When launching the stack, you'll need to provide:
+## Deployment
+
+When launching the CloudFormation stack, you'll need to provide:
 
 * VPC ID
 * Two public subnet IDs
@@ -50,3 +52,7 @@ wget --header="Host: domain1.com" http://<ALB-DNS-NAME>
 wget --header="Host: domain2.com" http://<ALB-DNS-NAME>
 wget --header="Host: domain3.com" http://<ALB-DNS-NAME>
 ```
+
+## Cleanup
+
+* Delete CloudFormation stack to delete all resources
