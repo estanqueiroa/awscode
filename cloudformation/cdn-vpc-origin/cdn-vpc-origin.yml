@@ -102,7 +102,10 @@ Resources:
         OriginProtocolPolicy: http-only # http-only | match-viewer | https-only
         # OriginSSLProtocols: 
         # - TLSv1.2
-
+      Tags:
+        - Key: Solution-Stack-CFN
+          Value: !Sub ${AWS::StackName}
+          
   # CloudFront Distribution
   rCloudFrontDistribution:
     Type: AWS::CloudFront::Distribution
