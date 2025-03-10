@@ -1,0 +1,219 @@
+# You can use CloudFront to deliver content from applications that are hosted in your virtual private cloud (VPC) private subnets. 
+# You can use Application Load Balancers (ALBs), Network Load Balancers (NLBs), and EC2 instances in private subnets as VPC origins.
+
+# https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-vpc-origins.html
+
+# https://aws.amazon.com/blogs/networking-and-content-delivery/introducing-cloudfront-virtual-private-cloud-vpc-origins-shield-your-web-applications-from-public-internet/
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFront distribution with EC2 running Apache as VPC origin. First create EC2 instance then deploy CFN stack again'
+
+Parameters:
+  pVpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: Select a VPC
+  
+  pPrivateSubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: Select a private subnet for EC2 instance
+
+  pKeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Name of SSH keypair
+  
+  pEnableLogging:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: 'Do you want to enable CloudWatch Logging (true or false)?'
+
+Conditions:
+  EnableCWlogging: !Equals [!Ref pEnableLogging, 'true']
+
+Resources:
+
+  # Security Group for EC2
+  rWebServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP/HTTPS and SSH
+      VpcId: !Ref pVpcId
+      SecurityGroupIngress:
+        - Description: Allow HTTP from com.amazonaws.global.cloudfront.origin-facing
+          IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          # Request quota increase for prefix list https://us-east-1.console.aws.amazon.com/servicequotas/home/services/vpc/quotas/L-0EA8095F
+          SourcePrefixListId: pl-3b927c52 # com.amazonaws.global.cloudfront.origin-facing
+          #CidrIp: 0.0.0.0/0
+        # - Description: Allow HTTPS from com.amazonaws.global.cloudfront.origin-facing
+        #   IpProtocol: tcp
+        #   FromPort: 443
+        #   ToPort: 443
+        #   # Request quota increase for prefix list https://us-east-1.console.aws.amazon.com/servicequotas/home/services/vpc/quotas/L-0EA8095F
+        #   #SourcePrefixListId: pl-3b927c52 # com.amazonaws.global.cloudfront.origin-facing
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - Description: Allow all outbound traffic
+          IpProtocol: -1
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Solution-Stack-CFN
+          Value: !Sub ${AWS::StackName}
+
+  # EC2 Instance
+  rWebServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      ImageId: ami-0aa7d40eeae50c9a9  # Amazon Linux 2 AMI ID (us-east-1)
+      KeyName: !Ref pKeyName
+      SubnetId: !Ref pPrivateSubnetId
+      SecurityGroupIds: 
+        - !Ref rWebServerSecurityGroup
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+          yum install -y httpd
+          systemctl start httpd
+          systemctl enable httpd
+          TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+          INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -v http://169.254.169.254/latest/meta-data/instance-id)
+          echo "<h1>Hello from EC2 VPC Origin - Instance id $INSTANCE_ID</h1>" > /var/www/html/index.html
+      Tags:
+        - Key: Name
+          Value: WebServerVpcOrigin
+        - Key: Solution-Stack-CFN
+          Value: !Sub ${AWS::StackName}
+
+  # CloudFront VPC Origin
+  rVpcOrigin:
+    Type: AWS::CloudFront::VpcOrigin
+    DependsOn: rWebServer
+    Properties:
+      VpcOriginEndpointConfig: 
+        Arn: !Sub 'arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/${rWebServer}'
+        HTTPPort: 80
+        #HTTPSPort: 443
+        Name: VpcOriginEc2Instance
+        OriginProtocolPolicy: http-only # http-only | match-viewer | https-only
+        # OriginSSLProtocols: 
+        # - TLSv1.2
+
+  # CloudFront Distribution
+  rCloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    #Condition: ShouldCreateCDN
+    DependsOn: rVpcOrigin
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        PriceClass: "PriceClass_All"
+        ViewerCertificate: 
+            CloudFrontDefaultCertificate: true
+        Restrictions:   # Sample only - if you are using WAF the recommendation is to use WAF rule for geoblocking
+            GeoRestriction: 
+              RestrictionType: whitelist
+              Locations: # remove country from list below returns <Message>Access Denied</Message>
+              # https://www.iban.com/country-codes
+                - CA
+                - GB
+                - US
+                - BR
+        # WebACLId: !GetAtt rWafWebAcl.Arn # associates WAF ACL to CloudFront
+        DefaultRootObject: index.html
+        IPV6Enabled: true
+        Comment: EC2 VPC Origin Distribution
+        HttpVersion: http2
+        Origins:
+          - DomainName: !GetAtt rWebServer.PrivateDnsName
+            Id: VpcOriginEc2
+            VpcOriginConfig:
+              VpcOriginId: !GetAtt rVpcOrigin.Id
+              OriginReadTimeout: 60  # Increase timeout
+              OriginKeepaliveTimeout: 30
+        DefaultCacheBehavior:
+          TargetOriginId: VpcOriginEc2
+          ViewerProtocolPolicy: allow-all # accept http and https
+          AllowedMethods:
+            - GET
+            - HEAD
+            # - OPTIONS
+          CachedMethods:
+            - GET
+            - HEAD
+            # - OPTIONS
+          OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3 # Managed-AllViewer
+          CachePolicyId: 83da9c7e-98b4-4e11-a168-04f0df8e2c65  # UseOriginCacheControlHeaders
+      Tags:
+        - Key: Solution-Stack-CFN
+          Value: !Sub ${AWS::StackName}
+
+##################################
+# enable logging (or not) - check condition above
+##################################
+
+# https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/standard-logs-reference.html
+
+  rLogGroup:
+    Type: AWS::Logs::LogGroup
+    Condition: EnableCWlogging
+    Properties:
+      LogGroupName: !Sub "/aws/cloudfront/${AWS::StackName}"
+      # https://aws.amazon.com/blogs/aws/new-amazon-cloudwatch-log-class-for-infrequent-access-logs-at-a-reduced-price/
+      #LogGroupClass: INFREQUENT_ACCESS
+      RetentionInDays: 14 # days
+      Tags:
+        - Key: Solution-Stack-CFN
+          Value: !Sub ${AWS::StackName}
+
+  rLogsDeliverySource:
+    Type: AWS::Logs::DeliverySource
+    Condition: EnableCWlogging
+    DependsOn: rCloudFrontDistribution
+    Properties:
+      LogType: ACCESS_LOGS
+      Name: VpcOrigin-logs-source
+      ResourceArn: !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${rCloudFrontDistribution}'
+      Tags:
+        - Key: Solution-Stack-CFN
+          Value: !Sub ${AWS::StackName}
+
+  rLogsDeliveryDestination:
+    Type: AWS::Logs::DeliveryDestination
+    Condition: EnableCWlogging
+    Properties:
+      DestinationResourceArn: !GetAtt rLogGroup.Arn
+      Name: VpcOrigin-logs-destination
+      Tags:
+        - Key: Solution-Stack-CFN
+          Value: !Sub ${AWS::StackName}
+
+  rLogsDelivery:
+    Type: AWS::Logs::Delivery
+    Condition: EnableCWlogging
+    Properties:
+      DeliveryDestinationArn: !GetAtt rLogsDeliveryDestination.Arn
+      DeliverySourceName: !Ref rLogsDeliverySource
+      Tags:
+        - Key: Solution-Stack-CFN
+          Value: !Sub ${AWS::StackName}
+
+
+Outputs:
+
+  oWebServerPublicDNS:
+    Description: Private DNS of EC2 instance
+    Value: !GetAtt rWebServer.PrivateDnsName
+
+  oCloudFrontDomainName:
+    Description: Domain name of CloudFront distribution
+    Value: !GetAtt rCloudFrontDistribution.DomainName
+
+  oCWlogging:
+    Condition: EnableCWlogging
+    Description: CW log group
+    Value: !Ref rLogGroup
