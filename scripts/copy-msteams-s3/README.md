@@ -42,3 +42,7 @@ Note: This is a basic implementation. You might want to add:
 * Progress tracking for large files
 * Retry logic for failed transfers
 * Concurrent uploads for better performance
+
+## References
+
+[O365](https://github.com/O365/python-o365)
