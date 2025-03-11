@@ -69,7 +69,7 @@ Resources:
   rWebServer:
     Type: AWS::EC2::Instance
     Properties:
-      InstanceType: t2.micro
+      InstanceType: t3.micro
       ImageId: ami-0aa7d40eeae50c9a9  # Amazon Linux 2 AMI ID (us-east-1)
       KeyName: !Ref pKeyName
       SubnetId: !Ref pPrivateSubnetId
@@ -84,7 +84,7 @@ Resources:
           systemctl enable httpd
           TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
           INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -v http://169.254.169.254/latest/meta-data/instance-id)
-          echo "<h1>Hello from VPC Origin - EC2 instance id: $INSTANCE_ID</h1>" > /var/www/html/index.html
+          echo "<h2>Hello from VPC Origin - EC2 instance id: $INSTANCE_ID</h2>" > /var/www/html/index.html
       Tags:
         - Key: Name
           Value: WebServerVpcOrigin
