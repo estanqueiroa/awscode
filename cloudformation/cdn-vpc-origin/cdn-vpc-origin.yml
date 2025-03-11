@@ -52,7 +52,7 @@ Resources:
         #   ToPort: 443
         #   # Request quota increase for prefix list https://us-east-1.console.aws.amazon.com/servicequotas/home/services/vpc/quotas/L-0EA8095F
         #   #SourcePrefixListId: pl-3b927c52 # com.amazonaws.global.cloudfront.origin-facing
-          CidrIp: 0.0.0.0/0
+        #   #CidrIp: 0.0.0.0/0
       SecurityGroupEgress:
         - Description: Allow all outbound traffic
           IpProtocol: -1
@@ -60,6 +60,8 @@ Resources:
           ToPort: -1
           CidrIp: 0.0.0.0/0
       Tags:
+        - Key: Name
+          Value: VpcOriginSgrp
         - Key: Solution-Stack-CFN
           Value: !Sub ${AWS::StackName}
 
@@ -82,7 +84,7 @@ Resources:
           systemctl enable httpd
           TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
           INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -v http://169.254.169.254/latest/meta-data/instance-id)
-          echo "<h1>Hello from EC2 VPC Origin - Instance id $INSTANCE_ID</h1>" > /var/www/html/index.html
+          echo "<h1>Hello from EC2 VPC Origin - Instance id: $INSTANCE_ID</h1>" > /var/www/html/index.html
       Tags:
         - Key: Name
           Value: WebServerVpcOrigin
@@ -98,7 +100,7 @@ Resources:
         Arn: !Sub 'arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/${rWebServer}'
         HTTPPort: 80
         #HTTPSPort: 443
-        Name: VpcOriginEc2Instance
+        Name: !Sub '${AWS::StackName}Ec2Instance'
         OriginProtocolPolicy: http-only # http-only | match-viewer | https-only
         # OriginSSLProtocols: 
         # - TLSv1.2
@@ -179,7 +181,7 @@ Resources:
     DependsOn: rCloudFrontDistribution
     Properties:
       LogType: ACCESS_LOGS
-      Name: VpcOrigin-logs-source
+      Name: !Sub '${AWS::StackName}-logs-source'
       ResourceArn: !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${rCloudFrontDistribution}'
       Tags:
         - Key: Solution-Stack-CFN
@@ -190,7 +192,7 @@ Resources:
     Condition: EnableCWlogging
     Properties:
       DestinationResourceArn: !GetAtt rLogGroup.Arn
-      Name: VpcOrigin-logs-destination
+      Name: !Sub '${AWS::StackName}-logs-destination'
       Tags:
         - Key: Solution-Stack-CFN
           Value: !Sub ${AWS::StackName}
@@ -204,7 +206,6 @@ Resources:
       Tags:
         - Key: Solution-Stack-CFN
           Value: !Sub ${AWS::StackName}
-
 
 Outputs:
 
