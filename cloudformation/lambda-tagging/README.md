@@ -60,13 +60,12 @@ ec2:Get*
 * CloudWatch Logging
 
 Log Group Name: check Stack Output
+
 Retention: 14 days
 
 ## Monitoring & Troubleshooting
 
-Monitor the Lambda execution in CloudWatch Logs
-    
-- Common Issues
+Monitor the Lambda execution in CloudWatch Logs for the Common Issues
 
 * Permission errors - Check IAM role permissions
 
@@ -86,7 +85,7 @@ Monitor the Lambda execution in CloudWatch Logs
 * Resources must be in same region as Lambda
 * Maximum 20 resources per batch
 * 15 minute Lambda execution timeout
-* No scheduled execution (you can EventBridge rule to trigger Lambda on a scheduled basis)
+* No scheduled execution (you can add EventBridge rule to trigger Lambda on a scheduled basis)
 
 * To tag additional resource types:
 
@@ -115,6 +114,11 @@ Add desired resource types in Lambda code:
 * Lambda invocation costs (128MB)
 * CloudWatch Logs storage
 * API calls for resource tagging
+
+## Cleaanup
+
+* Delete the created CloudWatch log group
+* Delete Cloudformation stack to remove all resources
 
 ## Contributing
 Feel free to submit issues and enhancement requests!
