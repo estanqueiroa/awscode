@@ -42,19 +42,31 @@ The following tags are applied to EC2 instances and S3 buckets:
 ## Technical Details
 
 * Lambda Function
+
 Runtime: Python 3.12
+
 Architecture: ARM64 (Graviton)
+
 Memory: 128MB
+
 Timeout: 900 seconds (15 minutes)
+
 Batch size: 20 resources per batch
 
 * IAM Permissions
+
 tag:GetResources
+
 tag:TagResources
+
 tag:UntagResources
+
 s3:GetBucketTagging
+
 s3:PutBucketTagging
+
 ec2:CreateTags
+
 ec2:Get*
 
 * CloudWatch Logging
@@ -117,8 +129,8 @@ Add desired resource types in Lambda code:
 
 ## Cleaanup
 
-* Delete the created CloudWatch log group
-* Delete Cloudformation stack to remove all resources
+1. Delete the created CloudWatch log group
+2. Delete Cloudformation stack to remove all resources
 
 ## Contributing
 Feel free to submit issues and enhancement requests!
