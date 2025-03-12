@@ -41,39 +41,28 @@ The following tags are applied to EC2 instances and S3 buckets:
 
 ## Technical Details
 
-* Lambda Function
+Lambda Function
 
-Runtime: Python 3.12
+- Runtime: Python 3.12
+- Architecture: ARM64 (Graviton)
+- Memory: 128MB
+- Timeout: 900 seconds (15 minutes)
+- Batch size: 20 resources per batch
 
-Architecture: ARM64 (Graviton)
+IAM Permissions
 
-Memory: 128MB
+- tag:GetResources
+- tag:TagResources
+- tag:UntagResources
+- s3:GetBucketTagging
+- s3:PutBucketTagging
+- ec2:CreateTags
+- ec2:Get*
 
-Timeout: 900 seconds (15 minutes)
+CloudWatch Logging
 
-Batch size: 20 resources per batch
-
-* IAM Permissions
-
-tag:GetResources
-
-tag:TagResources
-
-tag:UntagResources
-
-s3:GetBucketTagging
-
-s3:PutBucketTagging
-
-ec2:CreateTags
-
-ec2:Get*
-
-* CloudWatch Logging
-
-Log Group Name: check Stack Output
-
-Retention: 14 days
+- Log Group Name: check Stack Output
+- Retention: 14 days
 
 ## Monitoring & Troubleshooting
 
@@ -99,9 +88,9 @@ Monitor the Lambda execution in CloudWatch Logs for the Common Issues
 * 15 minute Lambda execution timeout
 * No scheduled execution (you can add EventBridge rule to trigger Lambda on a scheduled basis)
 
-* To tag additional resource types:
+To tag additional resource types:
 
-Add desired resource types in Lambda code:
+- Add desired resource types in Lambda code:
 
 ```bash
 # rds:db
@@ -112,7 +101,7 @@ Add desired resource types in Lambda code:
 # iam:role
 ```
 
-* Add corresponding IAM permissions to LambdaExecutionRole
+- Add corresponding IAM permissions to LambdaExecutionRole
 
 ## Security Considerations
 
