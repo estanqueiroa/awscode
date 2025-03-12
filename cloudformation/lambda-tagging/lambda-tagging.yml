@@ -1,0 +1,173 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation template for Lambda function to tag resources with options'
+
+Parameters:
+
+  pKeyProject:
+    Type: String
+    Description: Value for Tag Key Project
+    Default: CloudFormationDemo
+
+Resources:
+  rLambdaExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Policies:
+        - PolicyName: TaggingPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'tag:GetResources'
+                  - 'tag:TagResources'
+                  - 'tag:UntagResources'
+                  - 's3:GetBucketTagging'
+                  - 's3:PutBucketTagging'
+                  - 'ec2:CreateTags'
+                  - 'ec2:Get*'
+                Resource: '*'
+      Tags:
+        - Key: CFN-StackName
+          Value: !Sub '${AWS::StackName}-CloudFormation'
+
+  rTaggingLambdaFunction:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Handler: 'index.lambda_handler'
+      Role: !GetAtt rLambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import boto3
+          import json
+          import cfnresponse
+
+          def lambda_handler(event, context):
+              if event['RequestType'] in ['Create', 'Update']:
+                  tag_client = boto3.client('resourcegroupstaggingapi')
+                  new_tags = event['ResourceProperties'].get('Tags', [])
+                  resource_types = ['ec2:instance', 's3:bucket']
+
+                  ##############################################################
+                  # another commom resource types to add above - adjust Lambda IA role permissions accordingly
+                  ##############################################################
+                  # rds:db
+                  # dynamodb:table
+                  # lambda:function
+                  # ecs:cluster
+                  # eks:cluster
+                  # iam:role
+
+                  pagination_token = None
+                  
+                  try:
+                      while True:
+                          # Add ResourceTypeFilters to get only EC2 instances and S3 buckets
+                          if pagination_token:
+                              response = tag_client.get_resources(
+                                  PaginationToken=pagination_token,
+                                  ResourceTypeFilters=resource_types
+                              )
+                          else:
+                              response = tag_client.get_resources(
+                                  ResourceTypeFilters=resource_types
+                              )
+                          
+                          resource_arns = [resource['ResourceARN'] for resource in response['ResourceTagMappingList']]
+                          
+                          # Print resources being tagged for logging
+                          print(f"Found {len(resource_arns)} resources to tag")
+                          for arn in resource_arns:
+                              print(f"Resource ARN: {arn}")
+                          
+                          for i in range(0, len(resource_arns), 20):
+                              batch = resource_arns[i:i + 20]
+                              if batch:
+                                  tag_response = tag_client.tag_resources(
+                                      ResourceARNList=batch,
+                                      Tags={tag['Key']: tag['Value'] for tag in new_tags}
+                                  )
+                                  # Log any failed tagging operations
+                                  if tag_response.get('FailedResourcesMap'):
+                                      print("Failed to tag resources:", tag_response['FailedResourcesMap'])
+                          
+                          pagination_token = response.get('PaginationToken')
+                          if not pagination_token:
+                              break
+                      
+                      response_data = {
+                          'Message': 'Successfully tagged resources',
+                          'ResourceCount': len(resource_arns)
+                      }
+                      cfnresponse.send(event, context, cfnresponse.SUCCESS, response_data)
+                  except Exception as e:
+                      print(f"Error: {str(e)}")
+                      cfnresponse.send(event, context, cfnresponse.FAILED, {
+                          'Message': f'Error tagging resources: {str(e)}'
+                      })
+              else:
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {
+                      'Message': 'No action required for Delete'
+                  })
+
+      Runtime: python3.12
+      Architectures:
+        - arm64 # graviton
+      Timeout: 900
+      MemorySize: 128
+      LoggingConfig:
+        LogGroup: !Ref rLogGroup
+      Tags:
+        - Key: CFN-StackName
+          Value: !Sub '${AWS::StackName}-CloudFormation'
+
+  rLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      #LogGroupName: !Sub "/aws/lambda/${AWS::StackName}/NiceJob"
+      #LogGroupClass: INFREQUENT_ACCESS # https://aws.amazon.com/blogs/aws/new-amazon-cloudwatch-log-class-for-infrequent-access-logs-at-a-reduced-price/
+      RetentionInDays: 14
+      Tags:
+        - Key: CFN-StackName
+          Value: !Sub '${AWS::StackName}-CloudFormation'
+
+  rTriggerTaggingLambda:
+    Type: 'Custom::TriggerTaggingLambda'
+    Properties:
+      ServiceToken: !GetAtt rTaggingLambdaFunction.Arn
+      Timeout: 300 # seconds
+      Tags:
+      # add TAGS here
+        - Key: Project
+          Value: !Ref pKeyProject
+        - Key: LastTaggedBy
+          Value: !Sub '${AWS::StackName}-CloudFormation'
+        - Key: Environment
+          Value: Production77
+        - Key: Owner
+          Value: TeamA77
+
+Outputs:
+
+  oLambdaFunctionArn:
+    Description: 'ARN of the created Lambda function'
+    Value: !GetAtt rTaggingLambdaFunction.Arn
+
+  oLambdaFunctionName:
+    Description: 'Name of the created Lambda function'
+    Value: !Ref rTaggingLambdaFunction
+
+  oLogGroupName:
+    Description: 'Name of the CW Log Group'
+    Value: !Ref rLogGroup
