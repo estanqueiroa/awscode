@@ -1,0 +1,197 @@
+######################################################################################
+# WARNING: This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+######################################################################################
+#
+# This template will implement AWS services which may have associated cost - USE AT YOUR OWN RISK :-)
+#
+# SSM Automation example to run commands in EC2 instances and export output to execute scripts
+#
+# References:
+#
+# https://github.com/aws-samples/aws-systems-manager-executescript-slack/blob/main/EncryptedVolsToSlack.yaml
+# 
+# https://github.com/aws/amazon-ssm-document-language-service/blob/master/src/schema/automation/actions/runCommand.ts
+
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  Creates an Automation Document for Linux and Windows
+  to run command and execute script using the outputs. 
+
+
+Parameters:
+
+  ExistingRoleName:
+    Type: String
+    MinLength : 0
+    Default: ""
+    Description: (Optional) Enter an existing role name. Leave blank to create role.
+
+Conditions:
+  CreateRoleCondition: !Equals ["", !Ref ExistingRoleName]
+
+Resources:
+  Ec2AutomationScriptRole:
+    Type: 'AWS::IAM::Role'
+    Condition: CreateRoleCondition
+    Properties:
+      Description: Example policies for Config to execute SSM, and for SSM to read EBS and EC2 properties over all resources in the account. Please tailor to your needs.
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ssm.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AmazonSSMAutomationRole'
+      Tags:
+        - Key: Solution-Name
+          Value: !Sub '${AWS::StackName}-Scripts'
+      # Policies:
+      #   - PolicyName: DescribeEc2VolumesPolicy
+      #     PolicyDocument:
+      #       Version: 2012-10-17
+      #       Statement:
+      #         - Effect: Allow
+      #           Action: 'ec2:DescribeVolumes'
+      #           Resource: '*'
+      #   - PolicyName: DescribeEc2instancesPolicy
+      #     PolicyDocument:
+      #       Version: 2012-10-17
+      #       Statement:
+      #         - Effect: Allow
+      #           Action: 'ec2:DescribeInstances'
+      #           Resource: '*'
+
+  # SSM Automation Document for Linux
+  LinuxScriptAutomationDoc:
+    Type: "AWS::SSM::Document"
+    Properties:
+      DocumentType: Automation
+      TargetType: '/AWS::EC2::Instance' # Specifying target type
+      Content:
+        description: Run command on EC2 Linux instance and then execute script with the output
+        schemaVersion: '0.3'
+        assumeRole: '{{AutomationAssumeRole}}'
+        parameters:
+          InstanceId:
+            type: String
+            description: (Required) The ID of the EC2 instance
+          AutomationAssumeRole:
+            type: String
+            description: (Optional) The ARN of the role that allows Automation to perform the actions on your behalf.
+            default: ''
+        mainSteps:
+          - name: RunCommandOnEC2
+            action: aws:runCommand
+            nextStep: ExecuteScriptWithOutput
+            isEnd: false
+            inputs:
+              DocumentName: AWS-RunShellScript
+              InstanceIds:
+                - '{{ InstanceId }}'
+              Parameters:
+                commands:
+                  - primary_ip=$(hostname -I | awk '{print $1}')
+                  - host_name=$(hostname)
+                  - echo "IP=$primary_ip"
+                  - echo "HOSTNAME=$host_name"
+          - name: ExecuteScriptWithOutput
+            action: aws:executeScript
+            isEnd: true
+            inputs:
+              Runtime: python3.11
+              Handler: script_handler
+              InputPayload:
+                InstanceId: '{{ InstanceId }}'
+                CommandToSend: '{{ RunCommandOnEC2.Output }}'
+              Script: |
+                def script_handler(events, context):
+                    output_lines = events['CommandToSend'].strip().split('\n')
+                    
+                    # Parse the output lines to get IP and hostname
+                    ip_address = ''
+                    hostname = ''
+                    for line in output_lines:
+                        if line.startswith('IP='):
+                            ip_address = line.split('=')[1]
+                        elif line.startswith('HOSTNAME='):
+                            hostname = line.split('=')[1]
+                    
+                    return {
+                        'Result': f"Server {events['InstanceId']} has IP: {ip_address} and hostname: {hostname}",
+                        'InstanceId': events['InstanceId'],
+                        'IpAddress': ip_address,
+                        'Hostname': hostname
+                    }
+      Tags:
+        - Key: Solution-Name
+          Value: !Sub '${AWS::StackName}-Scripts'
+
+
+  # SSM Automation Document for Windows
+  WindowsScriptAutomationDoc:
+    Type: 'AWS::SSM::Document'
+    Properties:
+      DocumentType: Automation
+      TargetType: '/AWS::EC2::Instance' # Specifying target type
+      Content:
+        schemaVersion: '0.3'
+        description: 'Run Powershell script on Windows EC2 instance'
+        parameters:
+          InstanceId:
+            type: String
+            description: 'EC2 instance ID'
+        mainSteps:
+          - name: GetIpAddress
+            action: 'aws:runCommand'
+            inputs:
+              DocumentName: AWS-RunPowerShellScript
+              InstanceIds:
+                - '{{ InstanceId }}'
+              Parameters:
+                commands:
+                  - |
+                    $PrimaryIP = (Get-NetIPAddress -AddressFamily IPv4 |
+                        Where-Object {
+                            $_.PrefixOrigin -ne 'WellKnown'
+                        } |
+                        Select-Object -First 1).IPAddress
+                    
+                    Write-Output "Primary IP Address: $PrimaryIP"
+          - name: GetOsInfo
+            action: 'aws:runCommand'
+            inputs:
+              DocumentName: AWS-RunPowerShellScript
+              InstanceIds:
+                - '{{ InstanceId }}'
+              Parameters:
+                commands:
+                  - |
+                    $OS = Get-WmiObject Win32_OperatingSystem
+                    
+                    Write-Output "Windows OS Information:"
+                    Write-Output "----------------------------------------"
+                    Write-Output "OS Name: $($OS.Caption)"
+                    Write-Output "Version: $($OS.Version)"
+                    Write-Output "Build Number: $($OS.BuildNumber)"
+                    Write-Output "OS Architecture: $($OS.OSArchitecture)"
+      Tags:
+        - Key: Solution-Name
+          Value: !Sub '${AWS::StackName}-Scripts'
+
+Outputs:
+
+  oRoleCreated: 
+    Description: The IAM Role that was created
+    Value: !If ["CreateRoleCondition", !Ref Ec2AutomationScriptRole, "None"]
+
+  oLinuxAutomationDocument: 
+    Description: 'Linux SSM Automation Document Name'
+    Value: !Ref LinuxScriptAutomationDoc
+
+  oWindowsAutomationDocument:
+    Description: 'Windows SSM Automation Document Name'
+    Value: !Ref WindowsScriptAutomationDoc
