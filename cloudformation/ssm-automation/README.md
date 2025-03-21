@@ -65,6 +65,13 @@ aws ssm start-automation-execution \
 
 - Delete CloudFormation stack to remove all created resources
 
+## Limitations
+
+**aws:runCommand**
+
+- Automation only supports output of one Run Command action
+- A document can include multiple Run Command actions, but output is supported for only one action at a time
+
 ## References
 
 [AWS Systems Manager Execute Script Examples](https://github.com/aws-samples/aws-systems-manager-executescript-slack/blob/main/EncryptedVolsToSlack.yaml)
