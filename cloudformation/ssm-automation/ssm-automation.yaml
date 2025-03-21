@@ -148,6 +148,7 @@ Resources:
         mainSteps:
           - name: GetIpAddress
             action: 'aws:runCommand'
+            isEnd: false
             inputs:
               DocumentName: AWS-RunPowerShellScript
               InstanceIds:
@@ -164,6 +165,7 @@ Resources:
                     Write-Output "Primary IP Address: $PrimaryIP"
           - name: GetOsInfo
             action: 'aws:runCommand'
+            isEnd: true
             inputs:
               DocumentName: AWS-RunPowerShellScript
               InstanceIds:
