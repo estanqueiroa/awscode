@@ -22,17 +22,18 @@ Description: >-
 
 Parameters:
 
-  ExistingRoleName:
+  pExistingRoleName:
     Type: String
     MinLength : 0
     Default: ""
     Description: (Optional) Enter an existing role name. Leave blank to create role.
 
 Conditions:
-  CreateRoleCondition: !Equals ["", !Ref ExistingRoleName]
+  CreateRoleCondition: !Equals ["", !Ref pExistingRoleName]
 
 Resources:
-  Ec2AutomationScriptRole:
+
+  rEc2AutomationScriptRole:
     Type: 'AWS::IAM::Role'
     Condition: CreateRoleCondition
     Properties:
@@ -66,7 +67,7 @@ Resources:
       #           Resource: '*'
 
   # SSM Automation Document for Linux
-  LinuxScriptAutomationDoc:
+  rLinuxScriptAutomationDoc:
     Type: "AWS::SSM::Document"
     Properties:
       DocumentType: Automation
@@ -132,7 +133,7 @@ Resources:
 
 
   # SSM Automation Document for Windows
-  WindowsScriptAutomationDoc:
+  rWindowsScriptAutomationDoc:
     Type: 'AWS::SSM::Document'
     Properties:
       DocumentType: Automation
@@ -186,12 +187,12 @@ Outputs:
 
   oRoleCreated: 
     Description: The IAM Role that was created
-    Value: !If ["CreateRoleCondition", !Ref Ec2AutomationScriptRole, "None"]
+    Value: !If ["CreateRoleCondition", !Ref rEc2AutomationScriptRole, "None"]
 
   oLinuxAutomationDocument: 
     Description: 'Linux SSM Automation Document Name'
-    Value: !Ref LinuxScriptAutomationDoc
+    Value: !Ref rLinuxScriptAutomationDoc
 
   oWindowsAutomationDocument:
     Description: 'Windows SSM Automation Document Name'
-    Value: !Ref WindowsScriptAutomationDoc
+    Value: !Ref rWindowsScriptAutomationDoc
