@@ -48,8 +48,8 @@ Update these values in the `testing.sh` script and run it to validate the soluti
 
 ## Cleanup
 
-- delete files from S3 bucket
-- delete CloudFormation stack to remove all resources: `aws cloudformation delete-stack --stack-name my-file-upload-solution`
+- Delete files from S3 bucket
+- Delete CloudFormation stack to remove all resources: `aws cloudformation delete-stack --stack-name my-file-upload-solution`
 
 ## References
 
