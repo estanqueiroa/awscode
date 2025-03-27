@@ -37,7 +37,7 @@ The template requires the following parameters:
 - `VpcId`: The ID of your existing VPC
 - `PrivateSubnet1`: The ID of the private subnet where the EC2 instance and NLB will be deployed
 - `InstanceType`: The EC2 instance type (default: t2.micro)
-- `AllowedIPAddress`: Your IP address to allow access to API Gateway (e.g., 1.2.3.4/32)
+- `AllowedIPAddress`: Your IP address to allow access to API Gateway (e.g., 1.2.3.4/32) https://checkip.amazonaws.com/
 
 ## Deployment
 
