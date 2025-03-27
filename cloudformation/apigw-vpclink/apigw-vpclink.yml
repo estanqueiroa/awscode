@@ -1,0 +1,244 @@
+######################################################################################
+# WARNING: This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+######################################################################################
+# This template will implement AWS services which may have associated cost - USE AT YOUR OWN RISK :-)
+######################################################################################
+#
+# This CloudFormation template:
+#
+# Creates an EC2 instance in a private subnet with Apache installed
+# Sets up a Network Load Balancer in the private subnet
+# Creates security groups for both EC2 and NLB
+# Creates an API Gateway with VPC Link
+# Configures the integration between API Gateway and the private EC2 via NLB
+#
+# https://medium.com/@shivkaundal/how-to-use-aws-api-gateway-vpc-link-for-secure-access-to-private-vpc-resources-5d350bdac903
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'API Gateway with VPC Link to private EC2 via NLB'
+
+Parameters:
+
+  pVpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC ID
+
+  pPrivateSubnet1:
+    Type: AWS::EC2::Subnet::Id 
+    Description: Private subnet for EC2
+
+  pInstanceType:
+    Type: String
+    Default: t3.micro
+    Description: EC2 instance type
+
+Resources:
+  # Security Group for EC2
+  rEC2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP from NLB
+      VpcId: !Ref pVpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref rNLBSecurityGroup
+          Description: Allow acccess from NLB to EC2
+      Tags:
+        - Key: Solution-CFN
+          Value: !Sub '${AWS::StackName}-private-api'
+
+  # Security Group for NLB
+  rNLBSecurityGroup:
+    # checkov:skip=CKV_AWS_260:0.0.0.0/0 required to allow access from API GW to NLB
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for NLB
+      VpcId: !Ref pVpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: Allow acccess from API GW to NLB
+      Tags:
+        - Key: Solution-CFN
+          Value: !Sub '${AWS::StackName}-private-api'
+
+  # EC2 Instance Role
+  rEC2InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Tags:
+        - Key: Solution-CFN
+          Value: !Sub '${AWS::StackName}-private-api'
+
+  # EC2 Instance Profile
+  rEC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref rEC2InstanceRole
+
+  # EC2 Instance
+  rWebServerEc2:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref pInstanceType
+      ImageId: 'ami-04aa00acb1165b32a' # Amazon Linux 2 AMI - update as needed - region us-east-1
+      SubnetId: !Ref pPrivateSubnet1
+      SecurityGroupIds: 
+        - !Ref rEC2SecurityGroup
+      IamInstanceProfile: !Ref rEC2InstanceProfile
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash
+          yum update -y
+          yum install -y httpd
+          systemctl start httpd
+          systemctl enable httpd
+          echo "<h1>Hello from Private EC2</h1>" > /var/www/html/index.html
+      Tags:
+        - Key: Solution-CFN
+          Value: !Sub '${AWS::StackName}-private-api'
+
+  # Network Load Balancer
+  rNetworkLoadBalancer:
+  # checkov:skip=CKV_AWS_91:Testing only - NLB Access logging not required
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Type: network
+      Subnets: 
+        - !Ref pPrivateSubnet1
+      SecurityGroups:
+        - !Ref rNLBSecurityGroup
+      Tags:
+        - Key: Solution-CFN
+          Value: !Sub '${AWS::StackName}-private-api'
+
+  # NLB Target Group
+  rNLBTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Port: 80
+      Protocol: TCP
+      VpcId: !Ref pVpcId
+      TargetType: instance
+      Targets:
+        - Id: !Ref rWebServerEc2
+          Port: 80
+      Tags:
+        - Key: Solution-CFN
+          Value: !Sub '${AWS::StackName}-private-api'
+
+  # NLB Listener
+  rNLBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref rNetworkLoadBalancer
+      Port: 80
+      Protocol: TCP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref rNLBTargetGroup
+
+  # API Gateway VPC Link
+  rVPCLink:
+    Type: AWS::ApiGateway::VpcLink
+    Properties:
+      Name: private-api-vpc-link
+      TargetArns: 
+        - !Ref rNetworkLoadBalancer
+      Tags:
+        - Key: Solution-CFN
+          Value: !Sub '${AWS::StackName}-private-api'
+
+  # API Gateway REST API
+  rRestApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: !Sub '${AWS::StackName}-private-api'
+      Description: Private REST Api GW using VPC link
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+      Tags:
+        - Key: Solution-CFN
+          Value: !Sub '${AWS::StackName}-private-api'
+
+  # API Resource
+  rApiResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref rRestApi
+      ParentId: !GetAtt rRestApi.RootResourceId
+      PathPart: 'api'
+
+  # API Method
+  rApiMethod:
+  # checkov:skip=CKV_AWS_59:Testing only - AuthorizationType not required
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref rRestApi
+      ResourceId: !Ref rApiResource
+      HttpMethod: GET
+      AuthorizationType: NONE # change this setting for PROD environments
+      Integration:
+        Type: HTTP
+        IntegrationHttpMethod: GET
+        ConnectionType: VPC_LINK
+        ConnectionId: !Ref rVPCLink
+        Uri: !Sub 'http://${rNetworkLoadBalancer.DNSName}'
+        RequestParameters: {}
+        IntegrationResponses:
+          - StatusCode: 200
+      MethodResponses:
+        - StatusCode: 200
+
+  # API Deployment
+  rApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn: rApiMethod
+    Properties:
+      RestApiId: !Ref rRestApi
+
+  # API Stage
+  rApiStage:
+  # checkov:skip=CKV_AWS_73:X-RAY tracing not required
+  # checkov:skip=CKV_AWS_120:API gateway caching not required
+  # checkov:skip=CKV_AWS_76:Access logging not required
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      DeploymentId: !Ref rApiDeployment
+      RestApiId: !Ref rRestApi
+      StageName: prod
+
+Outputs:
+  
+  oApiEndpoint:
+    Description: API Gateway endpoint URL
+    Value: !Sub 'https://${rRestApi}.execute-api.${AWS::Region}.amazonaws.com/prod/api'
+
+  oEC2PrivateIP:
+    Description: Private IP of EC2 instance
+    Value: !GetAtt rWebServerEc2.PrivateIp
+
+  oNLBDNSName:
+    Description: DNS name of Network Load Balancer
+    Value: !GetAtt rNetworkLoadBalancer.DNSName
+
+  oCURLtest:
+    Description: Run this CURL command to validate API VPC Link configuration
+    Value: !Sub 'curl -X GET https://${rRestApi}.execute-api.${AWS::Region}.amazonaws.com/prod/api'

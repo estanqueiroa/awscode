@@ -1,0 +1,20 @@
+checkov -d apigw-vpclink
+[ cloudformation framework ]: 100%|████████████████████|[1/1], Current File Scanned=/apigw-vpclink.yml
+
+[ secrets framework ]: 100%|████████████████████|[1/1], Current File Scanned=apigw-vpclink/apigw-vpclink.yml
+
+
+       _               _
+   ___| |__   ___  ___| | _______   __
+  / __| '_ \ / _ \/ __| |/ / _ \ \ / /
+ | (__| | | |  __/ (__|   < (_) \ V /
+  \___|_| |_|\___|\___|_|\_\___/ \_/
+
+By Prisma Cloud | version: 3.2.392
+Update available 3.2.392 -> 3.2.394
+Run pip3 install -U checkov to update
+
+
+cloudformation scan results:
+
+Passed checks: 18, Failed checks: 0, Skipped checks: 6
