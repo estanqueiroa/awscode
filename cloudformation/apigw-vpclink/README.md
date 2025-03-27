@@ -47,6 +47,7 @@ To deploy this template:
 2. Create a new stack and upload the template file
 3. Fill in the required parameters
 4. Review and create the stack
+5. Deploy the API using AWS Console to apply Resource Policy configuration (restrict access based on Ip Address)
 
 ## Outputs
 
