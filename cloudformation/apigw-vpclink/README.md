@@ -64,6 +64,35 @@ To test the deployment, use the curl command provided in the `CURLtest` output. 
 
 This template creates security groups with specific ingress rules. Review and adjust these rules according to your security requirements before deploying in a production environment.
 
+**Get all IPv4 addresses for a specific service in a specific Region**
+
+https://docs.aws.amazon.com/vpc/latest/userguide/aws-ip-work-with.html#filter-ip-ranges-ipv4-service-region
+
+Download the JSON file: `curl -O https://ip-ranges.amazonaws.com/ip-ranges.json`
+
+Query for API Gateway ranges: `jq -r '.prefixes[] | select(.region=="us-east-1") | select(.service=="API_GATEWAY") | .ip_prefix' < ip-ranges.json`
+
+You can create a prefix list for these IP ranges and configure NLB security group to use it in the Ingress rule:
+
+```bash
+3.216.135.0/24
+3.216.136.0/21
+3.216.144.0/23
+3.216.148.0/22
+3.235.26.0/23
+3.235.32.0/21
+3.238.166.0/24
+3.238.212.0/22
+44.206.4.0/22
+44.210.64.0/22
+44.212.176.0/23
+44.212.178.0/23
+44.212.180.0/23
+44.212.182.0/23
+44.218.96.0/23
+44.220.28.0/22
+```
+
 ## Costs
 
 This template creates AWS resources that may incur costs. Please review the AWS pricing for EC2, NLB, and API Gateway before deploying.

@@ -34,6 +34,11 @@ Parameters:
     Default: t3.micro
     Description: EC2 instance type
 
+  pAllowedIPAddress:
+    Type: String
+    Description: 'Your IP address to allow access to API Gateway (e.g., 1.2.3.4/32) - get here https://checkip.amazonaws.com/ - Redeploy your API for the update to take effect.'
+    Default: Redeploy your API for the update to take effect
+
 Resources:
   # Security Group for EC2
   rEC2SecurityGroup:
@@ -51,6 +56,26 @@ Resources:
         - Key: Solution-CFN
           Value: !Sub '${AWS::StackName}-private-api'
 
+  # # prefix list for Api Gateway IP ranges
+  # rManagedPrefixList:
+  #   Type: AWS::EC2::PrefixList
+  #   Properties:
+  #     PrefixListName: !Sub '${AWS::StackName}-apigw-ranges'
+  #     AddressFamily: IPv4
+  #     MaxEntries: 10
+  #     Entries:
+  #       - Cidr: 3.216.128.0/17 # Covers 3.216.135.0/24 through 3.216.148.0/22
+  #         Description: 'AWS Api Gateway IP range 1'
+  #       - Cidr: 3.235.0.0/16 # Covers 3.235.26.0/23 and 3.235.32.0/21
+  #         Description: 'AWS Api Gateway IP range 2'
+  #       - Cidr: 3.238.0.0/16 # Covers 3.235.26.0/23 and 3.235.32.0/21
+  #         Description: 'AWS Api Gateway IP range 3'
+  #       - Cidr: 44.192.0.0/11 # Covers all 44.x.x.x ranges
+  #         Description: 'AWS Api Gateway IP range 4'
+  #     Tags:
+  #       - Key: Solution-CFN
+  #         Value: !Sub '${AWS::StackName}-private-api'
+
   # Security Group for NLB
   rNLBSecurityGroup:
     # checkov:skip=CKV_AWS_260:0.0.0.0/0 required to allow access from API GW to NLB
@@ -63,6 +88,7 @@ Resources:
           FromPort: 80
           ToPort: 80
           CidrIp: 0.0.0.0/0
+          #SourcePrefixListId: !Ref rManagedPrefixList
           Description: Allow acccess from API GW to NLB
       Tags:
         - Key: Solution-CFN
@@ -111,6 +137,8 @@ Resources:
           systemctl enable httpd
           echo "<h1>Hello from Private EC2</h1>" > /var/www/html/index.html
       Tags:
+        - Key: Name
+          Value: 'WebServerVpcLink'
         - Key: Solution-CFN
           Value: !Sub '${AWS::StackName}-private-api'
 
@@ -174,6 +202,25 @@ Resources:
       EndpointConfiguration:
         Types:
           - REGIONAL
+      Policy:
+            # https://docs.aws.amazon.com/apigateway/latest/developerguide/apigateway-resource-policies-create-attach.html
+            # https://repost.aws/knowledge-center/api-gateway-resource-policy-access
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Deny'
+            Principal: '*'
+            Action: 'execute-api:Invoke'
+            Resource: 'execute-api:/*/*/*' # avoid circular dependency
+            Condition:
+              NotIpAddress:
+                'aws:SourceIp':
+                  - !Ref pAllowedIPAddress
+          - Effect: 'Allow'
+            Principal: '*'
+            Action: 'execute-api:Invoke'
+            Resource: 'execute-api:/*/*/*' # avoid circular dependency
+
+
       Tags:
         - Key: Solution-CFN
           Value: !Sub '${AWS::StackName}-private-api'
