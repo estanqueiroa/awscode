@@ -60,7 +60,8 @@ After successful deployment, the stack will provide the following outputs:
 
 ## Testing
 
-To test the deployment, use the curl command provided in the `CURLtest` output. This should return a simple HTML page served by the private EC2 instance.
+- To test the deployment, use the curl command provided in the `CURLtest` output. This should return a simple HTML page served by the private EC2 instance.
+- Deploy the API if required (error: user anonymous access)
 
 ## Deploy your API
 
