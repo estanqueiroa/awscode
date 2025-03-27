@@ -37,6 +37,7 @@ The template requires the following parameters:
 - `VpcId`: The ID of your existing VPC
 - `PrivateSubnet1`: The ID of the private subnet where the EC2 instance and NLB will be deployed
 - `InstanceType`: The EC2 instance type (default: t2.micro)
+- `AllowedIPAddress`: Your IP address to allow access to API Gateway (e.g., 1.2.3.4/32)
 
 ## Deployment
 
@@ -59,6 +60,14 @@ After successful deployment, the stack will provide the following outputs:
 ## Testing
 
 To test the deployment, use the curl command provided in the `CURLtest` output. This should return a simple HTML page served by the private EC2 instance.
+
+## Deploy your API
+
+**Important:** You must redeploy your REST API each time you change its resource policy.
+
+- In the Resources pane of your REST API, Choose Deploy API.
+- For Deployment stage, choose `prod`.
+- Choose Deploy.
 
 ## Security Note
 
@@ -107,6 +116,8 @@ For more information on using API Gateway VPC Link, refer to:
 https://medium.com/@shivkaundal/how-to-use-aws-api-gateway-vpc-link-for-secure-access-to-private-vpc-resources-5d350bdac903
 
 RAIN tool: https://github.com/aws-cloudformation/rain
+
+[API Gateway resource policies](https://repost.aws/knowledge-center/api-gateway-resource-policy-access)
 
 ## Cleanup
 
