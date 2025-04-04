@@ -1,6 +1,6 @@
 # AWS Route 53 Resolver DNS Firewall Configuration
 
-This CloudFormation template sets up DNS Firewall Rules for allowing and blocking traffic, and associates them with a VPC.
+This CloudFormation template sets up DNS Firewall Rules for allowing and blocking traffic, and associates them with a list of VPCs.
 
 ## Overview
 
