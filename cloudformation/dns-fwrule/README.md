@@ -43,7 +43,7 @@ This template creates:
 - `oDNSFirewallRuleGroupId`: ID of the DNS Firewall Rule Group
 - `oAllowDomainListId`: ID of the Allow Domain List
 - `oBlockDomainListId`: ID of the Block Domain List
-- `oVPCAssociationId`: ID of the VPCs Association **Note** [Non-alphanumeric characters](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/intrinsic-function-reference-foreach-example-resource.html#intrinsic-function-reference-foreach-example-non-alphanumeric) are not supported in Output section (e.g. vpc-id)
+- `oVPCAssociationId`: ID of the VPCs Association **Note:** [Non-alphanumeric characters](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/intrinsic-function-reference-foreach-example-resource.html#intrinsic-function-reference-foreach-example-non-alphanumeric) are not supported in Output section (e.g. vpc-id)
 - `oRuleGroupArn`: ARN of the DNS Firewall Rule Group
 
 ## Usage
