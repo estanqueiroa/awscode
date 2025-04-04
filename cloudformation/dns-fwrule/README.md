@@ -49,8 +49,8 @@ This template creates:
 ## Usage
 
 1. Deploy this template in your AWS account.
-2. Provide the VPC ID as a parameter.
-3. Optionally, provide a different AWS Managed List ID.
+2. Provide the comma-separated list of VPC IDs as a parameter.
+3. Optionally, provide a different [AWS Managed List ID](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resolver-dns-firewall-managed-domain-lists.html)
 
 ## Important Notes
 
