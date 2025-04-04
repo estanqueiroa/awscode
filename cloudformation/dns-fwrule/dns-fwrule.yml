@@ -15,13 +15,14 @@
 ################################
 
 AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::LanguageExtensions'
 Description: 'Setup DNS Firewall Rules for Allow / Block traffic and associate them to VPC'
 
 Parameters:
 
-  pVpc:
-    Type: String
-    Description: "VPC ID to associate with DNS Firewall Rule Group"
+  pListVpcs:
+    Type: CommaDelimitedList
+    Description: "List of VPC IDs to associate with DNS Firewall Rule Group (comma-separated)"
 
   pManagedListId:
     Type: String
@@ -88,14 +89,19 @@ Resources:
 
 ########### VPC ASSOCIATION
 
-  rVPCAssociation:
-    Type: 'AWS::Route53Resolver::FirewallRuleGroupAssociation'
-    Properties:
-      FirewallRuleGroupId: !Ref rDNSFirewallRuleGroup
-      Priority: 110 # Provide a number between "100" and "9900"
-      VpcId: !Ref pVpc # Reference to your VPC
-      Name: 'vpc-association-block'
-      MutationProtection: 'DISABLED'  # Optional: ENABLED or DISABLED
+# Multiple VPCs
+##############
+  'Fn::ForEach::VpcId':
+    - VpcIdName
+    - !Ref pListVpcs
+    - 'VpcId&{VpcIdName}':
+        Type: 'AWS::Route53Resolver::FirewallRuleGroupAssociation'
+        Properties:
+          FirewallRuleGroupId: !Ref rDNSFirewallRuleGroup
+          Priority: 110 # Provide a number between "100" and "9900"
+          VpcId: !Ref VpcIdName # Reference to your VPC
+          Name: !Sub '${VpcIdName}-association'
+          MutationProtection: 'DISABLED'  # Optional: ENABLED or DISABLED
 
 Outputs:
 
@@ -111,11 +117,20 @@ Outputs:
     Description: "The ID of the Block Domain List"
     Value: !Ref rBlockDomainList
 
-  oVPCAssociationId:
-    Description: "The ID of the VPC Association"
-    Value: !Ref rVPCAssociation
-
   oRuleGroupArn:
     Description: "The ARN of the DNS Firewall Rule Group"
     Value: !GetAtt rDNSFirewallRuleGroup.Arn
 
+  'Fn::ForEach::VpcOutputs':
+    - VpcIdName
+    - !Ref pListVpcs
+    - 'Fn::ForEach::GetAttLoop':
+        - Property
+        - [Id, Status]
+        - 'VpcId&{VpcIdName}${Property}':
+            #Value: !GetAtt [!Sub 'VpcId${VpcIdName}', !Ref Property] # doesnt work because vpc-id is non alphanumeric - contains hyphen
+            # this will only work for alphanumeric characters
+            # Only Resources section supports passing non-alphanumeric characters
+            # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/intrinsic-function-reference-foreach-example-resource.html#intrinsic-function-reference-foreach-example-non-alphanumeric
+            Value: 'teste'
+            Description: !Sub '${Property} for VPC ${VpcIdName} association'
