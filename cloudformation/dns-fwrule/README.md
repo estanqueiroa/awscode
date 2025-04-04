@@ -48,7 +48,7 @@ This template creates:
 
 ## Usage
 
-1. Create new CloudFormation stack to deploy this template in your AWS account.
+1. Create [new CloudFormation stack](https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create) to deploy this template in your AWS account.
 2. Provide the comma-separated list of VPC IDs as a parameter.
 3. Optionally, provide a different [AWS Managed List ID](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resolver-dns-firewall-managed-domain-lists.html)
 
