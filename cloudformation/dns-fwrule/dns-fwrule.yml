@@ -1,0 +1,121 @@
+######################################################################################
+# WARNING: This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+######################################################################################
+#
+# This template will implement AWS services which may have associated cost - USE AT YOUR OWN RISK :-)
+#
+# References:
+#
+# https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resolver-dns-firewall-rule-settings.html
+#
+# https://github.com/aws-samples/amazon-route-53-resolver-dns-firewall-automation-examples
+#
+################################
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Setup DNS Firewall Rules for Allow / Block traffic and associate them to VPC'
+
+Parameters:
+
+  pVpc:
+    Type: String
+    Description: "VPC ID to associate with DNS Firewall Rule Group"
+
+  pManagedListId:
+    Type: String
+    Default: rslvr-fdl-b5f3953a7fe24d01
+    Description: Id of AWS Managed Domain List (default AWSManagedDomainsGlobalThreatList)
+
+Resources:
+
+
+########### ALLOW LIST
+
+  rAllowDomainList:
+    Type: 'AWS::Route53Resolver::FirewallDomainList'
+    Properties:
+      Name: !Sub '${AWS::StackName}-allow-domains'
+      Domains:
+        - google.com
+        - amazon.com
+      Tags:
+        - Key: Purpose
+          Value: Security
+        - Key: CFN-StackName
+          Value: !Sub '${AWS::StackName}-stack-tagging'
+
+########### BLOCK LIST
+
+  rBlockDomainList:
+    Type: 'AWS::Route53Resolver::FirewallDomainList'
+    Properties:
+      Name: !Sub '${AWS::StackName}-malicious-domains'
+      Domains: 
+        - 'malicious-domain.com'
+        - '*.bad-domain.com'
+      Tags:
+        - Key: Purpose
+          Value: Security
+        - Key: CFN-StackName
+          Value: !Sub '${AWS::StackName}-stack-tagging'
+
+########### DNS FW RULE GROUP
+
+  rDNSFirewallRuleGroup:
+    Type: 'AWS::Route53Resolver::FirewallRuleGroup'
+    Properties:
+      Name: !Sub '${AWS::StackName}-dns-firewall-rulegroup'
+      FirewallRules:
+        - Priority: 1
+          Action: ALERT
+          FirewallDomainListId: !Ref rBlockDomainList
+        - Priority: 2
+          Action: BLOCK
+          BlockResponse: NODATA
+          FirewallDomainListId: !Ref pManagedListId
+        - Priority: 3
+          Action: ALLOW
+          #BlockResponse: NODATA
+          FirewallDomainListId: !Ref rAllowDomainList
+      Tags:
+        -
+          Key: LineOfBusiness
+          Value: Engineering
+        - Key: CFN-StackName
+          Value: !Sub '${AWS::StackName}-stack-tagging'
+
+########### VPC ASSOCIATION
+
+  rVPCAssociation:
+    Type: 'AWS::Route53Resolver::FirewallRuleGroupAssociation'
+    Properties:
+      FirewallRuleGroupId: !Ref rDNSFirewallRuleGroup
+      Priority: 110 # Provide a number between "100" and "9900"
+      VpcId: !Ref pVpc # Reference to your VPC
+      Name: 'vpc-association-block'
+      MutationProtection: 'DISABLED'  # Optional: ENABLED or DISABLED
+
+Outputs:
+
+  oDNSFirewallRuleGroupId:
+    Description: "The ID of the DNS Firewall Rule Group"
+    Value: !Ref rDNSFirewallRuleGroup
+
+  oAllowDomainListId:
+    Description: "The ID of the Allow Domain List"
+    Value: !Ref rAllowDomainList
+
+  oBlockDomainListId:
+    Description: "The ID of the Block Domain List"
+    Value: !Ref rBlockDomainList
+
+  oVPCAssociationId:
+    Description: "The ID of the VPC Association"
+    Value: !Ref rVPCAssociation
+
+  oRuleGroupArn:
+    Description: "The ARN of the DNS Firewall Rule Group"
+    Value: !GetAtt rDNSFirewallRuleGroup.Arn
+
