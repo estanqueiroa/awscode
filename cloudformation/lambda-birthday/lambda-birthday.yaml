@@ -55,6 +55,7 @@ Resources:
 
     rDynamoDBTable: 
       Type: AWS::DynamoDB::Table
+      # checkov:skip=CKV_AWS_119: "Encryption not required for DynamoDB Tables"
       Metadata:
         cfn_nag:
           rules_to_suppress:
@@ -106,19 +107,20 @@ Resources:
             - id: F3
               reason: "Required for Automation solution"
       Properties:
-        AssumeRolePolicyDocument: "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"lambda.amazonaws.com\"},\"Action\":\"sts:AssumeRole\"}]}"
-        Path: "/"
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: lambda.amazonaws.com
+              Action: sts:AssumeRole
+        ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
         Policies:
           - PolicyName: "Lambda_Birthday"
             PolicyDocument:
               Version: "2012-10-17"
               Statement:
-                - Effect: Allow
-                  Sid: AllowOperationsOnServices
-                  Action:
-                    - "sts:AssumeRole"
-                    - "logs:*"
-                  Resource: "*"
                 - Effect: Allow
                   Sid: AllowSNStopic
                   Action:
@@ -149,6 +151,7 @@ Resources:
 
     rSNSTopic:
         Type: "AWS::SNS::Topic"
+        # checkov:skip=CKV_AWS_26: "Encryption not required for SNS topic"
         Metadata:
           cfn_nag:
             rules_to_suppress:
@@ -205,6 +208,10 @@ Resources:
 
     rLambdaBirthday:
       Type: AWS::Lambda::Function
+    # checkov:skip=CKV_SECRET_6:Strings with a high entropy score are flagged as suspected secrets. Not hardcoded secret
+    # checkov:skip=CKV_AWS_117:Lambda VPC not required for this solution
+    # checkov:skip=CKV_AWS_173:No sensitive data in Lambda OS variables
+    # checkov:skip=CKV_AWS_116:DLQ not required for this solution
       Metadata:
         cfn_nag:
           rules_to_suppress:
@@ -222,12 +229,9 @@ Resources:
             # Initialize boto3
             dynamodb = boto3.resource('dynamodb')
 
-
-            # scan DynamoDB table records
-
             def check_birthdays(db_items):
                 """
-                Checks a list of birthday records and returns a list of birthday information.
+                Checks a list of birthday records and returns a list of birthday information for today and next 5 days.
                 
                 Args:
                     db_items (list): A list of birthday records, where each record is a dictionary with 'BDate' and 'Name' keys.
@@ -236,24 +240,33 @@ Resources:
                     list: A list of birthday information, where each item is a string with the birthday details.
                 """
                 today = datetime.date.today()
-                today_month_day = str(today)[5:]
-                
                 birthdays = []
                 
                 birthdays.append(f"Checking today: {today}")
-                        
-                for item in db_items:
-                    bday = str(item['BDate'])[5:]
-                    birth_year = int(item['BDate'][:4])
-                    age = today.year - birth_year
+                
+                # Check birthdays for today and next 5 days
+                for i in range(6):  # 0 to 5 days
+                    check_date = today + datetime.timedelta(days=i)
+                    check_month_day = str(check_date)[5:]
                     
-                    if bday == today_month_day:
-                        birthdays.append(f"*** Happy birthday 🎉 😊, {item['Name']}! ***")
-                        birthdays.append(f"Age: {age} years")
+                    if i == 0:
+                        prefix = "TODAY"
+                    else:
+                        prefix = f"In {i} days"
+                        
+                    for item in db_items:
+                        bday = str(item['BDate'])[5:]
+                        birth_year = int(item['BDate'][:4])
+                        age = check_date.year - birth_year
+                        
+                        if bday == check_month_day:
+                            if i == 0:
+                                birthdays.append(f"*** Happy birthday 🎉 😊, {item['Name']}! ***")
+                                birthdays.append(f"Age: {age} years")
+                            else:
+                                birthdays.append(f"--- {prefix} ({check_date}): {item['Name']} will turn {age} years ---")
                 
                 return birthdays
-            
-            # send SNS notifications
 
             def send_sns_notification(account_id, birthdays):
                 """
@@ -269,14 +282,15 @@ Resources:
                 sns_client = boto3.client('sns')
                 
                 try:
-                    # Determine the subject and message based on the number of birthdays
-                    birthday_count = len(birthdays) // 2
+                    # Count actual birthdays (excluding the checking date message)
+                    birthday_count = sum(1 for b in birthdays if "birthday" in b.lower() or "will turn" in b.lower())
+                    
                     if birthday_count > 0:
-                        subject = f"Found {birthday_count} birthday(s) today: Account AWS ID {account_id}"
+                        subject = f"Found {birthday_count} birthday(s) in the next 5 days: Account AWS ID {account_id}"
                         message = "\n".join(birthdays)
                     else:
-                        subject = f"No birthday today: Account AWS ID {account_id}"
-                        message = "No birthdays today 😢 " + str(birthdays)
+                        subject = f"No birthdays in the next 5 days: Account AWS ID {account_id}"
+                        message = "No birthdays in the next 5 days 😢 " + str(birthdays)
                     
                     # Send the SNS notification
                     sns_client.publish(
@@ -313,9 +327,11 @@ Resources:
                     print('Failed to process:', e)
                     return "Failure: Check Logs."
 
+
         FunctionName: !Ref pSolutionName
         Handler: "index.lambda_handler"
         Timeout: 30
+        ReservedConcurrentExecutions: 5
         Architectures:
         - arm64   # Arm-based AWS Graviton2 processors
         Role: !GetAtt "rLambdaRole.Arn"
@@ -336,6 +352,10 @@ Resources:
 
     rLambdaSample:
       Type: AWS::Lambda::Function
+    # checkov:skip=CKV_SECRET_6:Strings with a high entropy score are flagged as suspected secrets. Not hardcoded secret
+    # checkov:skip=CKV_AWS_117:Lambda VPC not required for this solution
+    # checkov:skip=CKV_AWS_173:No sensitive data in Lambda OS variables
+    # checkov:skip=CKV_AWS_116:DLQ not required for this solution
       Condition: CreateSampleRecord
       DependsOn: rDynamoDBTable
       Metadata:
@@ -403,6 +423,7 @@ Resources:
         FunctionName: !Sub "${pSolutionName}-sample-record"
         Handler: "index.lambda_handler"
         Timeout: 30
+        ReservedConcurrentExecutions: 5
         Role: !GetAtt "rLambdaRole.Arn"
         Runtime: python3.12
         Environment: 
@@ -425,3 +446,26 @@ Resources:
       Properties:
         ServiceToken: !GetAtt "rLambdaSample.Arn"
         ServiceTimeout: 60 # seconds
+
+
+Outputs:
+
+  oLambdaFunction:
+    Description: Lambda Function ARN for Birthday reminders
+    Value: !GetAtt rLambdaBirthday.Arn
+
+  oLambdaSampleFunction:
+    Condition: CreateSampleRecord
+    Description: Lambda Function ARN for Sample Record
+    Value: !GetAtt rLambdaSample.Arn
+
+  oSnsTopic:
+    Description: SNS Topic ARN for Birthday reminders
+    Value: !Ref rSNSTopic
+
+  oDynamoDbTable:
+    Description: DynamoDbTable ARN for Birthday reminders
+    Value: !GetAtt rDynamoDBTable.Arn
+
+
+    

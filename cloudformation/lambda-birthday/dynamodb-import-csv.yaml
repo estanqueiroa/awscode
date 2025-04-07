@@ -51,9 +51,14 @@ Resources:
 
   LambdaFunction:
     Type: AWS::Lambda::Function
+    # checkov:skip=CKV_SECRET_6:Strings with a high entropy score are flagged as suspected secrets. Not hardcoded secret
+    # checkov:skip=CKV_AWS_117:Lambda VPC not required for this solution
+    # checkov:skip=CKV_AWS_173:No sensitive data in Lambda OS variables
+    # checkov:skip=CKV_AWS_116:DLQ not required for this solution
     Properties:
       Runtime: python3.12
       Timeout: 60
+      ReservedConcurrentExecutions: 5
       Architectures:
       - arm64
       Handler: index.lambda_handler
