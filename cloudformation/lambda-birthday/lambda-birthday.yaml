@@ -225,6 +225,11 @@ Resources:
             import os
             import boto3
             import datetime
+            import logging
+
+            # Set up logger
+            logger = logging.getLogger()
+            logger.setLevel(logging.INFO)
 
             # Initialize boto3
             dynamodb = boto3.resource('dynamodb')
@@ -232,16 +237,11 @@ Resources:
             def check_birthdays(db_items):
                 """
                 Checks a list of birthday records and returns a list of birthday information for today and next 5 days.
-                
-                Args:
-                    db_items (list): A list of birthday records, where each record is a dictionary with 'BDate' and 'Name' keys.
-                    
-                Returns:
-                    list: A list of birthday information, where each item is a string with the birthday details.
                 """
                 today = datetime.date.today()
                 birthdays = []
                 
+                logger.info(f"Starting birthday check for date: {today}")
                 birthdays.append(f"Checking today: {today}")
                 
                 # Check birthdays for today and next 5 days
@@ -261,28 +261,24 @@ Resources:
                         
                         if bday == check_month_day:
                             if i == 0:
-                                birthdays.append(f"*** Happy birthday 🎉 😊, {item['Name']}! ***")
+                                message = f"*** Happy birthday 🎉 😊, {item['Name']}! ***"
+                                birthdays.append(message)
+                                logger.info(f"Found birthday today: {item['Name']}, Age: {age}")
                                 birthdays.append(f"Age: {age} years")
                             else:
-                                birthdays.append(f"--- {prefix} ({check_date}): {item['Name']} will turn {age} years ---")
+                                message = f"--- {prefix} ({check_date}): {item['Name']} will turn {age} years ---"
+                                birthdays.append(message)
+                                logger.info(f"Found upcoming birthday: {item['Name']} on {check_date}")
                 
                 return birthdays
 
             def send_sns_notification(account_id, birthdays):
                 """
                 Sends an SNS notification with the birthday information.
-                
-                Args:
-                    account_id (str): The AWS account ID.
-                    birthdays (list): A list of birthday information strings.
-                    
-                Returns:
-                    str: 'Success' if the notification was sent successfully, 'Failure' otherwise.
                 """
                 sns_client = boto3.client('sns')
                 
                 try:
-                    # Count actual birthdays (excluding the checking date message)
                     birthday_count = sum(1 for b in birthdays if "birthday" in b.lower() or "will turn" in b.lower())
                     
                     if birthday_count > 0:
@@ -292,6 +288,8 @@ Resources:
                         subject = f"No birthdays in the next 5 days: Account AWS ID {account_id}"
                         message = "No birthdays in the next 5 days 😢 " + str(birthdays)
                     
+                    logger.info(f"Sending SNS notification with subject: {subject}")
+                    
                     # Send the SNS notification
                     sns_client.publish(
                         TargetArn=os.environ["SNS_ARN"],
@@ -299,21 +297,26 @@ Resources:
                         Message=message
                     )
                     
+                    logger.info("SNS notification sent successfully")
                     return ("Process Successfully - " + subject)
                 
                 except Exception as e:
-                    print(f"Failed to send SNS notification: {e}")
+                    logger.error(f"Failed to send SNS notification: {str(e)}", exc_info=True)
                     return "Failure"
 
             def lambda_handler(event, context):
                 try:
+                    logger.info("Starting Lambda execution")
+                    
                     # Read AWS Account ID
                     account_id = context.invoked_function_arn.split(":")[4]
+                    logger.info(f"Processing for AWS Account ID: {account_id}")
 
                     # Read environment variables and scan DynamoDB table
                     table_name = os.environ["DB_TABLE"]
                     table = dynamodb.Table(table_name)
                     items = table.scan()['Items']
+                    logger.info(f"Retrieved {len(items)} items from DynamoDB table {table_name}")
 
                     # Check for birthdays
                     birthdays = check_birthdays(items)
@@ -321,13 +324,13 @@ Resources:
                     # Send SNS notification
                     result = send_sns_notification(account_id, birthdays)
 
+                    logger.info(f"Lambda execution completed with result: {result}")
                     return result
 
                 except Exception as e:
-                    print('Failed to process:', e)
+                    logger.error("Failed to process Lambda execution", exc_info=True)
                     return "Failure: Check Logs."
-
-
+                    
         FunctionName: !Ref pSolutionName
         Handler: "index.lambda_handler"
         Timeout: 30
@@ -340,6 +343,8 @@ Resources:
             Variables:
                 SNS_ARN: !Ref rSNSTopic
                 DB_TABLE: !Ref pDynamoDBTable
+        LoggingConfig:
+          LogGroup: !Ref LambdaLogGroup
         Tags: 
             - Key: "cfn-stack-name"
               Value: !Sub ${AWS::StackName}
@@ -347,6 +352,14 @@ Resources:
               Value: !Sub ${AWS::StackId}
             - Key: aws-solution
               Value: !Ref pSolutionName
+
+# CW logs group for Lambda function with 7 days retention
+
+    LambdaLogGroup: 
+      Type: AWS::Logs::LogGroup
+      Properties:
+        LogGroupName: !Sub '/aws/lambdas/${pSolutionName}'
+        RetentionInDays: 7
 
 # Create Lambda Function To inject sample record into DynamoDB table
 
