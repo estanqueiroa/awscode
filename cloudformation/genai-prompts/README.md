@@ -39,7 +39,12 @@ The template creates the following resources:
 3. Upload the template file
 4. Fill in the parameters
 5. Review and create the stack
-6. After stack deployment, create a [prompt version](https://docs.aws.amazon.com/bedrock/latest/userguide/prompt-management-version-create.html) to test the prompt
+6. After stack deployment, test the prompt version
+
+**Update:**
+
+Console creation of [prompt version](https://docs.aws.amazon.com/bedrock/latest/userguide/prompt-management-version-create.html) is no longer required.
+It will be created by the Lambda function.
 
 ## Template Features
 * Custom resource for Bedrock prompt management
@@ -56,7 +61,9 @@ The template creates the following resources:
 * Monitor costs associated with Bedrock usage
 
 ## Clean Up
-To remove all resources, delete the CloudFormation stack and the Bedrock prompt created.
+To remove all resources, delete the CloudFormation stack
+
+The Bedrock prompt created will be deleted as part of the Lambda execution (Delete Event)
 
 ## Contributing
 Please submit issues and pull requests for any improvements.

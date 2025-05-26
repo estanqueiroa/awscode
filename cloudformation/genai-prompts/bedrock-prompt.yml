@@ -71,6 +71,12 @@ Resources:
                   - bedrock-agent:GetPrompt
                   - bedrock-agent:DeletePrompt
                 Resource: !Sub 'arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:agent-prompt/*'
+              - Effect: Allow
+                Action:
+                  - ssm:PutParameter
+                  - ssm:GetParameter
+                  - ssm:DeleteParameter
+                Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/bedrock/prompts/*'
       Tags:
         - Value: "GenAi-Bedrock"
           Key: "Solucao-AWS"
@@ -82,7 +88,7 @@ Resources:
   rBedrockPromptFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: !Sub ${AWS::StackName}-bedrock-prompt
+      #FunctionName: !Sub ${AWS::StackName}-bedrock-prompt
       Handler: index.lambda_handler
       Role: !GetAtt rBedrockLambdaRole.Arn
       Runtime: python3.13
@@ -112,13 +118,15 @@ Resources:
                   # Always set response data
                   response_data = {}
                   
-                  # Get the model id from the environment variable
+                  # Get the environment variables
                   model_id = os.environ.get('MODEL_ID')
                   prompt_name = os.environ.get('PROMPT_NAME')
+                  ssm_parameter_name = f"/bedrock/prompts/{prompt_name}"
 
                   # Handle different CloudFormation request types
                   if event['RequestType'] == 'Create':
                       client = boto3.client(service_name="bedrock-agent")
+                      ssm_client = boto3.client('ssm')
                       
                       # Create prompt
                       prompt_response = client.create_prompt(
@@ -153,6 +161,14 @@ Resources:
                       
                       prompt_id = prompt_response.get("id")
                       
+                      # Store prompt ID in SSM Parameter Store
+                      ssm_client.put_parameter(
+                          Name=ssm_parameter_name,
+                          Value=prompt_id,
+                          Type='String',
+                          Overwrite=True
+                      )
+                      
                       # Create prompt version
                       version_response = client.create_prompt_version(
                           promptIdentifier=prompt_id,
@@ -162,7 +178,7 @@ Resources:
                       version_id = version_response.get("promptVersion", {}).get("id")
                       
                       response_data = {
-                          'PromptId': prompt_id,
+                          'PromptIdentifier': prompt_id,
                           'VersionId': version_id,
                           'Message': 'Prompt and prompt version created successfully'
                       }
@@ -174,15 +190,44 @@ Resources:
                       cfnresponse.send(event, context, cfnresponse.SUCCESS, response_data)
                       
                   elif event['RequestType'] == 'Delete':
-                      # Add cleanup logic if needed
-                      cfnresponse.send(event, context, cfnresponse.SUCCESS, response_data)
+                      try:
+                          ssm_client = boto3.client('ssm')
+                          client = boto3.client(service_name="bedrock-agent")
+                          
+                          # Get prompt ID from SSM Parameter Store
+                          try:
+                              parameter = ssm_client.get_parameter(Name=ssm_parameter_name)
+                              prompt_id = parameter['Parameter']['Value']
+                              
+                              # Delete the prompt
+                              client.delete_prompt(
+                                  promptIdentifier=prompt_id
+                              )
+                              
+                              # Delete the SSM parameter
+                              ssm_client.delete_parameter(Name=ssm_parameter_name)
+                              
+                              response_data = {
+                                  'Message': f'Prompt {prompt_id} deleted successfully'
+                              }
+                          except ssm_client.exceptions.ParameterNotFound:
+                              response_data = {
+                                  'Message': 'SSM Parameter not found, nothing to delete'
+                              }
+                          
+                          cfnresponse.send(event, context, cfnresponse.SUCCESS, response_data)
+                          
+                      except Exception as delete_error:
+                          logger.error(f"Error during deletion: {str(delete_error)}")
+                          cfnresponse.send(event, context, cfnresponse.FAILED, {
+                              'Error': f'Failed to delete prompt: {str(delete_error)}'
+                          })
                       
               except Exception as e:
                   logger.error(f"Error: {str(e)}")
                   cfnresponse.send(event, context, cfnresponse.FAILED, {
                       'Error': str(e)
                   })
-
       Tags:
         - Value: "GenAi-Bedrock"
           Key: "Solucao-AWS"
