@@ -25,7 +25,7 @@ The template creates the following resources:
 | pModelId | Bedrock Model Id | amazon.titan-text-express-v1 |
 | pTagCentroCusto | Cost Center Tag | CC012345 |
 
-## Supported Models
+## Supported Bedrock Models
 
 - amazon.titan-text-express-v1
 - anthropic.claude-3-7-sonnet-20250219-v1:0
@@ -39,7 +39,7 @@ The template creates the following resources:
 3. Upload the template file
 4. Fill in the parameters
 5. Review and create the stack
-6. Create a [prompt version](https://docs.aws.amazon.com/bedrock/latest/userguide/prompt-management-version-create.html) to test it
+6. After stack deployment, create a [prompt version](https://docs.aws.amazon.com/bedrock/latest/userguide/prompt-management-version-create.html) to test the prompt
 
 ## Template Features
 * Custom resource for Bedrock prompt management
