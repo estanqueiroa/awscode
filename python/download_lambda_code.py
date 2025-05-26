@@ -35,4 +35,4 @@ def download_lambda_code(function_name, output_path):
     print(f"Lambda code downloaded to {output_path}")
 
 # Example usage
-download_lambda_code('my-function-name', 'function.zip')
+download_lambda_code('your-function-name', 'lambda-code.zip')

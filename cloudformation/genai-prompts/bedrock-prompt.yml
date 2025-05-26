@@ -1,0 +1,193 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation template for Bedrock Prompt Management as Custom Resource using Lambda boto3 client (Python)'
+
+Parameters:
+
+  pREADME:
+    Type: String
+    Description: README - Enable the Bedrock Model Id using AWS Console before deploying this template
+    Default: README - Enable the Bedrock Model Id using AWS Console before deploying this template
+
+  pModelId:
+    Type: String
+    Default: 'amazon.titan-text-express-v1'
+    Description: Bedrock Model Id for prompt generation
+    AllowedValues:
+    - 'amazon.titan-text-express-v1'
+    - 'anthropic.claude-3-7-sonnet-20250219-v1:0'
+
+  pTagCentroCusto:
+    Type: String
+    Description: Valor Tag Centro de Custo
+    Default: CC012345
+
+Resources:
+
+  rBedrockLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: BedrockAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - bedrock:CreatePrompt
+                  - bedrock:GetPrompt
+                  - bedrock:ListPrompts
+                  - bedrock:DeletePrompt
+                  - bedrock:UpdatePrompt
+                Resource: !Sub 'arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:prompt/*'
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                Resource: 
+                  - !Sub 'arn:aws:bedrock:${AWS::Region}::foundation-model/amazon.titan-text-express-v1'
+                  - !Sub 'arn:aws:bedrock:${AWS::Region}::foundation-model/anthropic.claude-3-7-sonnet-20250219-v1:0'
+              - Effect: Allow
+                Action:
+                  - bedrock:ListFoundationModels
+                  - bedrock:GetFoundationModel
+                Resource: !Sub 'arn:aws:bedrock:${AWS::Region}::foundation-model/*'
+              - Effect: Allow
+                Action:
+                  - bedrock-agent:CreatePrompt
+                  - bedrock-agent:GetPrompt
+                  - bedrock-agent:DeletePrompt
+                Resource: !Sub 'arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:agent-prompt/*'
+      Tags:
+        - Value: "GenAi-Bedrock"
+          Key: "Solucao-AWS"
+        - Key: CentroCusto
+          Value: !Ref pTagCentroCusto
+        - Key: CloudFormation-Stack
+          Value: !Sub '${AWS::StackName}'
+
+  rBedrockPromptFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-bedrock-prompt
+      Handler: index.lambda_handler
+      Role: !GetAtt rBedrockLambdaRole.Arn
+      Runtime: python3.13
+      Timeout: 30
+      MemorySize: 128
+      Architectures:
+        - arm64 # graviton
+      Environment:
+        Variables:
+          LOG_LEVEL: INFO
+          MODEL_ID: !Ref pModelId
+      Code:
+        ZipFile: |
+          import boto3
+          import cfnresponse
+          import logging
+          import os
+
+          logger = logging.getLogger()
+          logger.setLevel(logging.INFO)
+
+          def lambda_handler(event, context):
+              try:
+                  logger.info(f"Received event: {event}")
+                  
+                  # Always set response data
+                  response_data = {}
+                  
+                  # Get the model id from the environment variable
+                  model_id = os.environ.get('MODEL_ID')
+
+                  # Handle different CloudFormation request types
+                  if event['RequestType'] == 'Create':
+                      client = boto3.client(service_name="bedrock-agent")
+                      
+                      response = client.create_prompt(
+                          name="MakePlaylist",
+                          description="My first CFN prompt.",
+                          variants=[
+                              { 
+                                  "name": "Variant1",
+                                  "modelId": model_id,
+                                  "templateType": "TEXT",
+                                  "inferenceConfiguration": {
+                                      "text": {
+                                          "temperature": 0.8
+                                      }
+                                  },
+                                  "templateConfiguration": { 
+                                      "text": {
+                                          "text": "Make me a {{genre}} playlist consisting of the following number of songs: {{number}}.",
+                                          "inputVariables": [
+                                              {
+                                                  "name": "genre"
+                                              },
+                                              {
+                                                  "name": "number"
+                                              }
+                                          ]
+                                      }
+                                  }
+                            }
+                          ]
+                      )
+                      
+                      prompt_id = response.get("id")
+                      response_data = {
+                          'PromptId': prompt_id,
+                          'Message': 'Prompt created successfully'
+                      }
+                      
+                      cfnresponse.send(event, context, cfnresponse.SUCCESS, response_data)
+                      
+                  elif event['RequestType'] == 'Update':
+                      # Handle update if needed
+                      cfnresponse.send(event, context, cfnresponse.SUCCESS, response_data)
+                      
+                  elif event['RequestType'] == 'Delete':
+                      # Add cleanup logic if needed
+                      cfnresponse.send(event, context, cfnresponse.SUCCESS, response_data)
+                      
+              except Exception as e:
+                  logger.error(f"Error: {str(e)}")
+                  cfnresponse.send(event, context, cfnresponse.FAILED, {
+                      'Error': str(e)
+                  })
+      Tags:
+        - Value: "GenAi-Bedrock"
+          Key: "Solucao-AWS"
+        - Key: CentroCusto
+          Value: !Ref pTagCentroCusto
+        - Key: CloudFormation-Stack
+          Value: !Sub '${AWS::StackName}'
+
+  rBedrockPromptCustomResource:
+    Type: Custom::BedrockPrompt
+    Properties:
+      ServiceToken: !GetAtt rBedrockPromptFunction.Arn
+      ServiceTimeout: 60 # seconds
+      # Add any additional properties you want to pass to the Lambda function
+
+Outputs:
+
+  oLambdaFunctionArn:
+    Description: ARN of the Lambda function
+    Value: !GetAtt rBedrockPromptFunction.Arn
+
+  oLambdaFunctionName:
+    Description: Name of the Lambda function
+    Value: !Ref rBedrockPromptFunction
+    
+  oLambdaRoleArn:
+    Description: ARN of the Lambda IAM Role
+    Value: !GetAtt rBedrockLambdaRole.Arn
