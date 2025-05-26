@@ -17,6 +17,8 @@ The template creates the following resources:
 - Lambda function (Python 3.13, ARM64)
 - IAM Role with Bedrock permissions
 - Custom Resource for Bedrock Prompt management
+- SSM parameter for Prompt id
+- Bedrock Prompt
 
 ## Parameters
 
