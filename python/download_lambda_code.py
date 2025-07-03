@@ -6,6 +6,7 @@
 # Configure your AWS credentials properly
 # Replace 'my-function-name' with your actual Lambda function name
 # Replace 'function.zip' with your desired output path
+# Run it using command `python3 download_lambda_code.py`
 
 # The script will:
 
@@ -17,9 +18,9 @@
 import boto3
 import requests
 
-def download_lambda_code(function_name, output_path):
+def download_lambda_code(function_name, output_path, region):
     # Create Lambda client
-    lambda_client = boto3.client('lambda')
+    lambda_client = boto3.client('lambda', region_name = region)
     
     # Get Lambda function code
     response = lambda_client.get_function(FunctionName=function_name)
@@ -35,4 +36,4 @@ def download_lambda_code(function_name, output_path):
     print(f"Lambda code downloaded to {output_path}")
 
 # Example usage
-download_lambda_code('your-function-name', 'lambda-code.zip')
+download_lambda_code('your-function-name', 'lambda-code.zip', 'sa-east-1')

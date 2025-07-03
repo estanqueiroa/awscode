@@ -29,8 +29,8 @@ The template creates the following resources:
 
 ## Supported Bedrock Models
 
-- amazon.titan-text-express-v1
-- anthropic.claude-3-7-sonnet-20250219-v1:0
+- amazon.titan-text-express-v1 (enable it for Lambda)
+- anthropic.claude-3-7-sonnet-20250219-v1:0 (enable it for TEST prompt)
 
 ## Deployment
 

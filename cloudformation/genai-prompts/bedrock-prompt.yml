@@ -28,6 +28,57 @@ Parameters:
 
 Resources:
 
+#################
+# Bedrock
+#################
+
+# https://docs.aws.amazon.com/pt_br/AWSCloudFormation/latest/UserGuide/aws-resource-bedrock-prompt.html
+
+  rBedrockProfile:
+    Type: AWS::Bedrock::ApplicationInferenceProfile
+    Properties:
+      Description: !Sub '${AWS::StackName}-profile'
+      InferenceProfileName: !Sub '${AWS::StackName}-profile'
+      ModelSource: 
+        CopyFrom: !Sub arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/us.anthropic.claude-3-7-sonnet-20250219-v1:0
+      Tags:
+        - Key: CloudFormation-Stack
+          Value: !Sub '${AWS::StackName}'
+
+#################
+# Test Prompt
+#################
+
+  BedrockPrompt1:
+    Type: AWS::Bedrock::Prompt
+    DependsOn: rBedrockProfile
+    Properties:
+      #CustomerEncryptionKeyArn: String
+      DefaultVariant: 'sport'
+      Description: !Sub '${AWS::StackName}-test'
+      Name: !Sub '${AWS::StackName}-test'
+      Variants:
+        - Name: 'sport'
+          ModelId: !GetAtt rBedrockProfile.InferenceProfileArn
+          #ModelId: !Sub arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/us.anthropic.claude-3-7-sonnet-20250219-v1:0
+          AdditionalModelRequestFields:
+              "top_k": 100
+          InferenceConfiguration:
+            Text:
+                MaxTokens: 2048
+                Temperature: 1
+                TopP: 0.899
+          TemplateType: TEXT
+          TemplateConfiguration: 
+            Text:
+              InputVariables: 
+              - Name: 'sport'
+              Text: 'best players of all time for {{sport}}'
+
+# #################
+# # Lambda Prompt
+# #################
+
   rBedrockLambdaRole:
     Type: AWS::IAM::Role
     Properties:

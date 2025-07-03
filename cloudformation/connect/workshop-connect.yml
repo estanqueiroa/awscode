@@ -1,0 +1,379 @@
+#######################
+# https://catalog.workshops.aws/amazon-connect-getting-started/en-US
+# 
+# This workshop is intended as an introduction to Amazon Connect
+#######################
+
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: "This workshop is intended as an introduction to Amazon Connect"
+
+Parameters:
+
+  pInstanceAlias:
+    Type: String
+    Description: Amazon Connect Instance Alias (unique name id)
+
+  pPassword:
+    Type: String
+    Description: User Password (contains at least one lowercase letter, one uppercase letter, one digit, and is 8-64 characters long)
+
+Resources:
+
+  Instance:
+    Type: "AWS::Connect::Instance"
+    Properties:
+      IdentityManagementType: "CONNECT_MANAGED"
+      InstanceAlias: !Ref pInstanceAlias
+      #DirectoryId: "REPLACEME"
+      Attributes: 
+        AutoResolveBestVoices: true
+        ContactflowLogs: true
+        ContactLens: true
+        EarlyMedia: true
+        InboundCalls: true
+        OutboundCalls: true
+        UseCustomTTSVoices: false
+      Tags: 
+        - Key: CFN-Stack
+          Value: !Sub ${AWS::StackName}
+
+  rDomain:
+    Type: "AWS::CustomerProfiles::Domain"
+    Properties:
+      DomainName: !Sub "amazon-connect-${pInstanceAlias}"
+      DefaultExpirationDays: 366
+      Tags: 
+        - Key: CFN-Stack
+          Value: !Sub ${AWS::StackName}
+
+  rHoursOfOperation:
+    Type: "AWS::Connect::HoursOfOperation"
+    Properties:
+      Name: "weekly"
+      Description: "mon to friday"
+      InstanceArn: !GetAtt Instance.Arn
+      TimeZone: "Brazil/East"
+      Config: 
+      - 
+        Day: "FRIDAY"
+        StartTime: 
+          Hours: 9
+          Minutes: 0
+        EndTime: 
+          Hours: 17
+          Minutes: 0
+      - 
+        Day: "WEDNESDAY"
+        StartTime: 
+          Hours: 9
+          Minutes: 0
+        EndTime: 
+          Hours: 17
+          Minutes: 0
+      - 
+        Day: "TUESDAY"
+        StartTime: 
+          Hours: 9
+          Minutes: 0
+        EndTime: 
+          Hours: 17
+          Minutes: 0
+      - 
+        Day: "THURSDAY"
+        StartTime: 
+          Hours: 9
+          Minutes: 0
+        EndTime: 
+          Hours: 17
+          Minutes: 0
+      - 
+        Day: "MONDAY"
+        StartTime: 
+          Hours: 9
+          Minutes: 0
+        EndTime: 
+          Hours: 17
+          Minutes: 0
+      Tags: 
+        - Key: CFN-Stack
+          Value: !Sub ${AWS::StackName}
+
+  rDefaultQueue1:
+    Type: AWS::Connect::Queue
+    Properties:
+      Description: DefaultQueue1
+      HoursOfOperationArn: !GetAtt rHoursOfOperation.HoursOfOperationArn
+      InstanceArn: !GetAtt Instance.Arn
+      MaxContacts: 5
+      Name: DefaultQueue1
+      # OutboundCallerConfig: 
+      #   OutboundCallerConfig
+      # OutboundEmailConfig: 
+      #   OutboundEmailConfig
+      # QuickConnectArns: 
+      #   - String
+      Status: ENABLED
+      Tags: 
+        - Key: CFN-Stack
+          Value: !Sub ${AWS::StackName}
+
+  rQueue1:
+    Type: AWS::Connect::Queue
+    Properties:
+      Description: Queue1
+      HoursOfOperationArn: !GetAtt rHoursOfOperation.HoursOfOperationArn
+      InstanceArn: !GetAtt Instance.Arn
+      MaxContacts: 5
+      Name: Queue1
+      # OutboundCallerConfig: 
+      #   OutboundCallerConfig
+      # OutboundEmailConfig: 
+      #   OutboundEmailConfig
+      # QuickConnectArns: 
+      #   - String
+      Status: ENABLED
+      Tags: 
+        - Key: CFN-Stack
+          Value: !Sub ${AWS::StackName}
+
+  rRoutingProfile1:
+    Type: AWS::Connect::RoutingProfile
+    Properties:
+      AgentAvailabilityTimer: TIME_SINCE_LAST_ACTIVITY
+      DefaultOutboundQueueArn: !GetAtt rDefaultQueue1.QueueArn
+      Description: Default routing profile
+      InstanceArn: !GetAtt Instance.Arn
+      MediaConcurrencies: 
+        -   Channel: VOICE
+            Concurrency: 1      
+      Name: RoutingProfile1
+      QueueConfigs: 
+        - Delay: 10
+          Priority: 1
+          QueueReference: 
+            Channel: VOICE
+            QueueArn: !GetAtt rQueue1.QueueArn
+      Tags: 
+        - Key: CFN-Stack
+          Value: !Sub ${AWS::StackName}
+
+  rSecurityProfile1:
+    Type: AWS::Connect::SecurityProfile
+    Properties:
+      Description: Security Profile1
+      InstanceArn: !GetAtt Instance.Arn
+      SecurityProfileName: SecurityProfile1
+      Tags: 
+        - Key: CFN-Stack
+          Value: !Sub ${AWS::StackName}
+
+  rUser:
+    Type: "AWS::Connect::User"
+    Properties:
+      Username: "john12345"
+      IdentityInfo: 
+        FirstName: "john"
+        LastName: "doe"
+        Email: "johndoe@emaildomain.com"
+      InstanceArn: !GetAtt Instance.Arn
+      PhoneConfig: 
+        PhoneType: "SOFT_PHONE"
+        AutoAccept: false
+        AfterContactWorkTimeLimit: 5
+        DeskPhoneNumber: "+12345678902" # REPLACE
+      #DirectoryUserId: "d001bffe-bf2c-479e-907a-8044e34dd663"
+      RoutingProfileArn: !GetAtt rRoutingProfile1.RoutingProfileArn
+      SecurityProfileArns: 
+        - !GetAtt rSecurityProfile1.SecurityProfileArn
+      Password: !Ref pPassword
+      Tags: 
+        - Key: CFN-Stack
+          Value: !Sub ${AWS::StackName}
+
+  rContactFlow:
+    Type: "AWS::Connect::ContactFlow"
+    Properties:
+      Name: "Intro Flow 1"
+      Description: "Intro Flow 1"
+      InstanceArn: !GetAtt Instance.Arn
+      State: "ACTIVE"
+      Type: "CONTACT_FLOW"
+      Content: |
+          {
+            "Version": "2019-10-30",
+            "StartAction": "6f42a500-ccfb-4248-a95d-c48c36626da1",
+            "Metadata": {
+              "entryPointPosition": {
+                "x": 40,
+                "y": 40
+              },
+              "ActionMetadata": {
+                "6f42a500-ccfb-4248-a95d-c48c36626da1": {
+                  "position": {
+                    "x": 192,
+                    "y": 44.8
+                  }
+                }
+              },
+              "Annotations": []
+            },
+            "Actions": [
+              {
+                "Parameters": {},
+                "Identifier": "6f42a500-ccfb-4248-a95d-c48c36626da1",
+                "Type": "DisconnectParticipant",
+                "Transitions": {}
+              }
+            ]
+          }
+      Tags: 
+        - Key: CFN-Stack
+          Value: !Sub ${AWS::StackName}
+
+  rPhoneNumber:
+    Type: "AWS::Connect::PhoneNumber"
+    Properties:
+      CountryCode: "US"
+      Type: "DID" # TOLL_FREE
+      Description: "Phone number created using CFN"
+      TargetArn: !GetAtt Instance.Arn
+      #Prefix: "12345678"
+      Tags: 
+        - Key: CFN-Stack
+          Value: !Sub ${AWS::StackName}
+
+  rTableFunction:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      Description: "Lambda integration for Amazon Connect and DynamoDB table"
+      FunctionName: "getMembership"
+      Handler: "index.handler"
+      Architectures: 
+      - "x86_64"
+      Code: 
+        ZipFile: |
+            // Create service client module using ES6 syntax.
+            import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+            import { DynamoDBDocumentClient, QueryCommand } from "@aws-sdk/lib-dynamodb";
+            // Set the AWS Region.
+            const REGION = "us-west-2"; //e.g. "us-east-1"
+            // Create an Amazon DynamoDB service client object.
+            const ddbClient = new DynamoDBClient({ region: REGION });
+
+            const marshallOptions = {
+                // Whether to automatically convert empty strings, blobs, and sets to `null`.
+                convertEmptyValues: false, // false, by default.
+                // Whether to remove undefined values while marshalling.
+                removeUndefinedValues: false, // false, by default.
+                // Whether to convert typeof object to map attribute.
+                convertClassInstanceToMap: false, // false, by default.
+            };
+
+            const unmarshallOptions = {
+                // Whether to return numbers as a string instead of converting them to native JavaScript numbers.
+                wrapNumbers: false, // false, by default.
+            };
+
+            const translateConfig = { marshallOptions, unmarshallOptions };
+
+            // Create the DynamoDB Document client.
+            const docClient = DynamoDBDocumentClient.from(ddbClient, translateConfig);
+
+            export const handler = async(event, context, callback) => {
+                var phoneNumber = event.Details.ContactData.CustomerEndpoint.Address;
+              var paramsQuery = {
+                    TableName: 'membershipTable',
+                      KeyConditionExpression: "phoneNumber = :varNumber",
+
+                      ExpressionAttributeValues: {
+                        ":varNumber": phoneNumber
+                      }
+                  };
+              try {
+                const data = await docClient.send(new QueryCommand(paramsQuery));
+                console.log("Success. DynamoDB Query Results:" + JSON.stringify(data));
+                // console.log("Success. Item details: ", data.Items);
+                if (data.Items.length === 1) {
+              console.log(data.Items[0].membershipLevel);
+              var membershipLevel = data.Items[0].membershipLevel;
+              callback(null, buildResponse(true, membershipLevel));
+                } 
+              else {
+                console.log("PhoneNumber not found");
+                callback(null, buildResponse(true, "none"));
+                }
+              } catch (err) {
+                console.log("Error", err);
+                context.fail(buildResponse(false));
+              }
+            };
+
+            function buildResponse(isSuccess, membershipLevel) {
+              if (isSuccess) {
+                  return { 
+                  membershipLevel: membershipLevel,
+                  lambdaResult: "Success"
+                };
+              } 
+              else {
+                  console.log("Lambda returned error to Connect");
+                  return { lambdaResult: "Error" };
+              }
+            }
+      MemorySize: 128
+      Role: !GetAtt rLambdaRole.Arn
+      Runtime: "nodejs22.x"
+      Timeout: 10
+      TracingConfig: 
+        Mode: "PassThrough"
+      EphemeralStorage: 
+        Size: 512
+      Tags: 
+        - Key: CFN-Stack
+          Value: !Sub ${AWS::StackName}
+
+  rPermission:
+    Type: "AWS::Lambda::Permission"
+    Properties:
+      Action: "lambda:InvokeFunction"
+      FunctionName: !GetAtt rTableFunction.Arn
+      Principal: "connect.amazonaws.com"
+      SourceArn: !GetAtt Instance.Arn
+
+  rLambdaRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      Path: "/"
+      #RoleName: "lambdaDynamoRole"
+      AssumeRolePolicyDocument: "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"lambda.amazonaws.com\"},\"Action\":\"sts:AssumeRole\"}]}"
+      MaxSessionDuration: 3600
+      ManagedPolicyArns: 
+      - "arn:aws:iam::aws:policy/AmazonDynamoDBReadOnlyAccess"
+      Description: "Allows Lambda functions to call AWS services on your behalf."
+      Tags: 
+        - Key: CFN-Stack
+          Value: !Sub ${AWS::StackName}
+
+  rTable:
+    Type: "AWS::DynamoDB::Table"
+    Properties:
+      AttributeDefinitions: 
+      - 
+        AttributeName: "membershipLevel"
+        AttributeType: "S"
+      - 
+        AttributeName: "phoneNumber"
+        AttributeType: "S"
+      BillingMode: "PAY_PER_REQUEST"
+      TableName: "membershipTable"
+      KeySchema: 
+      - 
+        AttributeName: "phoneNumber"
+        KeyType: "HASH"
+      - 
+        AttributeName: "membershipLevel"
+        KeyType: "RANGE"
+      Tags: 
+        - Key: CFN-Stack
+          Value: !Sub ${AWS::StackName}
