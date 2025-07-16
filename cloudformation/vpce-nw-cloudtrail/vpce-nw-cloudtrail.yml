@@ -1,0 +1,434 @@
+####################################################################################
+# WARNING: This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+#
+#
+# Reference: https://awstip.com/logging-vpc-endpoints-network-activities-using-cloudtrail-c75f82eae33c
+#
+####################################################################################
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'VPC with EC2 instances and S3 Gateway Endpoint setup'
+
+Parameters:
+  pLatestAmiId:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
+
+Resources:
+  # VPC and Network Configuration
+  rVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-TestVPC'
+        - Key: CFN-Stack
+          Value: !Sub '${AWS::StackName}'
+
+  rPublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref rVPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      Tags:
+        - Key: Name
+          Value: Public Subnet
+        - Key: CFN-Stack
+          Value: !Sub '${AWS::StackName}'
+
+  rInternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref rVPC
+      InternetGatewayId: !Ref rInternetGateway
+
+  rPublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref rVPC
+
+  rPublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref rPublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref rInternetGateway
+
+
+  rPublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref rPublicSubnet1
+      RouteTableId: !Ref rPublicRouteTable
+
+  rNatGateway1EIP:
+        Type: AWS::EC2::EIP
+        # Condition: CreateNgwResource
+        # DependsOn: InternetGatewayAttachment
+        Properties:
+          Domain: vpc
+          Tags:
+            - Key: Name
+              Value: !Sub eip-${AWS::StackName}-001
+            - Key: CFN-Stack
+              Value: !Sub '${AWS::StackName}'
+
+  rNatGateway1:
+    Type: AWS::EC2::NatGateway
+    # Condition: CreateNgwResource
+    Properties:
+      AllocationId: !GetAtt rNatGateway1EIP.AllocationId
+      SubnetId: !Ref rPublicSubnet1
+      Tags:
+        - Key: Name
+          Value: !Sub ngw-${AWS::StackName}-001
+        - Key: CFN-Stack
+          Value: !Sub '${AWS::StackName}'
+
+  ## Create private subnet and route table
+
+  rPrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref rVPC
+      AvailabilityZone: !Select [ 0, !GetAZs  '' ]
+      CidrBlock: !Select
+        - 0
+        - !Cidr
+          - !GetAtt rVPC.CidrBlock
+          - 8
+          - 5
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub snet-${AWS::StackName}-priv001
+        - Key: CFN-Stack
+          Value: !Sub '${AWS::StackName}'
+
+  rPrivateRouteTable1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref rVPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName} Private Routes (AZ1)
+        - Key: CFN-Stack
+          Value: !Sub '${AWS::StackName}'
+
+  rDefaultPrivateRoute1:
+    Type: AWS::EC2::Route
+    #DependsOn: TGWAttachment
+    Properties:
+      RouteTableId: !Ref rPrivateRouteTable1
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref rNatGateway1
+
+
+  rRTAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      RouteTableId: !Ref rPrivateRouteTable1
+      SubnetId: !Ref rPrivateSubnet1
+
+
+  ## Create VPC endpoints for SSM
+
+
+  rVpcEndpointSSM2:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcEndpointType: Interface
+      SubnetIds:
+        - !Ref rPrivateSubnet1
+        # - !Ref rPrivateSubnet1
+        # - !Ref PrivateSubnet3
+      SecurityGroupIds:
+        - !Ref rIngressSecurityGroup1
+      PrivateDnsEnabled: true
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.ssm
+      VpcId: !Ref rVPC
+      Tags:
+        - Key: CFN-Stack
+          Value: !Sub '${AWS::StackName}'
+
+  rVpcEndpointSSMMessages2:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcEndpointType: Interface
+      SubnetIds:
+        - !Ref rPrivateSubnet1
+        # - !Ref rPrivateSubnet1
+        # - !Ref PrivateSubnet3
+      SecurityGroupIds:
+        - !Ref rIngressSecurityGroup1
+      PrivateDnsEnabled: true
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.ssmmessages
+      VpcId: !Ref rVPC
+      Tags:
+        - Key: CFN-Stack
+          Value: !Sub '${AWS::StackName}'
+
+  rVpcEndpointEC2Messages2:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcEndpointType: Interface
+      SubnetIds:
+        - !Ref rPrivateSubnet1
+        # - !Ref rPrivateSubnet1
+        # - !Ref PrivateSubnet3
+      SecurityGroupIds:
+        - !Ref rIngressSecurityGroup1
+      PrivateDnsEnabled: true
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.ec2messages
+      VpcId: !Ref rVPC
+      Tags:
+        - Key: CFN-Stack
+          Value: !Sub '${AWS::StackName}'
+
+
+
+  ## -->>> Security Groups for VPC Endpoints
+
+  rIngressSecurityGroup1:
+    Type: AWS::EC2::SecurityGroup
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W9
+            reason: "Required for Central Network Solution"
+          - id: W2
+            reason: "Required for Central Network Solution"
+          - id: W28
+            reason: "Required for Central Network Solution"
+          - id: W36
+            reason: "Security Group for demonstrative purpose"
+          - id: F1000
+            reason: "Required for Central Network Solution"
+    Properties:
+      GroupDescription: !Sub ${AWS::StackName}-vpc-endpoints
+      VpcId: !Ref rVPC
+      GroupName: !Sub ${AWS::StackName}-vpc-endpoints
+      SecurityGroupIngress:
+        - FromPort: 443
+          IpProtocol: tcp
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: CFN-Stack
+          Value: !Sub '${AWS::StackName}'
+
+
+  # IAM Roles
+  rEC2Role1:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Tags:
+        - Key: CFN-Stack
+          Value: !Sub '${AWS::StackName}'
+
+  rEC2Role2:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Tags:
+        - Key: CFN-Stack
+          Value: !Sub '${AWS::StackName}'
+
+  rEC2InstanceProfile1:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref rEC2Role1
+
+  rEC2InstanceProfile2:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref rEC2Role2
+
+  # EC2 Instances
+  rEC2Instance1:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      ImageId: !Ref pLatestAmiId
+      SubnetId: !Ref rPrivateSubnet1
+      IamInstanceProfile: !Ref rEC2InstanceProfile1
+      Tags:
+        - Key: Name
+          Value: Test1-OK
+        - Key: CFN-Stack
+          Value: !Sub '${AWS::StackName}'
+
+  rEC2Instance2:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      ImageId: !Ref pLatestAmiId
+      SubnetId: !Ref rPrivateSubnet1
+      IamInstanceProfile: !Ref rEC2InstanceProfile2
+      Tags:
+        - Key: CFN-Stack
+          Value: !Sub '${AWS::StackName}'
+        - Key: Name
+          Value: Test2-NOK
+
+  # S3 VPC Endpoint
+  rS3Endpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: '*'
+            Action: '*'
+            Resource: '*'
+            Condition:
+              ArnEquals:
+                aws:PrincipalArn: !GetAtt rEC2Role1.Arn # only works for EC2 instance # 1
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.s3
+      VpcId: !Ref rVPC
+      RouteTableIds:
+        - !Ref rPublicRouteTable
+        - !Ref rPrivateRouteTable1
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-s3-vpce'
+        - Key: CFN-Stack
+          Value: !Sub '${AWS::StackName}'
+
+  # CloudWatch Trail
+  rCloudTrail:
+    Type: AWS::CloudTrail::Trail
+    DependsOn:
+      - rCloudWatchLogsRole
+      - rTrailBucketPolicy
+    Properties:
+      IsLogging: true
+      IsMultiRegionTrail: false
+      CloudWatchLogsLogGroupArn: !GetAtt rCloudWatchLogsGroup.Arn
+      CloudWatchLogsRoleArn: !GetAtt rCloudWatchLogsRole.Arn
+      AdvancedEventSelectors:
+        - FieldSelectors:
+          - Field: eventSource
+            Equals: [ "s3.amazonaws.com" ]
+          - Field: eventCategory
+            Equals: [ "NetworkActivity" ]
+          # - Field: eventName
+          #   Equals: [ "ListAllMyBuckets" ]
+      S3BucketName: !Ref rTrailBucket
+      TrailName: S3ActivityTrail
+      Tags:
+        - Key: CFN-Stack
+          Value: !Sub '${AWS::StackName}'
+
+  # CloudWatch Logs
+  rCloudWatchLogsGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 7
+      Tags:
+        - Key: CFN-Stack
+          Value: !Sub '${AWS::StackName}'
+
+  rCloudWatchLogsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: cloudwatch-logs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !GetAtt rCloudWatchLogsGroup.Arn
+      Tags:
+        - Key: CFN-Stack
+          Value: !Sub '${AWS::StackName}'
+
+  # S3 Bucket for CloudTrail
+  rTrailBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      VersioningConfiguration:
+        Status: Enabled
+      Tags:
+        - Key: CFN-Stack
+          Value: !Sub '${AWS::StackName}'
+
+  rTrailBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref rTrailBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AWSCloudTrailAclCheck
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: s3:GetBucketAcl
+            Resource: !GetAtt rTrailBucket.Arn
+          - Sid: AWSCloudTrailWrite
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: s3:PutObject
+            Resource: !Sub ${rTrailBucket.Arn}/*
+            Condition:
+              StringEquals:
+                s3:x-amz-acl: bucket-owner-full-control
+
+Outputs:
+
+  oInstance1Id:
+    Description: ID of EC2 Instance 1
+    Value: !Ref rEC2Instance1
+  
+  oInstance2Id:
+    Description: ID of EC2 Instance 2
+    Value: !Ref rEC2Instance2
+
+  oLogGroups:
+    Description: Log Group Name for Cloudtrail Logs
+    Value: !Ref rCloudWatchLogsGroup
