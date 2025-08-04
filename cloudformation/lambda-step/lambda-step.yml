@@ -1,0 +1,260 @@
+###############################################################
+#
+# To deploy this template:
+
+# Provide both parameters when creating the stack:
+
+# EmailAddress: Your email address for notifications
+# Language: Either 'en' or 'pt'
+# Confirm the SNS subscription that will be sent to your email
+
+# The state machine can now be executed without any input parameters, as it will use the language specified during stack creation.
+
+# You can execute the state machine with an empty input:
+
+    
+# {}
+    
+# The state machine will automatically use the language specified in the CloudFormation parameter and send the appropriate greeting to your email through SNS.
+
+# If you need to change the language, you would need to update the stack with a new language parameter value.
+
+###############################################################
+
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'State Machine with Language-based Lambda selection and SNS notification'
+
+Parameters:
+
+  pEmailAddress:
+    Type: String
+    Description: Email address to receive notifications
+  
+  pLanguage:
+    Type: String
+    Description: Language for greeting (en/pt)
+    Default: en
+    AllowedValues:
+      - en
+      - pt
+
+Resources:
+  # SNS Topic
+  rNotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: Hello World Notifications
+      Subscription:
+        - Endpoint: !Ref pEmailAddress
+          Protocol: email
+      Tags:
+        - Key: CloudFormation-Stack
+          Value: !Sub ${AWS::StackName}
+
+  # IAM Roles
+  rLambdaBasicRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Tags:
+        - Key: CloudFormation-Stack
+          Value: !Sub ${AWS::StackName}
+
+  rNotifierLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: SNSPublishPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: sns:Publish
+                Resource: !Ref rNotificationTopic
+      Tags:
+        - Key: CloudFormation-Stack
+          Value: !Sub ${AWS::StackName}
+
+  rStepFunctionsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: states.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaInvoke
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: 
+                  - !GetAtt rEnglishLambda.Arn
+                  - !GetAtt rPortugueseLambda.Arn
+      Tags:
+        - Key: CloudFormation-Stack
+          Value: !Sub ${AWS::StackName}
+
+  # Lambda Functions
+  rEnglishLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: python3.12
+      Architectures:
+        - arm64 # graviton
+      Handler: index.handler
+      Role: !GetAtt rLambdaBasicRole.Arn
+      Code:
+        ZipFile: |
+          def handler(event, context):
+              return {
+                  'message': 'Hello World! Lambda in English'
+              }
+      Tags:
+        - Key: CloudFormation-Stack
+          Value: !Sub ${AWS::StackName}
+
+  rPortugueseLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: python3.12
+      Architectures:
+        - arm64 # graviton
+      Handler: index.handler
+      Role: !GetAtt rLambdaBasicRole.Arn
+      Code:
+        ZipFile: |
+          def handler(event, context):
+              return {
+                  'message': 'Olá Mundo! Lambda em Portugues'
+              }
+      Tags:
+        - Key: CloudFormation-Stack
+          Value: !Sub ${AWS::StackName}
+
+  rNotifierLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: python3.12
+      Architectures:
+        - arm64 # graviton
+      Handler: index.handler
+      Role: !GetAtt rNotifierLambdaRole.Arn
+      Environment:
+        Variables:
+          SNS_TOPIC_ARN: !Ref rNotificationTopic
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import os
+          
+          def handler(event, context):
+              sns = boto3.client('sns')
+              message = event['message']
+              
+              response = sns.publish(
+                  TopicArn=os.environ['SNS_TOPIC_ARN'],
+                  Message=message
+              )
+              return {
+                  'statusCode': 200,
+                  'body': 'Message sent successfully'
+              }
+      Tags:
+        - Key: CloudFormation-Stack
+          Value: !Sub ${AWS::StackName}
+
+  # State Machine
+  rLanguageStateMachine:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      RoleArn: !GetAtt rStepFunctionsRole.Arn
+      DefinitionString: !Sub 
+        - |
+          {
+            "Comment": "Language-based greeting state machine",
+            "StartAt": "SetLanguage",
+            "States": {
+              "SetLanguage": {
+                "Type": "Pass",
+                "Result": {
+                  "language": "${pLanguage}"
+                },
+                "Next": "LanguageChoice"
+              },
+              "LanguageChoice": {
+                "Type": "Choice",
+                "Choices": [
+                  {
+                    "Variable": "$.language",
+                    "StringEquals": "en",
+                    "Next": "EnglishGreeting"
+                  },
+                  {
+                    "Variable": "$.language",
+                    "StringEquals": "pt",
+                    "Next": "PortugueseGreeting"
+                  }
+                ],
+                "Default": "EnglishGreeting"
+              },
+              "EnglishGreeting": {
+                "Type": "Task",
+                "Resource": "${rEnglishLambda.Arn}",
+                "Next": "SendNotification"
+              },
+              "PortugueseGreeting": {
+                "Type": "Task",
+                "Resource": "${rPortugueseLambda.Arn}",
+                "Next": "SendNotification"
+              },
+              "SendNotification": {
+                "Type": "Task",
+                "Resource": "${rNotifierLambda.Arn}",
+                "End": true
+              }
+            }
+          }
+        - {
+            Language: !Ref pLanguage
+          }
+      Tags:
+        - Key: CloudFormation-Stack
+          Value: !Sub ${AWS::StackName}
+          
+Outputs:
+
+  oStateMachineArn:
+    Description: State Machine ARN
+    Value: !Ref rLanguageStateMachine
+
+  oSNSTopicArn:
+    Description: SNS Topic ARN
+    Value: !Ref rNotificationTopic
+
+  oSelectedLanguage:
+    Description: Selected Language
+    Value: !Ref pLanguage
