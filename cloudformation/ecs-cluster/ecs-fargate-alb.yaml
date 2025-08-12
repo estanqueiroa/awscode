@@ -26,8 +26,8 @@ Parameters:
     - kale5/rickroll:vclatest
     - nginx:latest
     - gbaeke/princejs:v1 # uses container port 8080
-    - nouchka/hackmyresume:latest
-    - ymuski/resume
+    - nouchka/hackmyresume:latest # not tested
+    - ymuski/resume # not tested
 
   pContainerPort:
     Type: String
@@ -631,4 +631,5 @@ Outputs:
 
   oPrefixListId:
     Description: The ID of the created Prefix List for Test Failover
+
     Value: !Ref rTestFailoverPrefixList
