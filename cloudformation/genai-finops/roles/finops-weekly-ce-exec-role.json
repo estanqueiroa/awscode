@@ -1,0 +1,101 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "S3WriteReadReports",
+            "Effect": "Allow",
+            "Action": [
+                "s3:PutObject",
+                "s3:GetObject"
+            ],
+            "Resource": "arn:aws:s3:::ia-tmp-athena-staging/*"
+        },
+        {
+            "Sid": "SnsPublishFinopsTopics",
+            "Effect": "Allow",
+            "Action": "sns:Publish",
+            "Resource": [
+                "arn:aws:sns:us-east-1:id-conta-linked:finops-report",
+                "arn:aws:sns:us-east-1:id-conta-linked:finops-weekly"
+            ]
+        },
+        {
+            "Sid": "BedrockInvokeAndList",
+            "Effect": "Allow",
+            "Action": [
+                "bedrock:InvokeModel",
+                "bedrock:ListFoundationModels"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "AssumeCeReadRoleOnPayer",
+            "Effect": "Allow",
+            "Action": "sts:AssumeRole",
+            "Resource": "arn:aws:iam::id-conta-payer:role/FinOpsCeReadRole",
+            "Condition": {
+                "StringEquals": {
+                    "sts:ExternalId": "finops-weekly"
+                }
+            }
+        },
+        {
+            "Sid": "AthenaQueryBasic",
+            "Effect": "Allow",
+            "Action": [
+                "athena:StartQueryExecution",
+                "athena:GetQueryExecution",
+                "athena:GetQueryResults"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "GlueCatalogRead",
+            "Effect": "Allow",
+            "Action": [
+                "glue:GetDatabase",
+                "glue:GetDatabases",
+                "glue:GetTable",
+                "glue:GetTables",
+                "glue:GetPartition",
+                "glue:GetPartitions"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "S3ListReportsBucket",
+            "Effect": "Allow",
+            "Action": "s3:ListBucket",
+            "Resource": "arn:aws:s3:::ia-tmp-athena-staging"
+        },
+        {
+            "Sid": "S3CurDataReadLinked",
+            "Effect": "Allow",
+            "Action": "s3:GetObject",
+            "Resource": "arn:aws:s3:::*/*",
+            "Condition": {
+                "StringEquals": {
+                    "aws:ResourceAccount": "id-conta-linked"
+                }
+            }
+        },
+        {
+            "Sid": "S3CurDataListLinked",
+            "Effect": "Allow",
+            "Action": "s3:ListBucket",
+            "Resource": "arn:aws:s3:::*",
+            "Condition": {
+                "StringEquals": {
+                    "aws:ResourceAccount": "id-conta-linked"
+                },
+                "StringLike": {
+                    "s3:prefix": [
+                        "*cur*/*",
+                        "*billing*/*",
+                        "*cost*/*"
+                    ]
+                }
+            }
+        }
+    ]
+}

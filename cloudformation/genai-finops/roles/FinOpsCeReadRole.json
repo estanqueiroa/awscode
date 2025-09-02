@@ -1,0 +1,30 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "CERead",
+            "Effect": "Allow",
+            "Action": [
+                "ce:GetCostAndUsage",
+                "ce:GetDimensionValues",
+                "ce:GetCostForecast",
+                "ce:GetSavingsPlansUtilization",
+                "ce:GetReservationUtilization"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "CADReadByResource",
+            "Effect": "Allow",
+            "Action": [
+                "ce:GetAnomalies",
+                "ce:GetAnomalyMonitors",
+                "ce:GetAnomalySubscriptions"
+            ],
+            "Resource": [
+                "arn:aws:ce::id-conta-payer:anomalymonitor/*",
+                "arn:aws:ce::id-conta-payer:anomalysubscription/*"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,1063 @@
+# WARNING: This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+#
+# This template will implement AWS services which may have associated cost - USE AT YOUR OWN RISK :-)
+#
+# AWS Services to be created: Bedrock, SNS, Lambda, IAM role, EventBridge
+#
+# Important: Enable Bedrock Model Access first in the AWS Console
+#
+# Developed by: Rodrigo Guastalli
+
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: "Bedrock generated FinOps report with Email Notification on weekly basis"
+
+# input parameters
+
+Parameters:
+
+    pSolutionName: 
+      Description: The name of this Automation Solution.
+      Type: String
+      Default: "genai-finops-report"
+
+    pEmailAddress: 
+      Description: The email address for SNS topic notifications.
+      Type: String
+      Default: "youremail@domain.com"
+
+    pScheduleEvent: 
+      Description: The schedule for Lambda function trigger (default run weekly at 10AM GMT Monday)
+      Type: String
+      Default: "cron(0 10 ? * MON *)"
+
+    pTransition:
+      Type: Number
+      Default: 180
+      Description: Number of days to transition S3 bucket data to IA tier
+
+    pRetention:
+      Type: Number
+      Default: 14
+      Description: CW Logs retention in days
+
+    pTagCentroCusto:
+      Type: String
+      Description: Valor Tag Centro de Custo
+      Default: CC012345
+
+Resources:
+
+
+####################
+# Criacao S3 Buckets
+####################
+
+    rAthenaBucket:
+      #UpdateReplacePolicy: "Retain"
+      Type: "AWS::S3::Bucket"
+      # checkov:skip=CKV_AWS_18:Access logging not required for non-sensitive data as agreed with customer
+      #DeletionPolicy: "Retain"
+      Properties:
+        PublicAccessBlockConfiguration:
+          RestrictPublicBuckets: true
+          IgnorePublicAcls: true
+          BlockPublicPolicy: true
+          BlockPublicAcls: true
+        BucketName: !Sub "genai-finops-output-${AWS::AccountId}"
+        OwnershipControls:
+          Rules:
+          - ObjectOwnership: "BucketOwnerEnforced"
+        BucketEncryption:
+          ServerSideEncryptionConfiguration:
+          - BucketKeyEnabled: true
+            ServerSideEncryptionByDefault:
+              SSEAlgorithm: "AES256"
+        VersioningConfiguration:
+          Status: "Enabled"
+        LifecycleConfiguration:
+          Rules:
+            - Id: TransitionToIA
+              Status: Enabled
+              Transitions:
+                - StorageClass: STANDARD_IA
+                  TransitionInDays: !Ref pTransition
+        NotificationConfiguration:
+          EventBridgeConfiguration: 
+            EventBridgeEnabled: true
+        Tags:
+          - Key: CentroCusto
+            Value: !Ref pTagCentroCusto
+
+# Create new role for our lambda functions. :- Create new role and attach below policies to it.
+
+    rLambdaRole:
+      Type: 'AWS::IAM::Role'
+      Metadata:
+        cfn_nag:
+          rules_to_suppress:
+            - id: W28
+              reason: "Required for Automation solution"
+            - id: W11
+              reason: "Required for Automation solution"
+            - id: F3
+              reason: "Required for Automation solution"
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: lambda.amazonaws.com
+              Action: sts:AssumeRole
+        ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        Policies:
+          - PolicyName: "Lambda_Bedrock"
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Sid: AllowSNStopic
+                  Action:
+                    - "sns:List*"
+                    - "sns:Publish"
+                    - "sns:Get*"
+                  Resource: !Sub ${rSNSTopic}
+                - Effect: Allow
+                  Sid: CEread
+                  Action:
+                    - "ce:GetCostAndUsage"
+                    - "ce:GetDimensionValues"
+                    - "ce:GetCostForecast"
+                    - "ce:GetSavingsPlansUtilization"
+                    - "ce:GetReservationUtilization"
+                  Resource: !Sub 'arn:aws:ce:${AWS::Region}:${AWS::AccountId}:*'
+                - Effect: Allow
+                  Sid: CADReadByResource
+                  Action:
+                    - "ce:GetAnomalies"
+                    - "ce:GetAnomalyMonitors"
+                    - "ce:GetAnomalySubscriptions"
+                  Resource: 
+                  - !Sub 'arn:aws:ce::${AWS::AccountId}:anomalymonitor/*'
+                  - !Sub 'arn:aws:ce::${AWS::AccountId}:anomalysubscription/*'
+                - Sid: S3WriteReadReports
+                  Effect: Allow
+                  Action:
+                    - s3:PutObject
+                    - s3:GetObject
+                  Resource: 
+                    - !Sub '${rAthenaBucket.Arn}/*'
+                    - !GetAtt rAthenaBucket.Arn
+                - Sid: S3ListReportsBucket
+                  Effect: Allow
+                  Action: s3:ListBucket
+                  Resource: !GetAtt rAthenaBucket.Arn
+                - Sid: BedrockInvokeAndList
+                  Effect: Allow
+                  Action:
+                    - bedrock:InvokeModel
+                    - bedrock:ListFoundationModels
+                  Resource: '*'
+                - Sid: AssumeCeReadRoleOnPayer
+                  Effect: Allow
+                  Action: sts:AssumeRole
+                  Resource: 'arn:aws:iam::id-conta-payer:role/FinOpsCeReadRole' # update id here
+                  Condition:
+                    StringEquals:
+                      sts:ExternalId: finops-weekly
+
+                - Sid: AthenaQueryBasic
+                  Effect: Allow
+                  Action:
+                    - athena:StartQueryExecution
+                    - athena:GetQueryExecution
+                    - athena:GetQueryResults
+                  Resource: '*'
+
+                - Sid: GlueCatalogRead
+                  Effect: Allow
+                  Action:
+                    - glue:GetDatabase
+                    - glue:GetDatabases
+                    - glue:GetTable
+                    - glue:GetTables
+                    - glue:GetPartition
+                    - glue:GetPartitions
+                  Resource: '*'
+        Tags: 
+            - Key: "cfn-stack-name"
+              Value: !Sub ${AWS::StackName}
+            - Key: cfn-stack-id
+              Value: !Sub ${AWS::StackId}
+            - Key: aws-solution
+              Value: !Ref pSolutionName
+            
+
+# Create SNS Topic to send notifications
+
+    rSNSTopic:
+        Type: "AWS::SNS::Topic"
+        # checkov:skip=CKV_AWS_26: "Encryption not required for SNS topic"
+        Metadata:
+          cfn_nag:
+            rules_to_suppress:
+              - id: W47
+                reason: "Not Required for Automation solution"
+        Properties:
+            DisplayName: !Ref pSolutionName
+            TopicName: !Ref pSolutionName
+            Tags: 
+                - Key: "cfn-stack-name"
+                  Value: !Sub ${AWS::StackName}
+                - Key: cfn-stack-id
+                  Value: !Sub ${AWS::StackId}
+                - Key: aws-solution
+                  Value: !Ref pSolutionName
+
+# Subscribe to SNS Topic to receive notifications
+
+    rMySubscription:
+      Type: AWS::SNS::Subscription
+      Properties:
+        Endpoint: !Ref pEmailAddress
+        Protocol: email
+        TopicArn: !Ref rSNSTopic
+
+# Create Amazon EventBridge Schedule Lambda On Daily Basis
+
+    rEventsRule:
+        Type: "AWS::Events::Rule"
+        Properties:
+            Name: !Ref pSolutionName
+            Description: !Ref pSolutionName
+            ScheduleExpression: !Ref pScheduleEvent
+            State: "ENABLED"
+            Targets: 
+              - 
+                Arn: !GetAtt rLambdaBedrock.Arn
+                Id: "Idd123456789012xyz"
+            EventBusName: "default"
+
+
+    rPermissionForEventsToInvokeLambda: 
+        Type: AWS::Lambda::Permission
+        Properties: 
+            FunctionName: !Ref pSolutionName
+            Action: "lambda:InvokeFunction"
+            Principal: "events.amazonaws.com"
+            SourceArn: 
+                Fn::GetAtt: 
+                    - "rEventsRule"
+                    - "Arn"
+
+# Create Lambda Function To Scan DynamoDB table records and send SNS notifications
+
+    rLambdaBedrock:
+      Type: AWS::Lambda::Function
+    # checkov:skip=CKV_SECRET_6:Strings with a high entropy score are flagged as suspected secrets. Not hardcoded secret
+    # checkov:skip=CKV_AWS_117:Lambda VPC not required for this solution
+    # checkov:skip=CKV_AWS_173:No sensitive data in Lambda OS variables
+    # checkov:skip=CKV_AWS_116:DLQ not required for this solution
+      Metadata:
+        cfn_nag:
+          rules_to_suppress:
+            - id: W92
+              reason: "Not Required for Automation solution"
+            - id: W89
+              reason: "Not Required for Automation solution"
+      Properties:
+        FunctionName: !Ref pSolutionName
+        Handler: "index.lambda_handler"
+        Timeout: 30
+        ReservedConcurrentExecutions: 5
+        Architectures:
+        - arm64   # Arm-based AWS Graviton2 processors
+        Role: !GetAtt "rLambdaRole.Arn"
+        Runtime: python3.12
+        Code:
+          ZipFile: |
+            # -*- coding: utf-8 -*-
+            # Relatório FinOps (v1.1.3)
+
+            import os, json, re, html, calendar
+            from datetime import datetime, timedelta, date
+            from typing import Dict, Any, Optional, List
+
+            import boto3
+            from botocore.exceptions import ClientError
+
+            # -------------------- ENV --------------------
+            AWS_REGION = os.getenv("REGION")
+
+            OUTPUT_S3_BUCKET = os.getenv("OUTPUT_S3_BUCKET", "ia-tmp-athena-staging")
+            OUTPUT_PREFIX_WEEKLY  = os.getenv("OUTPUT_PREFIX", "reports/weekly/ce")
+            OUTPUT_PREFIX_MONTHLY = os.getenv("OUTPUT_PREFIX_MONTHLY", "reports/monthly/ce")
+
+            # De/para de contas (pode trocar por env se quiser outro bucket/key)
+            ACCOUNTS_S3_BUCKET = os.getenv("ACCOUNTS_S3_BUCKET", OUTPUT_S3_BUCKET)
+            ACCOUNTS_S3_KEY    = os.getenv("ACCOUNTS_S3_KEY", "accounts/accounts.txt")
+
+            SNS_TOPIC_ARN   = os.getenv("SNS_TOPIC_ARN")
+            PRESIGN_TTL_SEC = int(os.getenv("PRESIGN_TTL_SEC", "604800"))
+
+            def _flag(name, default="true"):
+                return str(os.getenv(name, default)).lower() in ("1", "true", "yes", "y")
+
+            # Filtros Cost Explorer
+            EXCLUDE_TAX_CREDIT_REFUND   = _flag("EXCLUDE_TAX_CREDIT_REFUND", "true")
+            EXCLUDE_SUPPORT_MARKETPLACE = _flag("EXCLUDE_SUPPORT_MARKETPLACE", "true")
+            EXCLUDE_SAVINGS_PLANS       = _flag("EXCLUDE_SAVINGS_PLANS", "false")
+            EXCLUDE_SPOT                = _flag("EXCLUDE_SPOT", "true")
+
+            # Listagens e limiares
+            OFFENDERS_LIMIT    = int(os.getenv("OFFENDERS_LIMIT", "20"))
+            MIN_ABS            = float(os.getenv("MIN_ABS_DELTA_FOR_SERVICE", "100"))
+            MIN_PCT            = float(os.getenv("MIN_PCT_FOR_SERVICE", "20"))
+            MIN_EC2_OTHER_CURR = float(os.getenv("MIN_EC2_OTHER_CURR", "50"))
+
+            # Bedrock (opcional)
+            BEDROCK_MODEL_ID = os.getenv("BEDROCK_MODEL_ID")
+            PREFERRED_MODELS = [
+                "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
+                "anthropic.claude-3-5-sonnet-20240620-v1:0",
+                "us.anthropic.claude-3-haiku-20240307-v1:0",
+            ]
+
+            # Payer / roles
+            CE_ROLE_ARN      = os.getenv("CE_ROLE_ARN")
+            CE_EXTERNAL_ID   = os.getenv("CE_EXTERNAL_ID", "finops-weekly")
+            PAYER_ACCOUNT_ID = os.getenv("PAYER_ACCOUNT_ID", "").strip()
+
+            # Budgets
+            ENABLE_BUDGETS     = _flag("ENABLE_BUDGETS", "true")
+            BUDGETS_ACCOUNT_ID = os.getenv("BUDGETS_ACCOUNT_ID", "").strip()
+
+            # -------------------- Clients base --------------------
+            s3         = boto3.client("s3", region_name=AWS_REGION)
+            sns        = boto3.client("sns", region_name=AWS_REGION)
+            bedrock_rt = boto3.client("bedrock-runtime", region_name=AWS_REGION)
+
+            # -------------------- Utils --------------------
+            def _to_f(x):
+                try: return float(x)
+                except Exception: return 0.0
+
+            def fmt_usd(x: float) -> str:
+                return f"${x:,.2f}"
+
+            def monday(d: date) -> date:
+                return d - timedelta(days=d.weekday())
+
+            def last_closed_weeks():
+                today = datetime.utcnow().date()
+                curr_s = monday(today) - timedelta(days=7)
+                curr_e = curr_s + timedelta(days=7)
+                prev_s = curr_s - timedelta(days=7)
+                prev_e = curr_s
+                return {"prev": {"start": prev_s.isoformat(), "end": prev_e.isoformat()},
+                        "curr": {"start": curr_s.isoformat(), "end": curr_e.isoformat()}}
+
+            def _month_bounds(year: int, month: int):
+                start = date(year, month, 1)
+                last_day = calendar.monthrange(year, month)[1]
+                end_exclusive = date(year, month, last_day) + timedelta(days=1)
+                return start, end_exclusive
+
+            def last_closed_months():
+                """curr = mês anterior fechado; prev = anterior ao curr."""
+                today = datetime.utcnow().date()
+                first_this_month = date(today.year, today.month, 1)
+                last_prev = first_this_month - timedelta(days=1)
+                curr_s, curr_e = _month_bounds(last_prev.year, last_prev.month)
+                first_prevprev = curr_s
+                last_prevprev = first_prevprev - timedelta(days=1)
+                prev_s, prev_e = _month_bounds(last_prevprev.year, last_prevprev.month)
+                return {"prev": {"start": prev_s.isoformat(), "end": prev_e.isoformat()},
+                        "curr": {"start": curr_s.isoformat(), "end": curr_e.isoformat()}}
+
+            def is_full_month(period: Dict[str,str]) -> bool:
+                s = date.fromisoformat(period["start"]); e = date.fromisoformat(period["end"])
+                return s.day == 1 and (e - s).days in (28,29,30,31)
+
+            # -------------------- STS/Clients --------------------
+            def assume_payer():
+                if not CE_ROLE_ARN:
+                    return None
+                sts = boto3.client("sts", region_name=AWS_REGION)
+                kw = {"RoleArn": CE_ROLE_ARN, "RoleSessionName": "finops-weekly-ce", "DurationSeconds": 3600}
+                if CE_EXTERNAL_ID: kw["ExternalId"] = CE_EXTERNAL_ID
+                creds = sts.assume_role(**kw)["Credentials"]
+                return {"aws_access_key_id": creds["AccessKeyId"],
+                        "aws_secret_access_key": creds["SecretAccessKey"],
+                        "aws_session_token": creds["SessionToken"]}
+
+            def ce_client():
+                creds = assume_payer()
+                return boto3.client("ce", region_name="us-east-1", **creds) if creds else boto3.client("ce", region_name="us-east-1")
+
+            def budgets_client_for_payer():
+                if not ENABLE_BUDGETS: return None, None
+                acct = BUDGETS_ACCOUNT_ID if (BUDGETS_ACCOUNT_ID and BUDGETS_ACCOUNT_ID.lower() != "payer") else PAYER_ACCOUNT_ID
+                if not (acct and acct.isdigit() and len(acct) == 12):
+                    print("[budgets] payer inválido; budgets omitido.")
+                    return None, None
+                creds = assume_payer()
+                return (boto3.client("budgets", region_name="us-east-1", **creds) if creds else boto3.client("budgets", region_name="us-east-1")), acct
+
+            # -------------------- CE help --------------------
+            def ce_pages(cli, **kw):
+                token = None
+                while True:
+                    if token: kw["NextPageToken"] = token
+                    resp = cli.get_cost_and_usage(**kw)
+                    yield resp
+                    token = resp.get("NextPageToken")
+                    if not token: break
+
+            def ce_filter_common(start, end):
+                clauses = []
+                if EXCLUDE_TAX_CREDIT_REFUND:
+                    clauses.append({"Not": {"Dimensions": {"Key": "RECORD_TYPE", "Values": ["Tax", "Credit", "Refund"]}}})
+                if EXCLUDE_SUPPORT_MARKETPLACE:
+                    clauses.append({"Not": {"Dimensions": {"Key": "SERVICE", "Values": ["AWS Premium Support", "AWS Marketplace"]}}})
+                if EXCLUDE_SAVINGS_PLANS:
+                    clauses.append({"Not": {"Dimensions": {"Key": "RECORD_TYPE",
+                                  "Values": ["SavingsPlanCoveredUsage", "SavingsPlanRecurringFee", "SavingsPlanUpfrontFee", "SavingsPlanNegation"]}}})
+                if EXCLUDE_SPOT:
+                    clauses.append({"Not": {"Dimensions": {"Key": "USAGE_TYPE_GROUP", "Values": ["EC2: Spot Instance"]}}})
+                return {"And": clauses} if clauses else None
+
+            # -------------------- CE agregações --------------------
+            def ce_sum_total(cli, start: date, end: date, extra_filter: Optional[Dict[str, Any]] = None) -> float:
+                base_f = ce_filter_common(start.isoformat(), end.isoformat())
+                f = {"And": [base_f, extra_filter]} if (base_f and extra_filter) else (extra_filter or base_f)
+                params = {"TimePeriod": {"Start": start.isoformat(), "End": end.isoformat()},
+                          "Granularity": "DAILY","Metrics": ["UnblendedCost"]}
+                if f: params["Filter"] = f
+                total = 0.0
+                for page in ce_pages(cli, **params):
+                    for tp in page.get("ResultsByTime", []):
+                        total += _to_f(tp.get("Total", {}).get("UnblendedCost", {}).get("Amount"))
+                return round(total, 2)
+
+            def agg_period(cli, period):
+                params = {
+                    "TimePeriod": {"Start": period["start"], "End": period["end"]},
+                    "Granularity": "DAILY",
+                    "Metrics": ["UnblendedCost"],
+                    "Filter": ce_filter_common(period["start"], period["end"]),
+                    "GroupBy": [
+                        {"Type": "DIMENSION", "Key": "LINKED_ACCOUNT"},
+                        {"Type": "DIMENSION", "Key": "SERVICE"},
+                    ],
+                }
+                acc = {}
+                for page in ce_pages(cli, **params):
+                    for day in page.get("ResultsByTime", []):
+                        for g in day.get("Groups", []):
+                            kacc, ksvc = g["Keys"]
+                            amt = _to_f(g["Metrics"]["UnblendedCost"]["Amount"])
+                            acc[(kacc, ksvc)] = acc.get((kacc, ksvc), 0.0) + amt
+                return acc
+
+            def top_offenders(prev_map, curr_map, limit=20):
+                rows = []
+                keys = set(curr_map.keys()) | set(prev_map.keys())
+                for k in keys:
+                    curr = curr_map.get(k, 0.0); prev = prev_map.get(k, 0.0)
+                    delta = curr - prev
+                    pct = (delta / prev * 100.0) if prev > 0 else (100.0 if delta > 0 else 0.0)
+                    rows.append({"account": k[0], "service": k[1], "curr": curr, "prev": prev, "delta": delta, "pct": pct})
+                rows.sort(key=lambda x: abs(x["delta"]), reverse=True)
+                return rows[:limit]
+
+            def ec2_other_current(cli, period, min_curr=50.0):
+                params = {
+                    "TimePeriod": {"Start": period["start"], "End": period["end"]},
+                    "Granularity": "DAILY",
+                    "Metrics": ["UnblendedCost"],
+                    "Filter": {"And":[
+                        ce_filter_common(period["start"], period["end"]),
+                        {"Dimensions":{"Key":"SERVICE","Values":["EC2 - Other"]}},
+                        {"Dimensions":{"Key":"USAGE_TYPE","Values":[
+                            "DataTransfer-Regional-Bytes","NatGateway-Bytes","AWS-Out-Bytes",
+                            "SAE1-DataTransfer-Regional-Bytes","SAE1-NatGateway-Bytes","SAE1-AWS-Out-Bytes"
+                        ]}}
+                    ]},
+                    "GroupBy":[
+                        {"Type":"DIMENSION","Key":"LINKED_ACCOUNT"},
+                        {"Type":"DIMENSION","Key":"USAGE_TYPE"},
+                    ],
+                }
+                acc = {}
+                for page in ce_pages(cli, **params):
+                    for day in page.get("ResultsByTime", []):
+                        for g in day.get("Groups", []):
+                            acct, usage = g["Keys"]
+                            amt = _to_f(g["Metrics"]["UnblendedCost"]["Amount"])
+                            acc[(acct, usage)] = acc.get((acct, usage), 0.0) + amt
+                rows = [{"account":a, "usage":u, "curr":v} for (a,u),v in acc.items() if v >= min_curr]
+                rows.sort(key=lambda x: x["curr"], reverse=True)
+                return rows
+
+            def rds_two_weeks_usage(cli, prev_p, curr_p, limit=20):
+                params = {
+                    "TimePeriod": {"Start": prev_p["start"], "End": curr_p["end"]},
+                    "Granularity": "DAILY",
+                    "Metrics": ["UnblendedCost"],
+                    "Filter": {"And":[ce_filter_common(prev_p["start"], curr_p["end"]),
+                                      {"Dimensions":{"Key":"SERVICE","Values":["Amazon Relational Database Service"]}}]},
+                    "GroupBy":[
+                        {"Type":"DIMENSION","Key":"LINKED_ACCOUNT"},
+                        {"Type":"DIMENSION","Key":"USAGE_TYPE"},
+                    ],
+                }
+                mprev, mcurr = {}, {}
+                mid = datetime.fromisoformat(prev_p["end"])
+                for page in ce_pages(cli, **params):
+                    for day in page.get("ResultsByTime", []):
+                        d = datetime.fromisoformat(day["TimePeriod"]["Start"])
+                        for g in day.get("Groups", []):
+                            acct, usage = g["Keys"]
+                            amt = _to_f(g["Metrics"]["UnblendedCost"]["Amount"])
+                            (mprev if d < mid else mcurr)[(acct, usage)] = (mprev if d < mid else mcurr).get((acct, usage), 0.0) + amt
+                rows=[]
+                for k in set(mprev)|set(mcurr):
+                    prev = mprev.get(k,0.0); curr = mcurr.get(k,0.0)
+                    delta = curr - prev
+                    pct = (delta/prev*100.0) if prev>0 else (100.0 if delta>0 else 0.0)
+                    rows.append({"account":k[0],"usage":k[1],"curr":curr,"prev":prev,"delta":delta,"pct":pct})
+                rows.sort(key=lambda x: abs(x["delta"]), reverse=True)
+                return rows[:limit]
+
+            # -------------------- CAD (Anomalias) --------------------
+            def _monitors_map(cli):
+                try:
+                    out, token = {}, None
+                    while True:
+                        kw = {}
+                        if token: kw["NextPageToken"] = token
+                        resp = cli.get_anomaly_monitors(**kw)
+                        for m in resp.get("AnomalyMonitors", []):
+                            arn = m.get("MonitorArn") or m.get("Arn")
+                            name = m.get("MonitorName") or m.get("Name") or arn
+                            if arn: out[arn] = name
+                        token = resp.get("NextPageToken")
+                        if not token: break
+                    return out
+                except Exception as e:
+                    print(f"[cad] falha ao listar monitors: {e}")
+                    return {}
+
+            def list_anomalies(cli, start_iso, end_iso, days_back=10, max_rows=20):
+                end_dt = datetime.fromisoformat(end_iso).date()
+                start_dt = max(datetime.fromisoformat(start_iso).date(), end_dt - timedelta(days=days_back))
+                kw = {"DateInterval": {"StartDate": start_dt.isoformat(), "EndDate": end_dt.isoformat()}, "MaxResults": 100}
+                token = None
+                dedup = {}
+                while True:
+                    if token: kw["NextPageToken"] = token
+                    resp = cli.get_anomalies(**kw)
+                    for a in resp.get("Anomalies", []):
+                        start = a.get("AnomalyStartDate") or a.get("StartDate") or "-"
+                        end   = a.get("AnomalyEndDate")   or a.get("EndDate")   or "-"
+                        last  = a.get("AnomalyUpdatedTime") or end
+                        impact = _to_f((a.get("Impact") or {}).get("MaxImpact"))
+                        rcs = a.get("RootCauses", []) or [{}]
+                        top = rcs[0]
+                        key = (start, end, top.get("Service") or "-", str(top.get("LinkedAccount") or "-"),
+                              top.get("UsageType") or "-", top.get("Region") or "-", top.get("Operation") or "-")
+                        cur = dedup.get(key)
+                        if (cur is None) or (impact > cur["impact"]):
+                            dedup[key] = {"start": start,"end": end,"last": last,
+                                          "service": top.get("Service") or "-","account": top.get("LinkedAccount") or "-",
+                                          "usage": top.get("UsageType") or "-","region": top.get("Region") or "-",
+                                          "op": top.get("Operation") or "-","impact": impact,"monitor": a.get("MonitorArn") or "-"}
+                    token = resp.get("NextPageToken")
+                    if not token: break
+
+                monmap = _monitors_map(cli)
+                for r in dedup.values():
+                    try:
+                        ds = datetime.fromisoformat(r["start"]).date()
+                        de = datetime.fromisoformat(r["end"]).date()
+                        r["duration"] = (de - ds).days or 1
+                    except Exception:
+                        r["duration"] = "-"
+                    r["monitor_name"] = monmap.get(r["monitor"], r["monitor"])
+
+                rows = list(dedup.values()); rows.sort(key=lambda x: x["impact"], reverse=True)
+                return rows[:max_rows]
+
+            # -------------------- Budgets --------------------
+            def list_budgets_rows():
+                cli, acct = budgets_client_for_payer()
+                if not cli or not acct: return []
+                rows, token = [], None
+                while True:
+                    kw={"AccountId": acct}
+                    if token: kw["NextToken"]=token
+                    resp = cli.describe_budgets(**kw)
+                    for b in resp.get("Budgets", []):
+                        limit_amt = b.get("BudgetLimit", {}).get("Amount")
+                        actual = b.get("CalculatedSpend", {}).get("ActualSpend", {}).get("Amount")
+                        fcst   = b.get("CalculatedSpend", {}).get("ForecastedSpend", {}).get("Amount")
+                        rows.append({"name": b.get("BudgetName","-"),"period": b.get("TimeUnit","-"),
+                                    "limit": _to_f(limit_amt or 0),"actual": _to_f(actual or 0),"forecast": _to_f(fcst or 0)})
+                    token = resp.get("NextToken")
+                    if not token: break
+                def _key(r):
+                    over = (r["actual"]>r["limit"]) or (r["forecast"]>r["limit"]>0)
+                    return (not over, -(r["actual"]-r["limit"]))
+                rows.sort(key=_key)
+                return rows
+
+            # -------------------- IA --------------------
+            def strip_tables(md):
+                return re.sub(r"\n\|.*?\|\n(?:\|[-: ]+\|\n)?(?:.*\n)*?(?=\n\n|$)", "\n", md, flags=re.S)
+
+            def ai_insights(md_tables_only):
+                prompt = f"""
+            Você é um analista FinOps. Gere três blocos claramente formatados:
+
+            ## ALERTAS
+            - 4–6 bullets com Serviço/Conta (ou UsageType/Conta), valores Atual vs Anterior, Δ e Δ%.
+
+            ## RECOMENDAÇÕES
+            - 5–7 bullets práticos: rightsizing EC2/RDS, **RIs e Savings Plans**, S3 lifecycle,
+              DataTransfer/NAT/EIP, CloudTrail/Config/GuardDuty multi-região,
+              observando **Budgets** e **Anomalias (últimos 10 dias)**.
+
+            ## RISCOS SE NÃO AGIR
+            - 3–5 bullets.
+
+            Responda só em texto (sem tabelas). Use USD (ex.: $1,234.56) e %.
+            Use APENAS os dados das tabelas a seguir:
+
+            {md_tables_only}
+            """
+                body = json.dumps({
+                    "anthropic_version":"bedrock-2023-05-31",
+                    "max_tokens":900, "temperature":0.2,
+                    "messages":[{"role":"user","content":[{"type":"text","text":prompt}]}],
+                })
+                models = [BEDROCK_MODEL_ID] if BEDROCK_MODEL_ID else []
+                for m in PREFERRED_MODELS:
+                    if m and m not in models: models.append(m)
+
+                last_err=None
+                for mid in models:
+                    try:
+                        resp = bedrock_rt.invoke_model(modelId=mid, body=body,
+                                                      accept="application/json",
+                                                      contentType="application/json")
+                        out = json.loads(resp["body"].read())
+                        txt = out.get("content",[{}])[0].get("text","")
+                        return strip_tables(txt).strip()
+                    except Exception as e:
+                        last_err=str(e)
+                        if mid.startswith("anthropic."):
+                            try:
+                                ip="us."+mid
+                                resp = bedrock_rt.invoke_model(modelId=ip, body=body,
+                                                              accept="application/json",
+                                                              contentType="application/json")
+                                out = json.loads(resp["body"].read())
+                                txt = out.get("content",[{}])[0].get("text","")
+                                return strip_tables(txt).strip()
+                            except Exception as e2:
+                                last_err=str(e2)
+                        continue
+                return f"**ALERTAS**\n- _Falha ao gerar insights via Bedrock: {last_err}_"
+
+            # -------------------- HTML / CSS --------------------
+            CSS = """
+            :root{
+              --bg:#0b1220; --card:#0f172a; --muted:#94a3b8; --txt:#e5e7eb;
+              --header:#111827; --header-txt:#ffffff; --border:#1f2937;
+              --inc-soft:#ffe6e6; --inc-soft-t:#8b0000; --dec:#e8f5e9; --dec-t:#1b5e20;
+            }
+            *{box-sizing:border-box}
+            body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.45 ui-sans-serif,system-ui,Segoe UI,Roboto,Arial}
+            .container{max-width:1150px;margin:32px auto;padding:0 16px}
+            h1{font-size:24px;margin:0 0 4px}
+            h2{font-size:20px;margin:16px 0 8px}
+            .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin:16px 0}
+            small,em{color:var(--muted)}
+            .table{width:100%;border-collapse:separate;border-spacing:0;margin-top:8px}
+            .table thead th{position:sticky;top:0;background:var(--header);color:var(--header-txt);text-align:left;padding:10px;border-bottom:1px solid var(--border);font-weight:600}
+            .table thead th.num{text-align:center}
+            .table tbody td{padding:10px;border-bottom:1px solid var(--border)}
+            .table tbody tr:nth-child(even){background:rgba(255,255,255,.02)}
+            .num{ text-align:center; font-variant-numeric: tabular-nums; }
+            .badge{padding:2px 6px;border-radius:6px}
+            .badge.bad-pos{background:var(--inc-soft);color:var(--inc-soft-t);font-weight:600}
+            .badge.bad-neg{background:var(--dec);color:var(--dec-t)}
+            pre{white-space:pre-wrap}
+            """
+
+            # ======= DASHBOARD (TOPO) — 3 CARDS =======
+            def collect_kpis_from_report(ce_cli, period_prev: Dict[str,str], period_curr: Dict[str,str], scope: str) -> Dict[str, Any]:
+                s_prev = date.fromisoformat(period_prev["start"]); e_prev = date.fromisoformat(period_prev["end"])
+                s_curr = date.fromisoformat(period_curr["start"]); e_curr = date.fromisoformat(period_curr["end"])
+                current_total  = ce_sum_total(ce_cli, s_curr, e_curr)
+                previous_total = ce_sum_total(ce_cli, s_prev, e_prev)
+                trend_pct = ((current_total - previous_total) / previous_total * 100.0) if previous_total > 0 else (100.0 if current_total>0 else 0.0)
+                labels = {"current": "Costs — Current Period", "previous": "Costs — Previous Period", "trend": "Spend Trend"}
+                if scope == "monthly": labels = {"current": "Costs — Current Month", "previous": "Costs — Previous Month", "trend": "Invoiced Spend Trend"}
+                if scope == "weekly":  labels = {"current": "Costs — Current Week",  "previous": "Costs — Previous Week",  "trend": "Weekly Spend Trend"}
+                return {"current_total": round(current_total,2), "previous_total": round(previous_total,2), "trend_pct": round(trend_pct,2), "labels": labels}
+
+            def dashboard_hero_block(kpis: Dict[str, Any]) -> str:
+                k = kpis or {}
+                cur_total = k.get("current_total", 0.0)
+                prev_total = k.get("previous_total", 0.0)
+                trend_pct  = k.get("trend_pct", 0.0)
+                labels     = k.get("labels", {})
+                lbl_cur    = labels.get("current","Costs — Current Period")
+                lbl_prev   = labels.get("previous","Costs — Previous Period")
+                lbl_trend  = labels.get("trend","Spend Trend")
+
+                def _usd_k(v: float) -> str:
+                    try:
+                        f = float(v)
+                        return f"${f/1000:,.0f}K" if f >= 1000 else f"${f:,.2f}"
+                    except Exception:
+                        return "$0.00"
+
+                arrow = "▲" if trend_pct > 0 else ("▼" if trend_pct < 0 else "—")
+                cls   = "up" if trend_pct > 0 else ("down" if trend_pct < 0 else "flat")
+
+                block_css = """
+                <style>
+                .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
+                .kcard{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;min-height:120px}
+                .kpi{font-size:28px;font-weight:700}
+                .sub{color:var(--muted);font-size:12px;margin-bottom:6px}
+                /* Invertido: up=vermelho (aumento de custo), down=verde (queda) */
+                .trend.up{color:#ef4444;font-weight:700}
+                .trend.down{color:#22c55e;font-weight:700}
+                .trend.flat{color:var(--muted);font-weight:700}
+                </style>
+                """
+
+                return f"""
+            <div class="card" style="padding:0;border:0">{block_css}
+              <div class="grid" style="padding:0">
+                <div class="kcard" style="grid-column: span 4;">
+                  <div class="sub">{html.escape(lbl_cur)}</div>
+                  <div class="kpi">{_usd_k(cur_total)}</div>
+                </div>
+                <div class="kcard" style="grid-column: span 4;">
+                  <div class="sub">{html.escape(lbl_trend)}</div>
+                  <div class="kpi"><span class="trend {cls}">{trend_pct:.2f}% {arrow}</span></div>
+                  <small class="sub">vs. período anterior</small>
+                </div>
+                <div class="kcard" style="grid-column: span 4;">
+                  <div class="sub">{html.escape(lbl_prev)}</div>
+                  <div class="kpi">{_usd_k(prev_total)}</div>
+                </div>
+              </div>
+            </div>
+            """
+
+            # ---------- De/Para de contas ----------
+            def load_accounts_map() -> Dict[str, str]:
+                """Lê s3://<bucket>/<key> (linhas 'Nome,123456789012') e retorna {id:nome}."""
+                try:
+                    resp = s3.get_object(Bucket=ACCOUNTS_S3_BUCKET, Key=ACCOUNTS_S3_KEY)
+                    content = resp["Body"].read().decode("utf-8-sig")
+                    id_map: Dict[str,str] = {}
+                    for line in content.splitlines():
+                        line = line.strip()
+                        if not line or line.startswith("#"):
+                            continue
+                        parts = [p.strip() for p in line.split(",")]
+                        if len(parts) < 2:
+                            continue
+                        acc_id = parts[-1].strip()
+                        name = ",".join(parts[:-1]).strip().strip('"')
+                        if len(acc_id) == 12 and acc_id.isdigit():
+                            id_map[acc_id] = name
+                    if not id_map:
+                        print("[accounts] arquivo lido, mas sem pares válidos.")
+                    return id_map
+                except Exception as e:
+                    print(f"[accounts] falha ao carregar mapping: s3://{ACCOUNTS_S3_BUCKET}/{ACCOUNTS_S3_KEY} -> {e}")
+                    return {}
+
+            def _acct_name(acc_id: Any, id_map: Dict[str,str]) -> str:
+                return id_map.get(str(acc_id), "-")
+
+            # ---------- Tabelas HTML ----------
+            def cell_num(v): return f'<td class="num">{v}</td>'
+
+            def table_budgets(rows):
+                if not rows:
+                    return "<em>Nenhum budget encontrado (ou sem permissão para visualizar).</em>"
+                head = "<tr><th>Nome</th><th>Periodicidade</th><th class='num'>Limite</th><th class='num'>Atual</th><th class='num'>Forecast</th></tr>"
+                body=[]
+                for r in rows:
+                    a = fmt_usd(r["actual"]); f = fmt_usd(r["forecast"]); l = fmt_usd(r["limit"])
+                    a_html = f"<span class='badge bad-pos'>{a}</span>" if r["limit"] and r["actual"]>r["limit"] else a
+                    f_html = f"<span class='badge bad-pos'>{f}</span>" if r["limit"] and r["forecast"]>r["limit"] else f
+                    body.append("<tr>"
+                                f"<td>{html.escape(r['name'])}</td>"
+                                f"<td>{r['period']}</td>"
+                                f"{cell_num(l)}{cell_num(a_html)}{cell_num(f_html)}"
+                                "</tr>")
+                return f"<table class='table'><thead>{head}</thead><tbody>{''.join(body)}</tbody></table>"
+
+            def table_anomalies(rows, id_map: Dict[str,str]):
+                if not rows:
+                    return "<em>Sem anomalias no período considerado.</em>"
+                head = ("<tr>"
+                        "<th>Start</th><th>Last detected</th><th class='num'>Duration</th>"
+                        "<th>Monitor</th>"
+                        "<th>Service</th><th>Conta</th><th>Account ID</th><th>UsageType</th><th>Region</th><th>Operation</th>"
+                        "<th class='num'>Cost impact</th>"
+                        "</tr>")
+                body=[]
+                for r in rows:
+                    acc_id = str(r.get("account","-"))
+                    name = _acct_name(acc_id, id_map)
+                    body.append("<tr>"
+                                f"<td>{r['start']}</td>"
+                                f"<td>{r['last']}</td>"
+                                f"{cell_num(r.get('duration','-'))}"
+                                f"<td>{html.escape(str(r.get('monitor_name','-')))}</td>"
+                                f"<td>{html.escape(r.get('service','-'))}</td>"
+                                f"<td>{html.escape(name)}</td>"
+                                f"<td>{html.escape(acc_id)}</td>"
+                                f"<td>{html.escape(r.get('usage','-'))}</td>"
+                                f"<td>{html.escape(r.get('region','-'))}</td>"
+                                f"<td>{html.escape(r.get('op','-'))}</td>"
+                                f"{cell_num(fmt_usd(r.get('impact',0.0)))}"
+                                "</tr>")
+                return f"<table class='table'><thead>{head}</thead><tbody>{''.join(body)}</tbody></table>"
+
+            def table_offenders(rows, title, col2_label="Serviço", key2="service", id_map: Optional[Dict[str,str]] = None):
+                id_map = id_map or {}
+                head = "<tr><th>Conta</th><th>Account ID</th><th>{}</th><th class='num'>Atual</th><th class='num'>Anterior</th><th class='num'>Δ</th><th class='num'>Δ%</th></tr>".format(html.escape(col2_label))
+                body=[]
+                for r in rows:
+                    acc_id = str(r.get("account","-"))
+                    name = _acct_name(acc_id, id_map)
+                    second = html.escape(str(r.get(key2, "-")))
+                    curr_str = fmt_usd(r.get("curr",0.0)); prev_str = fmt_usd(r.get("prev",0.0))
+                    delta = r.get("delta", 0.0)
+                    pct_val = r.get("pct", 0.0); pct_str = f"{pct_val:.1f}%"
+                    delta_str = fmt_usd(delta)
+                    badge_delta = delta_str
+                    if delta>0 and abs(delta)>=MIN_ABS and pct_val>=MIN_PCT:
+                        badge_delta = f"<span class='badge bad-pos'>{delta_str} ({pct_str})</span>"
+                    body.append("<tr>"
+                                f"<td>{html.escape(name)}</td>"
+                                f"<td>{html.escape(acc_id)}</td>"
+                                f"<td>{second}</td>"
+                                f"{cell_num(curr_str)}{cell_num(prev_str)}{cell_num(badge_delta)}{cell_num(pct_str)}"
+                                "</tr>")
+                return f"<div class='card'><h2>{html.escape(title)}</h2><table class='table'><thead>{head}</thead><tbody>{''.join(body)}</tbody></table></div>"
+
+            def table_ec2_other(rows, id_map: Optional[Dict[str,str]] = None):
+                id_map = id_map or {}
+                if not rows: return ""
+                head="<tr><th>Conta</th><th>Account ID</th><th>UsageType</th><th class='num'>Atual</th></tr>"
+                body=[]
+                for r in rows:
+                    acc_id = str(r.get("account","-"))
+                    name = _acct_name(acc_id, id_map)
+                    body.append("<tr>"
+                                f"<td>{html.escape(name)}</td>"
+                                f"<td>{html.escape(acc_id)}</td>"
+                                f"<td>{html.escape(r.get('usage','-'))}</td>"
+                                f"{cell_num(fmt_usd(r.get('curr',0.0)))}"
+                                "</tr>")
+                title = f"EC2-Other (DataTransfer/NAT/EIP) — atual ≥ ${MIN_EC2_OTHER_CURR:.0f}"
+                return f"<div class='card'><h2>{html.escape(title)}</h2><table class='table'><thead>{head}</thead><tbody>{''.join(body)}</tbody></table></div>"
+
+            def html_report(title, period_prev, period_curr, insights_txt, budgets_rows, anomalies_rows,
+                            quadro_rows, offenders_rows, ec2_rows, rds_rows, kpis: Optional[Dict[str, Any]] = None,
+                            acct_map: Optional[Dict[str,str]] = None):
+                acct_map = acct_map or {}
+                head = f"<h1>{html.escape(title)}</h1><small>Período atual: {period_curr['start']} → {period_curr['end']} | Anterior: {period_prev['start']} → {period_prev['end']}</small>"
+                parts=[f"<div class='card'>{head}</div>"]
+                if kpis: parts.append(dashboard_hero_block(kpis))
+                parts.append(f"<div class='card'><h2>Insights de IA</h2><pre>{html.escape(insights_txt)}</pre></div>")
+                parts.append(f"<div class='card'><h2>Budgets (payer)</h2>{table_budgets(budgets_rows)}</div>")
+                parts.append(f"<div class='card'><h2>Anomalias (últimos 10 dias)</h2>{table_anomalies(anomalies_rows, acct_map)}</div>")
+                parts.append(table_offenders(quadro_rows, "Quadro-Resumo (Top por Δ agregado)", id_map=acct_map))
+                parts.append(table_offenders(offenders_rows, "Top ofensores por serviço (agregado por conta)", id_map=acct_map))
+                parts.append(table_ec2_other(ec2_rows, id_map=acct_map))
+                parts.append(table_offenders(rds_rows, "RDS — atual vs. anterior", col2_label="UsageType", key2="usage", id_map=acct_map))
+                return f"<!doctype html><html><head><meta charset='utf-8'><title>Relatório FinOps — iClinic Organization</title><style>{CSS}</style></head><body><div class='container'>{''.join(parts)}</div></body></html>"
+
+            # -------------------- S3 / SNS --------------------
+            def put_text(bucket, key, data, ctype):
+                s3.put_object(Bucket=bucket, Key=key, Body=data.encode("utf-8"), ContentType=ctype)
+
+            def presign(bucket, key, ttl=PRESIGN_TTL_SEC):
+                return s3.generate_presigned_url("get_object", Params={"Bucket":bucket,"Key":key}, ExpiresIn=ttl)
+
+            def publish_sns(subject, text):
+                if not SNS_TOPIC_ARN: return
+                try: sns.publish(TopicArn=SNS_TOPIC_ARN, Subject=subject[:100], Message=text)
+                except ClientError as e: print(f"[sns] erro ao publicar: {e}")
+
+            # -------------------- Relatório SEMANAL --------------------
+            def weekly_report():
+                ce = ce_client()
+                periods = last_closed_weeks()
+
+                prev_map = agg_period(ce, periods["prev"])
+                curr_map = agg_period(ce, periods["curr"])
+                quadro   = top_offenders(prev_map, curr_map, OFFENDERS_LIMIT)
+                offenders= quadro[:]
+
+                ec2o     = ec2_other_current(ce, periods["curr"], MIN_EC2_OTHER_CURR)
+                rds_rows = rds_two_weeks_usage(ce, periods["prev"], periods["curr"], OFFENDERS_LIMIT)
+
+                budgets  = list_budgets_rows()
+                anomalies= list_anomalies(ce, periods["prev"]["start"], periods["curr"]["end"], days_back=10, max_rows=20)
+
+                # IA (MD simplificado)
+                def md_table(rows, headers):
+                    out=["|"+"|".join(headers)+"|", "|"+"|".join(["---"]*len(headers))+"|"]
+                    for r in rows: out.append("|"+"|".join(r)+"|")
+                    return "\n".join(out)
+
+                md_bits=[]
+                md_bits.append(md_table([[x["account"], x["service"], f"{x['curr']:.2f}", f"{x['prev']:.2f}", f"{x['delta']:.2f}", f"{x['pct']:.1f}%"] for x in quadro],
+                                        ["Conta","Serviço","Atual","Anterior","Δ","Δ%"]))
+                if budgets:
+                    md_bits.append(md_table([[b["name"], b["period"], f"{b['limit']:.2f}", f"{b['actual']:.2f}", f"{b['forecast']:.2f}"] for b in budgets],
+                                            ["Budget","Per","Limite","Atual","Forecast"]))
+                if anomalies:
+                    md_bits.append(md_table([[a["start"], a["last"], str(a["duration"]), a["service"], str(a["account"]), a["usage"], a["region"], f"{a['impact']:.2f}"] for a in anomalies],
+                                            ["Start","Last","Dur","Serviço","Conta","Usage","Região","Impacto"]))
+                insights = ai_insights("\n\n".join(md_bits))
+
+                kpis = collect_kpis_from_report(ce, periods["prev"], periods["curr"], scope="weekly")
+                acct_map = load_accounts_map()
+
+                html_out = html_report("Relatório FinOps — iClinic Organization (Semanal)",
+                                      periods["prev"], periods["curr"], insights, budgets, anomalies,
+                                      quadro, offenders, ec2o, rds_rows, kpis=kpis, acct_map=acct_map)
+
+                date_tag = periods["curr"]["end"]
+                html_key = f"{OUTPUT_PREFIX_WEEKLY}/index-{date_tag}.html"
+                put_text(OUTPUT_S3_BUCKET, html_key, html_out, "text/html; charset=utf-8")
+                url_html = presign(OUTPUT_S3_BUCKET, html_key, PRESIGN_TTL_SEC)
+                publish_sns(f"[FinOps] Relatório semanal — {periods['curr']['start']} → {periods['curr']['end']}",
+                            f"Relatório gerado.\n\nHTML: {url_html}\n")
+                return {"ok": True, "html_key": html_key, "url_html": url_html}
+
+            # -------------------- Relatório MENSAL (dia 02) --------------------
+            def monthly_report():
+                ce = ce_client()
+                periods = last_closed_months()
+
+                prev_map = agg_period(ce, periods["prev"])
+                curr_map = agg_period(ce, periods["curr"])
+                quadro   = top_offenders(prev_map, curr_map, OFFENDERS_LIMIT)
+                offenders= quadro[:]
+
+                ec2o     = ec2_other_current(ce, periods["curr"], MIN_EC2_OTHER_CURR)
+                rds_rows = rds_two_weeks_usage(ce, periods["prev"], periods["curr"], OFFENDERS_LIMIT)
+                budgets  = list_budgets_rows()
+                anomalies= list_anomalies(ce, periods["prev"]["start"], periods["curr"]["end"], days_back=10, max_rows=20)
+
+                def md_table(rows, headers):
+                    out=["|"+"|".join(headers)+"|", "|"+"|".join(["---"]*len(headers))+"|"]
+                    for r in rows: out.append("|"+"|".join(r)+"|")
+                    return "\n".join(out)
+
+                md_bits=[]
+                md_bits.append(md_table([[x["account"], x["service"], f"{x['curr']:.2f}", f"{x['prev']:.2f}", f"{x['delta']:.2f}", f"{x['pct']:.1f}%"] for x in quadro],
+                                        ["Conta","Serviço","Atual","Anterior","Δ","Δ%"]))
+                if budgets:
+                    md_bits.append(md_table([[b["name"], b["period"], f"{b['limit']:.2f}", f"{b['actual']:.2f}", f"{b['forecast']:.2f}"] for b in budgets],
+                                            ["Budget","Per","Limite","Atual","Forecast"]))
+                if anomalies:
+                    md_bits.append(md_table([[a["start"], a["last"], str(a["duration"]), a["service"], str(a["account"]), a["usage"], a["region"], f"{a['impact']:.2f}"] for a in anomalies],
+                                            ["Start","Last","Dur","Serviço","Conta","Usage","Região","Impacto"]))
+                insights = ai_insights("\n\n".join(md_bits))
+
+                kpis = collect_kpis_from_report(ce, periods["prev"], periods["curr"], scope="monthly")
+                acct_map = load_accounts_map()
+
+                html_out = html_report("Relatório FinOps — iClinic Organization (Mensal)",
+                                      periods["prev"], periods["curr"], insights, budgets, anomalies,
+                                      quadro, offenders, ec2o, rds_rows, kpis=kpis, acct_map=acct_map)
+
+                date_tag = periods["curr"]["end"]
+                html_key = f"{OUTPUT_PREFIX_MONTHLY}/index-{date_tag}.html"
+                put_text(OUTPUT_S3_BUCKET, html_key, html_out, "text/html; charset=utf-8")
+                url_html = presign(OUTPUT_S3_BUCKET, html_key, PRESIGN_TTL_SEC)
+                publish_sns(f"[FinOps] Relatório mensal — {periods['curr']['start']} → {periods['curr']['end']}",
+                            f"Relatório gerado.\n\nHTML: {url_html}\n")
+                return {"ok": True, "html_key": html_key, "url_html": url_html}
+
+            # -------------------- Handler --------------------
+            def lambda_handler(event, context):
+                resp_week = None
+                try:
+                    resp_week = weekly_report()
+                except Exception as e:
+                    print(f"[semanal] erro: {e}")
+
+                try:
+                    if datetime.utcnow().date().day == 2:
+                        monthly_report()
+                    else:
+                        print("[mensal] hoje não é dia 02 (UTC); ignorando.")
+                except Exception as e:
+                    print(f"[mensal] erro: {e}")
+
+                return {"ok": True, "weekly": bool(resp_week)}
+                    
+        Environment: 
+            Variables:
+                SNS_TOPIC_ARN: !Ref rSNSTopic
+                OUTPUT_S3_BUCKET: !Ref rAthenaBucket
+                REGION: !Sub '${AWS::Region}'
+        LoggingConfig:
+          LogGroup: !Ref LambdaLogGroup
+        Tags: 
+            - Key: "cfn-stack-name"
+              Value: !Sub ${AWS::StackName}
+            - Key: cfn-stack-id
+              Value: !Sub ${AWS::StackId}
+            - Key: aws-solution
+              Value: !Ref pSolutionName
+
+# CW logs group for Lambda function with XX days retention
+
+    LambdaLogGroup: 
+      Type: AWS::Logs::LogGroup
+      Properties:
+        LogGroupName: !Sub '/aws/lambdas/${pSolutionName}'
+        RetentionInDays: !Ref pRetention
+
+
+Outputs:
+
+  oLambdaFunction:
+    Description: Lambda Function ARN for Bedrock FinOps reports
+    Value: !GetAtt rLambdaBedrock.Arn
+
+  oSnsTopic:
+    Description: SNS Topic ARN for Bedrock FinOps reports
+    Value: !Ref rSNSTopic
+
+  oAthenaBucket:
+    Description: S3 Output Bucket
+    Value: !Ref rAthenaBucket
+
+
+
+    
