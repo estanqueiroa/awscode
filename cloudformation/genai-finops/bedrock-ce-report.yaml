@@ -8,7 +8,7 @@
 #
 # Important: Enable Bedrock Model Access first in the AWS Console
 #
-# Developed by: Rodrigo Guastalli
+# Solution developed by: Rodrigo Guastalli https://www.linkedin.com/in/rodrigoberentajguastalli/
 
 AWSTemplateFormatVersion: "2010-09-09"
 

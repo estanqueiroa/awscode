@@ -2,7 +2,7 @@
 
 This solution deploys an automated FinOps reporting system using AWS Bedrock, Lambda, SNS, and EventBridge.
 
-Developed by: Rodrigo Guastalli
+Solution developed by: Rodrigo Guastalli https://www.linkedin.com/in/rodrigoberentajguastalli/
 
 This CloudFormation template is in DRAFT version and may need minor adjustments to run the solution sucessfully. 
 You can find the original Lambda code and IAM role permissions in the folder.
