@@ -65,7 +65,7 @@ You can find the original Lambda code and IAM role permissions in the folder.
 * CloudWatch Logs for monitoring and debugging
 
 # Output
-The stack provides two main outputs:
+The stack provides three main outputs:
 
 * oLambdaFunction: ARN of the deployed Lambda function
 * oSnsTopic: ARN of the SNS topic for notifications
@@ -74,7 +74,8 @@ The stack provides two main outputs:
 # Cleanup
 
 * Delete all files from S3 bucket (run `Empty` to delete all versions)
-* Delete CloudFormation stack
+* Delete CloudFormation stack from Linked Account
+* Delete IAM Role (assume-role by Lambda) from Payer Account
 
 # License
 
