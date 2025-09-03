@@ -7,6 +7,8 @@ Solution developed by: Rodrigo Guastalli [Linkedin](https://www.linkedin.com/in/
 This CloudFormation template is in DRAFT version and may need minor adjustments to run the solution sucessfully. 
 You can find the original Lambda code and IAM role permissions in the folder.
 
+![Alt text](../diagrams/genai-finops.png?raw=true "Diagram Image")
+
 ## Prerequisites
 
 1. AWS Bedrock Model Access must be enabled in your AWS Console
