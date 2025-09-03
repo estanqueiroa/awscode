@@ -5,7 +5,7 @@ This CloudFormation template deploys a language-based greeting system using AWS 
 ## Overview
 
 The system sends greeting messages in either English or Portuguese based on a language parameter, delivering the message to a specified email address through SNS.
-That´s a simple demonstration on how to integrate Lambda functions with Step Functions state machine.
+Thats a simple demonstration on how to integrate Lambda functions with Step Functions state machine.
 
 ## Architecture Components
 
