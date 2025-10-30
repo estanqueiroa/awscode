@@ -2,6 +2,8 @@
 
 This module sets up AWS Budget alerts and Cost Anomaly Detection with customizable notification settings.
 
+Reference: https://hykell.com/kb/cloud-cost-auditing/aws-cost-anomaly-detection-terraform/
+
 ## Features
 
 - Monthly budget monitoring
