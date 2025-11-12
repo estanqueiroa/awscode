@@ -9,6 +9,15 @@ resource "aws_budgets_budget" "total_cost" {
   time_period_start = var.time_period_start
   time_unit         = var.time_unit
 
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 100
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "FORECASTED"
+    subscriber_email_addresses = [var.email_address]
+}
+
+
   tags = var.global_tags
 }
 
@@ -84,6 +93,7 @@ resource "aws_ce_anomaly_subscription" "alert_percentage" {
   tags = var.global_tags
 
 }
+
 
 
 
