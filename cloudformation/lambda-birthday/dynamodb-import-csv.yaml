@@ -170,6 +170,7 @@ Resources:
                   # Log the error and return a failure response to CloudFormation
                   print(f'Error: {error}')
                   cfnresponse.send(event, context, cfnresponse.FAILED, {'Error': str(error)})
+                  raise
 
 
 
@@ -177,7 +178,7 @@ Resources:
     Type: Custom::DataImport
     Properties:
       ServiceToken: !GetAtt LambdaFunction.Arn
-      Timeout: 60 # seconds
+      ServiceTimeout: 60 # seconds
       S3BucketName: !Ref S3BucketName
       S3FileName: !Ref S3FileName
       DynamoDBTableName: !Ref DynamoDBTableName
