@@ -198,7 +198,7 @@ Ensure `index.html` and `error.html` are uploaded to the S3 bucket root director
 
 ## License
 
-© Amazon.com and Affiliates. This deliverable is considered Developed Content as defined in the AWS Service Terms.
+Check LICENSE file
 
 ## Support
 
