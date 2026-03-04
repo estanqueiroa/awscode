@@ -1,0 +1,357 @@
+# Template for static hosting using S3 bucket and CloudFront + Waf Global + Shield Advanced (requires Subscription)
+
+# Original template from https://blog.canopas.com/deploy-a-website-with-aws-s3-cloudfront-using-cloudformation-c2199dc6c435
+# 
+# References AWS Shield Advanced:
+#  
+# https://github.com/aws-samples/aws-shield-advanced-examples/tree/main
+# https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-shield-protection.html#aws-resource-shield-protection--examples
+# https://github.com/aws-samples/aws-shield-advanced-one-click-deployment/tree/main
+# 
+# REQUIRED: Subscribe to AWS Shield Advanced https://docs.aws.amazon.com/waf/latest/developerguide/enable-ddos-prem.html
+# Otherwise, you will get error message: Resource handler returned message: "The subscription does not exist. (Service: Shield, Status Code: 400, HandlerErrorCode: NotFound)
+#
+# Simplify subscriptions with AWS Firewall Manager https://docs.aws.amazon.com/waf/latest/developerguide/getting-started-fms-shield.html
+#
+######################################
+# index.html file content example
+######################################
+# <!DOCTYPE html>
+# <html>
+#     <head>
+#         <title>Simple SPA</title>
+#     </head>
+#     <body style="background-color: lightpink">
+#         <h1>Hello! This is the simple static hosting!</h1>
+#     </body>
+# </html>
+#
+#
+#
+######################################
+# error.html file content example
+######################################
+# <!DOCTYPE html>
+# <html>
+#   <head>
+#     <title>Error</title>
+#   </head>
+#   <body>
+#     <h1>Oops, something went wrong!</h1>
+#     <p>We encountered an error while processing your request.</p>
+#   </body>
+
+AWSTemplateFormatVersion: 2010-09-09
+Description: A template for static hosting using S3 bucket and CloudFront + Waf Global + Shield Advanced (requires Subscription)
+
+Parameters:
+
+  pNameBucket:
+    Type: String
+    Default: "static-hosting-demo-estanqua"
+    Description: Name for new S3 bucket for static content
+
+  pAlternateDomainName:
+    Type: String
+    Description: Alternate Domain Name for CloudFront Distribution (e.g. *.yourdomain.com)
+    Default: '*.yourdomain.com'
+
+  pAcmCertificateId:
+    Type: String
+    Description: ACM Certificate ID for Aliases in CloudFront Distribution (e.g. *.yourdomain.com)
+    Default: 'id123456789012'
+
+#  pWAFLogsGroup:
+#    Type: String
+#    Default: "test01"
+#    Description: Suffix for CW log group name - must starts with aws-waf-logs-
+
+#  pLogGroupRetention:
+#    Type: Number
+#    Default: 90
+#    Description: Retention days for Log Group
+
+  # pLoadBalancer:
+  #   Type: String
+  #   Default: "internal-teste-scaling-group-1-1993086441.us-east-1.elb.amazonaws.com"
+  #   Description: DNS of EKS internal load balancer to assign to CloudFront
+
+  pOACName:
+    Type: String
+    Default: "static-hosting-OAC"
+    Description: A name to identify the origin access control for S3 bucket.
+
+
+
+Resources:
+
+# new bucket for static site hosting - upload "index.html" and "error.html" files after bucket creation
+
+
+  rS3Bucket:
+    Type: AWS::S3::Bucket
+    Metadata:
+      checkov:
+        skip:
+          - id: "CKV_AWS_18"
+            comment: "access logging not required"
+    Properties:
+      AccessControl: Private
+      BucketName: !Ref pNameBucket
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+
+  rBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref pNameBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: "cloudfront.amazonaws.com"
+            Action: "s3:GetObject"
+            Resource: !Sub "arn:aws:s3:::${pNameBucket}/*"
+            # Condition:
+            #   StringEquals:
+            #     AWS:SourceArn: !Sub "arn:aws:cloudfront::Id-of-IAM-user:distribution/${CloudFrontDistribution}"
+
+
+# new OAC for CloudFront Distribution
+
+  rCloudFrontOriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Description: "origin access control(OAC) for allowing cloudfront to access S3 bucket"
+        Name: !Ref pOACName
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+# new CloudFront distribution
+
+  rCloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Metadata:
+      checkov:
+        skip:
+          - id: "CKV_AWS_86"
+            comment: "access logging not required"
+    DependsOn:
+      - rS3Bucket
+      - rWafWebAcl
+    Properties:
+      DistributionConfig:
+        Origins:
+          - DomainName: !GetAtt rS3Bucket.RegionalDomainName
+            Id: static-hosting-demo
+            S3OriginConfig:
+              OriginAccessIdentity: ""
+            OriginAccessControlId: !GetAtt rCloudFrontOriginAccessControl.Id
+            #OriginPath: "/static"
+          # - DomainName: !Ref pLoadBalancer # internal load balancer for EKS cluster
+          #   Id: eks-load-balancer
+          #   CustomOriginConfig:
+          #     OriginProtocolPolicy: http-only
+          #     HTTPPort: 80
+          #   #OriginAccessControlId: !GetAtt CloudFrontOriginAccessControl.Id
+          #   OriginPath: "/backend"
+        Enabled: "true"
+        Aliases: 
+          - !Ref pAlternateDomainName
+        ##IPV6Enabled: true # default enabled
+        DefaultRootObject: index.html
+        CustomErrorResponses:
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /error.html
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /error.html
+        HttpVersion: http2
+        Comment: "static-web-hosting - Web Content Distribution (us-east-1)"
+        PriceClass: "PriceClass_All"
+        ViewerCertificate: 
+            #CloudFrontDefaultCertificate: true # If the distribution doesn't use Aliases, set to true
+            MinimumProtocolVersion: TLSv1.2_2021
+            SslSupportMethod: 'sni-only'
+            AcmCertificateArn: !Sub 'arn:${AWS::Partition}:acm:${AWS::Region}:${AWS::AccountId}:certificate/${pAcmCertificateId}'
+        #Restrictions:   # Sample only - if you are using WAF the recommendation is to use WAF rule for geoblocking, see below
+        #    GeoRestriction: 
+         #     RestrictionType: whitelist
+        #      Locations: # remove country from list below returns <Message>Access Denied</Message>
+         #       - ES
+          #      - GB
+           #     - US
+            #    - BR
+             #   - CO
+        DefaultCacheBehavior:
+        # https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/using-managed-cache-policies.html
+        # remove policies below if you get "object not found" error and test again
+            CachePolicyId: b2884449-e4de-46a7-ac36-70bc7f1ddd6d # CachingOptimizedForUncompressedObjects - recommended for S3 uncompressed objects
+            OriginRequestPolicyId: 88a5eaf4-2fd4-4709-b370-b4c650ea3fcf # CORS-S3Origin
+            ResponseHeadersPolicyId: e61eb60c-9c35-4d20-a928-2b84e02af89c # CORS-and-SecurityHeadersPolicy
+            AllowedMethods: 
+              - "HEAD"
+              - "GET"
+            CachedMethods: 
+              - "HEAD"
+              - "GET"
+            Compress: true
+            TargetOriginId: static-hosting-demo
+            ForwardedValues:
+              QueryString: "false"
+              Cookies:
+                Forward: none
+            ViewerProtocolPolicy: redirect-to-https
+        # Logging: 
+        #     Bucket: !GetAtt rLoggingBucket.DomainName
+        #     IncludeCookies: false
+        #     Prefix: static-hosting-demo/
+        WebACLId: !GetAtt rWafWebAcl.Arn # associates WAF ACL to CloudFront
+
+
+# create CloudWatch log group for WAF logging
+
+#  rLogGroup: 
+#    Type: AWS::Logs::LogGroup
+#    Properties:
+#      LogGroupName: !Sub "aws-waf-logs-${pWAFLogsGroup}"
+#      #LogGroupName: !Ref pWAFLogsGroup
+#      RetentionInDays: !Ref pLogGroupRetention
+
+# logging configuration for WAF
+
+#  LoggingConfiguration:
+#    Type: AWS::WAFv2::LoggingConfiguration
+#    Properties:
+#      LogDestinationConfigs: 
+#        - !GetAtt rLogGroup.Arn
+#      ResourceArn: !GetAtt rWafWebAcl.Arn
+
+# create WAF ACL rules
+
+  rWafWebAcl:
+    Type: 'AWS::WAFv2::WebACL'
+    Properties:
+      Name: WAF_Common_Protections
+      Scope: CLOUDFRONT
+      DefaultAction:
+        Allow: {}
+      VisibilityConfig:
+        CloudWatchMetricsEnabled: true
+        MetricName: WAF_Common_Protections
+        SampledRequestsEnabled: true
+      Rules:
+        - Name: AWSManagedRulesCommonRule
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesCommonRuleSet
+          Priority: 3
+          OverrideAction:
+            None: {}
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesCommonRule
+            SampledRequestsEnabled: true
+        - Name: AWSManagedRulesKnownBadInputsRule
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesKnownBadInputsRuleSet
+          Priority: 4
+          OverrideAction:
+            None: {}
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesKnownBadInputsRule
+            SampledRequestsEnabled: true
+        - Name: AWSManagedRulesAmazonIpReputation
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesAmazonIpReputationList
+          Priority: 1
+          OverrideAction:
+            None: {}
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesAmazonIpReputation
+            SampledRequestsEnabled: true
+        - Action:
+            Block: {}
+          Name: GeoMatch
+          Priority: 0
+          Statement:
+            NotStatement:
+              Statement:
+                GeoMatchStatement:
+                  CountryCodes:
+                  - ES
+                  - GB
+                  - US
+                  - BR
+                  - CO
+                  - AR
+                  - PT
+                  - FR
+                  - DE
+                  - MX
+                  - PL
+                  - IT
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: true
+            MetricName: GeoMatch
+            SampledRequestsEnabled: true
+        - Action:
+            Block: {}
+          Name: LimitRequests100
+          Priority: 2
+          Statement:
+            RateBasedStatement:
+              AggregateKeyType: IP
+              Limit: 100
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: true
+            MetricName: LimitRequests100
+            SampledRequestsEnabled: true
+
+  # COMMENT BELOW IF SUBSCRIPTION IS NOT ENABLED
+  # Shield Advanced Protection - REQUIRES Shield Advanced Subscription
+  # rProtection:
+  #   Type: AWS::Shield::Protection
+  #   Properties:
+  #     Name: 'MyDistributionwithL7Protection'
+  #     ResourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${rCloudFrontDistribution}"
+  #     # OPTIONAL
+  #     # HealthCheckArns:
+  #     #   - !Sub 'arn:${AWS::Partition}:route53:::healthcheck/${HealthCheckId}'
+  #     ApplicationLayerAutomaticResponseConfiguration:
+  #       Status: ENABLED
+  #       Action:
+  #         Block: { }
+
+Outputs:
+  S3BucketName:
+    Value:
+      Ref: rS3Bucket
+
+  OriginAccessControl:
+    Value:
+      Ref: rCloudFrontOriginAccessControl
+
+  CloudFrontDist:
+    Value:
+      Ref: rCloudFrontDistribution
+
+  CloudFrontDomain:
+    Value:
+      !GetAtt rCloudFrontDistribution.DomainName
